@@ -180,6 +180,18 @@ export async function extractBoqScope(args: {
     if (error instanceof Anthropic.RateLimitError) {
       throw new AIRequestError("The AI provider rate-limited this request. Wait a moment and retry.", "rate_limited");
     }
+    if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
+      console.error("[boq-brief] Anthropic key rejected:", error.status);
+      throw new AIConfigurationError(
+        "The server's Anthropic API key was rejected (invalid, revoked or without access). Replace ANTHROPIC_API_KEY on the server."
+      );
+    }
+    if (error instanceof Anthropic.NotFoundError) {
+      console.error("[boq-brief] Anthropic model not found:", getAnthropicModel());
+      throw new AIConfigurationError(
+        `The configured AI model "${getAnthropicModel()}" was not found. Check ANTHROPIC_MODEL on the server.`
+      );
+    }
     console.error("[boq-brief] Anthropic request failed:", error instanceof Error ? error.message : error);
     throw new AIRequestError("Plan analysis failed. Please try again.", "request_failed");
   }
