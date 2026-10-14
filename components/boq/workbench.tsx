@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Download, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Download, FileText, Loader2, Plus, Ruler, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,6 +24,8 @@ import {
 } from "@/lib/quote/constants";
 import { formatInr } from "@/lib/format";
 import { autoQty } from "@/lib/boq/measure";
+import { BriefNotes, BriefPanel, PlanRoomsEditor, type BriefResult } from "@/components/boq/brief-panel";
+import type { BriefItem, PlanRoom } from "@/lib/boq/brief";
 
 export interface CatalogRate {
   id: string;
@@ -85,6 +87,25 @@ const numCls = "h-8 w-full rounded-md border border-input bg-background px-1.5 t
 
 let keySeq = 1;
 
+type LineLike = Omit<Row, "key" | "rateId"> & { rateId?: string };
+
+function toRows(lines: LineLike[]): Row[] {
+  return lines.map((l) => ({
+    key: keySeq++,
+    rateId: l.rateId ?? "",
+    room: l.room,
+    trade: l.trade,
+    item: l.item,
+    description: l.description,
+    uom: l.uom,
+    l: l.l ?? null,
+    b: l.b ?? null,
+    h: l.h ?? null,
+    qty: l.qty,
+    rate: l.rate,
+  }));
+}
+
 export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; catalog: CatalogRate[] }) {
   const [bhk, setBhk] = useState<Bhk>(initial.bhk);
   const [homeSize, setHomeSize] = useState<HomeSize>(initial.homeSize ?? "small");
@@ -97,6 +118,10 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
   const [spec, setSpec] = useState("");
   const [busy, setBusy] = useState<"build" | "export" | null>(null);
   const [pick, setPick] = useState("");
+  const [mode, setMode] = useState<"brief" | "spec">("brief");
+  const [planRooms, setPlanRooms] = useState<PlanRoom[]>([]);
+  const [briefItems, setBriefItems] = useState<BriefItem[]>([]);
+  const [notes, setNotes] = useState<Pick<BriefResult, "warnings" | "assumptions" | "unpriced" | "questions"> | null>(null);
 
   const roomList = useMemo(
     () =>
@@ -136,28 +161,71 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not build the BOQ.");
       setSpec(j.specification);
-      setRows(
-        j.lines.map((l: Omit<Row, "key">) => ({
-          key: keySeq++,
-          rateId: l.rateId ?? "",
-          room: l.room,
-          trade: l.trade,
-          item: l.item,
-          description: l.description,
-          uom: l.uom,
-          l: l.l ?? null,
-          b: l.b ?? null,
-          h: l.h ?? null,
-          qty: l.qty,
-          rate: l.rate,
-        }))
-      );
+      setRows(toRows(j.lines));
+      setPlanRooms([]);
+      setBriefItems([]);
+      setNotes(null);
       toast.success(`${j.lines.length} lines generated.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not build the BOQ.");
     } finally {
       setBusy(null);
     }
+  }
+
+  function onBriefResult(r: BriefResult) {
+    setRows(toRows(r.lines as unknown as LineLike[]));
+    setPlanRooms(r.rooms);
+    setBriefItems(r.items);
+    setNotes({ warnings: r.warnings, assumptions: r.assumptions, unpriced: r.unpriced, questions: r.questions });
+    setSpec(`${TIER_INFO[tier].label} specification`);
+  }
+
+  /** Free (no AI): re-measure the same scope after the designer corrects a room size. */
+  async function recalc() {
+    if (rows.length > 0 && !window.confirm("Recalculate from the room sizes? Manual edits to lines will be replaced.")) return;
+    setBusy("build");
+    try {
+      const r = await fetch("/api/boq/quantify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tier, city, rooms: planRooms, items: briefItems }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Could not recalculate.");
+      setRows(toRows(j.lines));
+      setNotes((n) => (n ? { ...n, warnings: j.warnings } : n));
+      toast.success("Quantities recalculated.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not recalculate.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Delete the whole BOQ at once; the toast offers an undo. */
+  function deleteAll() {
+    if (rows.length === 0) return;
+    if (!window.confirm(`Delete this entire BOQ (${rows.length} lines)?`)) return;
+    const snap = { rows, planRooms, briefItems, notes, spec };
+    setRows([]);
+    setPlanRooms([]);
+    setBriefItems([]);
+    setNotes(null);
+    setSpec("");
+    toast("BOQ deleted.", {
+      duration: 10000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          setRows(snap.rows);
+          setPlanRooms(snap.planRooms);
+          setBriefItems(snap.briefItems);
+          setNotes(snap.notes);
+          setSpec(snap.spec);
+        },
+      },
+    });
   }
 
   async function download() {
@@ -277,6 +345,26 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
   return (
     <div className="space-y-6">
       <section className="rounded-xl border border-border bg-card p-4">
+        <div className="mb-4 inline-flex rounded-lg border border-border p-0.5 text-xs">
+          {(
+            [
+              ["brief", "From plan + requirements", FileText],
+              ["spec", "From home spec (quick estimate)", Ruler],
+            ] as const
+          ).map(([m, label, Icon]) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={
+                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 " +
+                (mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")
+              }
+            >
+              <Icon className="size-3.5" /> {label}
+            </button>
+          ))}
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">Client</span>
@@ -308,6 +396,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
               ))}
             </select>
           </label>
+          {mode === "spec" && (
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">BHK</span>
             <select className={selectCls + " h-9"} value={bhk} onChange={(e) => setBhk(e.target.value as Bhk)}>
@@ -316,7 +405,8 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
               ))}
             </select>
           </label>
-          {SIZED_BHKS.includes(bhk) && (
+          )}
+          {mode === "spec" && SIZED_BHKS.includes(bhk) && (
             <label className="space-y-1 text-xs">
               <span className="text-muted-foreground">Home size</span>
               <select
@@ -331,6 +421,9 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
           )}
         </div>
 
+        {mode === "brief" && <BriefPanel tier={tier} city={city} onResult={onBriefResult} />}
+
+        {mode === "spec" && (
         <div className="mt-4 flex flex-wrap items-end gap-3">
           {QUOTE_ROOM_TYPES.map((t) => (
             <label key={t.value} className="space-y-1 text-xs">
@@ -357,7 +450,13 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
             </Button>
           )}
         </div>
+        )}
       </section>
+
+      {planRooms.length > 0 && (
+        <PlanRoomsEditor rooms={planRooms} onChange={setPlanRooms} onRecalc={recalc} busy={busy !== null} />
+      )}
+      {notes && <BriefNotes result={notes} />}
 
       {rows.length > 0 && (
         <>
@@ -371,6 +470,9 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
               </div>
               <div className="flex items-center gap-3">
                 <p className="editorial-heading text-2xl tabular-nums">{formatInr(totals.all)}</p>
+                <Button variant="outline" onClick={deleteAll} disabled={busy !== null} className="gap-2 text-destructive">
+                  <Trash2 className="size-4" /> Delete BOQ
+                </Button>
                 <Button onClick={download} disabled={busy !== null} className="gap-2">
                   {busy === "export" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
                   Download .xlsx

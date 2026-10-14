@@ -1,4 +1,4 @@
-import { getRate } from "@/lib/rates/catalog";
+import { findRate, getRate } from "@/lib/rates/catalog";
 import { BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
 import {
   METRO_CITIES,
@@ -437,5 +437,60 @@ export function summarizeBoq(lines: Pick<BoqLine, "trade" | "room" | "amount">[]
     total: r2(total),
     byTrade: ranked(trade).map(({ k, amount }) => ({ trade: k, amount })),
     byRoom: ranked(room).map(({ k, amount }) => ({ room: k, amount })),
+  };
+}
+
+// ---------- helpers for the brief-driven (plan + requirements) flow ----------
+
+function stubCtx(tier: PackageTier, city: string): Ctx {
+  return { tier, spec: SPEC[tier], factor: cityFactor(city), out: [], scale: 1 };
+}
+
+/** One priced line for a rate-card id, or null if the id is unknown / qty is not positive. */
+export function makeLine(
+  rateId: string,
+  room: BoqRoom,
+  item: string,
+  qty: number,
+  dims: Dims,
+  note: string | undefined,
+  city: string
+): BoqLine | null {
+  if (!findRate(rateId)) return null;
+  // Tier is irrelevant for a single explicit rate id (push() only reads factor).
+  const ctx = stubCtx("premium", city);
+  push(ctx, room, rateId, item, qty, dims, note);
+  return ctx.out[0] ?? null;
+}
+
+/** A modular unit (carcass + shutter + hardware) at the tier's specification. */
+export function modularLines(
+  tier: PackageTier,
+  city: string,
+  room: BoqRoom,
+  item: string,
+  w: number,
+  h: number,
+  note: string
+): BoqLine[] {
+  const ctx = stubCtx(tier, city);
+  modular(ctx, room, item, w, h, note);
+  return ctx.out;
+}
+
+/** Rate ids the tier uses for common finishes — a hint for the AI scope step. */
+export function tierHints(tier: PackageTier): Record<string, string> {
+  const s = SPEC[tier];
+  return {
+    carcass: s.carcass,
+    shutter: s.shutter,
+    hardware: s.hardware,
+    wallPanelling: s.panel,
+    falseCeiling: s.ceiling,
+    wallPaint: s.paint,
+    stone: s.stone,
+    showerPartition: s.partition,
+    mirror: s.mirror,
+    curtainChannel: s.curtain,
   };
 }

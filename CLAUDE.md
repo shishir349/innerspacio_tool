@@ -14,7 +14,7 @@ Next.js 16.4 (App Router, Turbopack), React 19, TypeScript strict, Tailwind v4 +
 npm run dev            # dev server, demo mode if no Supabase env
 npm run build / start
 npm run lint           # eslint
-npm run test           # vitest run (all **/*.test.ts, node env); 129 tests
+npm run test           # vitest run (all **/*.test.ts, node env); 140 tests
                        # if "Cannot find native binding": npm i --no-save @rolldown/binding-win32-x64-msvc@<rolldown version>
 npx tsc --noEmit       # typecheck (pre-deploy check per README)
 npm run create-user -- "email" "password"   # Supabase Auth admin create; needs .env.local
@@ -31,7 +31,7 @@ app/login/                  sign-in (outside shell)
 app/present/[token]/        CLIENT link: no login, token is the only credential
 app/get-quote/              PUBLIC self-serve wizard (photos+ideas → AI image per room → tiered estimate); result at /get-quote/result/[token]
 app/api/public/quote/…      public, token-gated lead APIs (create lead, per-room upload+generate, consult)
-app/(app)/boq, /leads       staff BOQ builder (editable lines → .xlsx) and submitted-quote list; app/api/boq/{build,export}
+app/(app)/boq, /leads       staff BOQ builder (editable lines → .xlsx) and submitted-quote list; app/api/boq/{build,from-brief,quantify,export}
 app/presentation/…          designer's own full-screen view (login required)
 app/projects/[id]/preview/  designer previews the client view, read-only
 app/api/projects/[projectId]/rooms/[roomId]/{analyze,concepts,estimate}/route.ts
@@ -50,7 +50,8 @@ lib/
   leads/service.ts          public quote flow (service-role, token-scoped): createLead, processRoom, getQuoteResult
   quote/                    constants (tiers, rooms, cities), estimate.ts (range = BOQ total × 0.92–1.12 + customer-safe breakdown), format.ts (client-safe), schema.ts (zod)
   rates/                    spazay-data.ts (GENERATED selling-rate card, ids `<sheet>:<code>`), catalog.ts (getRate), livspace-benchmarks.ts (cross-check only)
-  boq/                      build.ts (room×tier scope → lines; ASSUMPTIONS live here), lists.ts (frozen trades/rooms/items/UOM), xlsx.ts (exceljs, reference layout), schema.ts, lead.ts
+  boq/                      build.ts (room×tier scope → lines; ASSUMPTIONS live here), lists.ts (frozen trades/rooms/items/UOM), xlsx.ts (exceljs, reference layout), schema.ts, lead.ts, brief.ts (plan rooms + requirement items → quantified lines; all qty/₹ computed here), measure.ts
+  ai/boq-brief.ts           vision step: plan image + photos + requirements → rooms/dims + rate-card items (reads only; never prices)
   motion.ts                 gsap+ScrollTrigger+useGSAP registration, MOTION_OK/REDUCED media queries, EASE
   rate-limit.ts             in-memory limiter behind RateLimiter interface
   storage.ts                photo/concept upload + short-lived signed URLs
@@ -67,7 +68,7 @@ scripts/create-user.ts      operator CLI (service-role)
 - **Public quote flow** (`/get-quote`, `/api/public/*`): anonymous, so cost/abuse guards are mandatory: honeypot, IP + per-lead rate limits, ≤6 rooms/lead, ≤2 photos/room, `QUOTE_DAILY_IMAGE_CAP` (DB-counted, default 100), AI only after contact capture, estimate always recomputed server-side. The estimate is the sum of a generated BOQ (`lib/boq/build.ts`, qty × Spazay rate) — never a score clamped into a band. Tier bands in `lib/quote/constants.ts` (Essential 15–20L, Premium 20–55L, Luxury 55–90L) are calibration targets pinned by `lib/boq/build.test.ts`; room sizes / quantities / city factor in `build.ts` are placeholders to overwrite with real estimator data. Customer-facing breakdown shows trades, rooms and published rates only — no cost/margin.
 - **Ownership checks**: any mutation taking `projectId`+`roomId`(+`photoId`/`conceptId`) must verify the chain first (`assertRoomInProject` in supabase-store).
 - **Client-safe boundary**: client-facing pages render only `lib/presentation/*` DTO types. Never add cost/margin/supplier/internal-notes fields to them; `estimate_versions` has no cost columns by design. Tests in `dto.test.ts` / `token.test.ts` enforce it.
-- **BOQ**: `/boq` + `/api/boq/*` are staff-only (JSON 401). Export recomputes nothing client-trusted: Amount is an `I*J` formula in the sheet. Lead prefill (`lib/boq/lead.ts`) uses the signed-in session + RLS, NOT the service-role client. No BOQ table yet (export-first); add one if designers must resume edits.
+- **BOQ**: `/boq` + `/api/boq/*` are staff-only (JSON 401). Export recomputes nothing client-trusted: Amount is an `I*J` formula in the sheet. Lead prefill (`lib/boq/lead.ts`) uses the signed-in session + RLS, NOT the service-role client. Plan-driven BOQ (`/api/boq/from-brief`, paid, 10/hr/user): the model only reads rooms/dimensions and picks rate-card ids; `lib/boq/brief.ts` computes every quantity and rupee, drops unknown ids with a warning. Unpriceable requirements surface as `unpriced`, never guessed. "Delete BOQ" clears the working BOQ (undo toast). No BOQ table yet (export-first); add one if designers must resume edits.
 - **Image generation, two flows**: public client flow (`lib/leads/service.ts`) = one photo + the customer's ideas, unchanged. Designer flow (`/api/projects/.../concepts`) = all room photos (main + ≤2 angles) + client notes/room size + design brief + styling brief + project floor plan (`lib/floor-plan.ts`, one per project at `floorplans/<projectId>/plan` in the private bucket, no table). Extra prompt sections are opt-in fields on `buildConceptEditInstruction`, so the client prompt stays identical (tested).
 - **Photos**: private bucket; persist only `storage_path`, mint ~10 min signed URLs on read. Deleting a photo must remove the storage object.
 - **Server Actions** return `ActionResult<T>` (`{ok:true,data}|{ok:false,error}`), validate with Zod, call `revalidatePath`. **API routes** (AI/pricing) validate body with Zod and return `{error, code}` with real HTTP status; rate-limit expensive ones (concepts: 15/hr/user).

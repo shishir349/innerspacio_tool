@@ -1,5 +1,6 @@
 "use client";
 
+import { shrinkImage } from "@/lib/client-image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Check, Loader2, Minus, Plus, Search, X } from "lucide-react";
@@ -82,23 +83,6 @@ function expandRooms(counts: Draft["counts"], ideas: Draft["ideas"]): RoomDraft[
     }
   }
   return out;
-}
-
-/** Downscale to ≤1600px JPEG client-side: smaller upload, works on slow phones. */
-async function shrinkImage(file: File): Promise<File> {
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const blob: Blob | null = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.85));
-    if (!blob) return file;
-    return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" });
-  } catch {
-    return file; // e.g. HEIC on a browser that can't decode it — server validates anyway
-  }
 }
 
 export function QuoteWizard() {

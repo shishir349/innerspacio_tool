@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { enforceRateLimit, RateLimitedError } from "@/lib/rate-limit";
 import { exportRequestSchema } from "@/lib/boq/schema";
 import { buildBoqWorkbook } from "@/lib/boq/xlsx";
 
@@ -7,8 +8,17 @@ export const runtime = "nodejs";
 
 // Staff-only: turns the (edited) BOQ lines into the reference-layout .xlsx.
 export async function POST(request: Request) {
-  if (!(await getCurrentUser())) {
+  const user = await getCurrentUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized. Please sign in.", code: "unauthorized" }, { status: 401 });
+  }
+  try {
+    await enforceRateLimit(`boq-export:${user.id}`, { limit: 60, windowSeconds: 3600 });
+  } catch (error) {
+    if (error instanceof RateLimitedError) {
+      return NextResponse.json({ error: "Too many exports. Please wait.", code: "rate_limited" }, { status: 429 });
+    }
+    throw error;
   }
 
   let body: unknown;

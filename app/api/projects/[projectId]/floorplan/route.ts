@@ -29,6 +29,10 @@ export async function POST(request: Request, { params }: Ctx) {
   const g = await guard(params);
   if ("res" in g) return g.res;
 
+  if (Number(request.headers.get("content-length") ?? 0) > 10 * 1024 * 1024) {
+    return NextResponse.json({ error: "Floor plan is larger than 8 MB.", code: "invalid" }, { status: 413 });
+  }
+
   let file: FormDataEntryValue | null = null;
   try {
     file = (await request.formData()).get("file");
