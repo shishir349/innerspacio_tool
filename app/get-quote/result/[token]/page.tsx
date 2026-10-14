@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { isSupabaseConfigured } from "@/lib/config";
-import { getQuoteResult, resolveLead } from "@/lib/leads/service";
+import { getQuoteResult, isFinalized, resolveLead } from "@/lib/leads/service";
 import { QuoteResultView } from "@/components/quote/result-view";
 
 export const metadata: Metadata = {
@@ -14,7 +14,7 @@ export default async function QuoteResultPage({ params }: { params: Promise<{ to
   const { token } = await params;
   const lead = isSupabaseConfigured() ? await resolveLead(token) : null;
 
-  if (!lead) {
+  if (!lead || !isFinalized(lead)) {
     // One generic message for every failure (unknown / malformed token).
     return (
       <main className="grid min-h-screen place-items-center bg-background px-4 text-center">

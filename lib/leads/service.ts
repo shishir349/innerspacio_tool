@@ -20,7 +20,7 @@ import {
   type QuoteEstimateInput,
   type TierEstimate,
 } from "@/lib/quote/estimate";
-import type { CreateLeadInput } from "@/lib/quote/schema";
+import type { DraftLeadInput, FinalizeLeadInput } from "@/lib/quote/schema";
 import type { RoomType } from "@/lib/types";
 
 /**
@@ -30,7 +30,7 @@ import type { RoomType } from "@/lib/types";
  * them — instead every function here takes a lead resolved from a random
  * token (only its SHA-256 hash is stored) and scopes every query to that
  * lead's id. Never add a query here that isn't scoped to a resolved lead,
- * except `createLead` (which creates one) and the global daily cost cap.
+ * except `createDraft` (which creates one) and the global daily cost cap.
  */
 
 export class LeadError extends Error {
@@ -59,7 +59,16 @@ export interface LeadRow {
   estimate_low: number;
   estimate_high: number;
   status: "new" | "generated" | "consult_requested";
+  consent_at: string;
   created_at: string;
+}
+
+// A draft lead has no personal details yet. The columns are NOT NULL, so a
+// draft stores empty strings and this sentinel consent time until finalizeLead.
+const DRAFT_CONSENT = "1970-01-01T00:00:00.000Z";
+
+export function isFinalized(lead: Pick<LeadRow, "consent_at">): boolean {
+  return new Date(lead.consent_at).getTime() > 0;
 }
 
 export interface LeadRoomRow {
@@ -88,17 +97,12 @@ function toEstimateInput(
   };
 }
 
-export async function createLead(input: CreateLeadInput, ip: string) {
-  // Estimate is always computed here from the answers — never trusted from the client.
+export async function createDraft(input: DraftLeadInput, ip: string) {
   const counts: Partial<Record<QuoteRoomType, number>> = {};
   for (const r of input.rooms) {
     const t = r.roomType as QuoteRoomType;
     counts[t] = (counts[t] ?? 0) + 1;
   }
-  const estimate = estimateForTier(
-    { bhk: input.bhk, homeSize: input.homeSize, city: input.city, rooms: counts },
-    input.packageTier
-  );
 
   const token = generateToken();
   const client = db();
@@ -106,23 +110,23 @@ export async function createLead(input: CreateLeadInput, ip: string) {
   const { data: lead, error } = await client
     .from("leads")
     .insert({
-      name: input.name,
-      email: input.email,
-      phone: input.phone,
-      whatsapp_opt_in: input.whatsappOptIn,
-      city: input.city,
+      name: "",
+      email: "",
+      phone: "",
+      city: "",
+      whatsapp_opt_in: false,
       bhk: input.bhk,
       home_size: input.homeSize ?? null,
       package_tier: input.packageTier,
-      estimate_low: estimate.lowLakh,
-      estimate_high: estimate.highLakh,
+      estimate_low: 0,
+      estimate_high: 0,
       token_hash: hashToken(token),
-      consent_at: new Date().toISOString(),
+      consent_at: DRAFT_CONSENT,
       ip_hash: hashToken(`ip:${ip}`),
     })
     .select("id")
     .single();
-  if (error || !lead) throw new Error("Could not save your request. Please try again.");
+  if (error || !lead) throw new Error("Could not start your request. Please try again.");
 
   const seen: Record<string, number> = {};
   const rows = input.rooms.map((r) => {
@@ -146,9 +150,37 @@ export async function createLead(input: CreateLeadInput, ip: string) {
   return {
     leadId: lead.id as string,
     token,
-    estimate,
     rooms: rooms.map((r) => ({ id: r.id as string, roomType: r.room_type as string, label: r.label as string })),
   };
+}
+
+/**
+ * Attaches contact details + consent to a draft and computes the estimate.
+ * The estimate is always computed here from the stored answers, never trusted
+ * from the client. Safe to call twice (last write wins).
+ */
+export async function finalizeLead(lead: LeadRow, input: FinalizeLeadInput): Promise<TierEstimate> {
+  const client = db();
+  const { data: rooms } = await client.from("lead_rooms").select("room_type").eq("lead_id", lead.id);
+  const estimate = estimateForTier(
+    toEstimateInput({ bhk: lead.bhk, home_size: lead.home_size, city: input.city }, (rooms ?? []) as LeadRoomRow[]),
+    lead.package_tier
+  );
+  const { error } = await client
+    .from("leads")
+    .update({
+      name: input.name,
+      email: input.email,
+      phone: input.phone,
+      whatsapp_opt_in: input.whatsappOptIn,
+      city: input.city,
+      estimate_low: estimate.lowLakh,
+      estimate_high: estimate.highLakh,
+      consent_at: new Date().toISOString(),
+    })
+    .eq("id", lead.id);
+  if (error) throw new Error("Could not save your details. Please try again.");
+  return estimate;
 }
 
 /** The ONLY way to get a lead from a token. Same generic miss for every failure. */
@@ -156,7 +188,7 @@ export async function resolveLead(token: string): Promise<LeadRow | null> {
   if (!token || token.length < 20 || token.length > 100) return null;
   const { data } = await db()
     .from("leads")
-    .select("id, name, city, bhk, home_size, package_tier, estimate_low, estimate_high, status, created_at")
+    .select("id, name, city, bhk, home_size, package_tier, estimate_low, estimate_high, status, consent_at, created_at")
     .eq("token_hash", hashToken(token))
     .maybeSingle();
   return (data as LeadRow | null) ?? null;

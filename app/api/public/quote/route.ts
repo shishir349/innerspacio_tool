@@ -2,10 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { enforceRateLimit, RateLimitedError } from "@/lib/rate-limit";
 import { isSupabaseConfigured } from "@/lib/config";
 import { clientIp } from "@/lib/supabase/middleware";
-import { createLeadSchema } from "@/lib/quote/schema";
-import { createLead } from "@/lib/leads/service";
+import { draftLeadSchema } from "@/lib/quote/schema";
+import { createDraft } from "@/lib/leads/service";
 
-// Public, unauthenticated: creates a lead and returns its token once.
+// Public, unauthenticated: creates a draft lead (no personal details) and
+// returns its token once. Contact details are attached by /finalize later.
 export async function POST(request: NextRequest) {
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
@@ -16,7 +17,9 @@ export async function POST(request: NextRequest) {
 
   const ip = clientIp(request);
   try {
-    await enforceRateLimit(`quote-create:${ip}`, { limit: 5, windowSeconds: 3600 });
+    // Drafts can trigger paid image generation before any contact capture, so
+    // keep this tight; the per-lead and daily caps bound the rest.
+    await enforceRateLimit(`quote-create:${ip}`, { limit: 4, windowSeconds: 3600 });
   } catch (error) {
     if (error instanceof RateLimitedError) {
       return NextResponse.json(
@@ -34,12 +37,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request.", code: "invalid" }, { status: 400 });
   }
 
-  // Honeypot: pretend success so bots learn nothing, but create nothing.
-  if (typeof (body as { website?: unknown })?.website === "string" && (body as { website: string }).website) {
-    return NextResponse.json({ token: "x".repeat(43), rooms: [], estimate: null });
-  }
-
-  const parsed = createLeadSchema.safeParse(body);
+  const parsed = draftLeadSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues.map((i) => i.message).join("; "), code: "invalid" },
@@ -48,8 +46,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const lead = await createLead(parsed.data, ip);
-    return NextResponse.json(lead);
+    return NextResponse.json(await createDraft(parsed.data, ip));
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Something went wrong.", code: "server_error" },

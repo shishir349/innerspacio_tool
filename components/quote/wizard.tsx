@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Pop } from "@/components/motion/pop";
+import { ConceptSlider, type SlideItem } from "@/components/quote/concept-slider";
 import { EASE, MOTION_OK, gsap, useGSAP } from "@/lib/motion";
 import {
   BHK_OPTIONS,
@@ -21,14 +22,17 @@ import {
   QUOTE_ROOM_TYPES,
   SIZED_BHKS,
   TIER_INFO,
-  TIER_RANGE_LAKH,
   type Bhk,
   type HomeSize,
   type PackageTier,
   type QuoteRoomType,
 } from "@/lib/quote/constants";
 
-const STEPS = ["Home", "Rooms", "Photos", "Package", "Details"] as const;
+// Package comes BEFORE photos so image generation (style depends on the
+// tier) can start the moment the visitor leaves the photos step.
+const STEPS = ["Home", "Rooms", "Package", "Photos", "Details"] as const;
+const PHOTOS_STEP = 3;
+const LAST_STEP = STEPS.length - 1;
 
 interface RoomDraft {
   key: string; // stable client key, e.g. bedroom-2
@@ -105,7 +109,11 @@ export function QuoteWizard() {
   const [error, setError] = useState<string | null>(null);
   const [cityOpen, setCityOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [progress, setProgress] = useState<{ label: string; state: "wait" | "run" | "done" | "fail"; msg?: string }[]>([]);
+  const [starting, setStarting] = useState(false);
+  // Per-room generation state, filled in the background after the photos step.
+  const [gen, setGen] = useState<Record<string, Omit<SlideItem, "key" | "label">>>({});
+  const leadRef = useRef<{ leadId: string; token: string; sig: string } | null>(null);
+  const allDone = useRef<Promise<void>>(Promise.resolve());
   const honeypot = useRef<HTMLInputElement>(null);
 
   // Shake the error line so a failed step is noticed (not just announced).
@@ -138,12 +146,12 @@ export function QuoteWizard() {
   function validate(step: number): string | null {
     if (step === 0 && !d.bhk) return "Please choose your home type.";
     if (step === 1 && totalRooms === 0) return "Select at least one room.";
-    if (step === 2) {
+    if (step === 2 && !d.tier) return "Please pick a package.";
+    if (step === PHOTOS_STEP) {
       const missing = rooms.find((r) => (photos[r.key]?.length ?? 0) === 0);
       if (missing) return `Add a photo of your ${missing.label.toLowerCase()}.`;
     }
-    if (step === 3 && !d.tier) return "Please pick a package.";
-    if (step === 4) {
+    if (step === LAST_STEP) {
       if (d.name.trim().length < 2) return "Please enter your name.";
       if (!/^\S+@\S+\.\S+$/.test(d.email)) return "Enter a valid email address.";
       if (!/^\+?[0-9][0-9\s-]{7,16}$/.test(d.phone.trim())) return "Enter a valid phone number.";
@@ -153,18 +161,40 @@ export function QuoteWizard() {
     return null;
   }
 
-  function next() {
+  async function next() {
     const problem = validate(d.step);
     setError(problem);
     if (problem) return;
-    if (d.step === STEPS.length - 1) void submit();
-    else set("step", d.step + 1);
+    if (d.step === LAST_STEP) {
+      void submit();
+      return;
+    }
+    if (d.step === PHOTOS_STEP) {
+      // Leaving the photos step: create a draft and start generating now, so
+      // images are (partly) ready by the time the visitor reaches the end.
+      const failure = await startGeneration();
+      if (failure) {
+        setError(failure);
+        return;
+      }
+    }
+    set("step", d.step + 1);
   }
 
-  async function submit() {
-    setSubmitting(true);
-    setError(null);
-    setProgress(rooms.map((r) => ({ label: r.label, state: "wait" })));
+  function signature() {
+    return JSON.stringify({
+      b: d.bhk,
+      s: d.homeSize,
+      t: d.tier,
+      r: rooms.map((r) => [r.roomType, r.ideas, (photos[r.key] ?? []).map((f) => f.name + f.size)]),
+    });
+  }
+
+  /** Returns an error message, or null when generation is running/started. */
+  async function startGeneration(): Promise<string | null> {
+    const sig = signature();
+    if (leadRef.current?.sig === sig) return null; // nothing changed since last time
+    setStarting(true);
     try {
       const res = await fetch("/api/public/quote", {
         method: "POST",
@@ -173,6 +203,85 @@ export function QuoteWizard() {
           bhk: d.bhk,
           homeSize: d.bhk && SIZED_BHKS.includes(d.bhk) ? d.homeSize : undefined,
           packageTier: d.tier,
+          rooms: rooms.map((r) => ({ roomType: r.roomType, ideas: r.ideas || undefined })),
+        }),
+      });
+      const lead = await res.json();
+      if (!res.ok) return lead.error ?? "Could not start. Please try again.";
+
+      leadRef.current = { leadId: lead.leadId, token: lead.token, sig };
+      setGen(Object.fromEntries(rooms.map((r) => [r.key, { state: "queued" as const }])));
+      allDone.current = runQueue(lead.leadId, lead.token, lead.rooms, rooms, photos);
+      return null;
+    } catch {
+      return "Network problem. Please check your connection and try again.";
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  async function runQueue(
+    leadId: string,
+    token: string,
+    serverRooms: { id: string }[],
+    rs: RoomDraft[],
+    ph: Record<string, File[]>
+  ) {
+    const live = () => leadRef.current?.leadId === leadId; // ignore results of a superseded draft
+    const patch = (key: string, v: Omit<SlideItem, "key" | "label">) => {
+      if (live()) setGen((g) => ({ ...g, [key]: v }));
+    };
+
+    async function one(i: number) {
+      const key = rs[i].key;
+      patch(key, { state: "run" });
+      const form = new FormData();
+      for (const f of ph[key] ?? []) form.append("photos", await shrinkImage(f));
+      let msg: string | undefined;
+      // Generation can run ~60s+; a proxy may cut the connection while the server
+      // finishes. The server is idempotent + de-duplicates, so retrying is safe.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        msg = undefined;
+        try {
+          const r = await fetch(`/api/public/quote/${leadId}/rooms/${serverRooms[i].id}`, {
+            method: "POST",
+            headers: { "x-quote-token": token },
+            body: form,
+          });
+          if (r.ok) {
+            const out = await r.json();
+            patch(key, { state: "done", url: out.concept?.url, isDemo: out.concept?.isDemo });
+            return;
+          }
+          const body = await r.json().catch(() => null);
+          msg = body?.error ?? "Could not generate this image.";
+          if (![502, 503, 504].includes(r.status)) break; // 4xx: retrying won't help
+        } catch {
+          msg = "Network problem.";
+        }
+        await new Promise((res) => setTimeout(res, 4000));
+      }
+      patch(key, { state: "fail", msg });
+    }
+
+    // Two at a time: faster than serial, gentle on the host and the image API.
+    let nextIndex = 0;
+    const worker = async () => {
+      while (nextIndex < rs.length) await one(nextIndex++);
+    };
+    await Promise.all([worker(), worker()]);
+  }
+
+  async function submit() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const lead = leadRef.current;
+      if (!lead) throw new Error("Please go back and add your room photos first.");
+      const res = await fetch(`/api/public/quote/${lead.leadId}/finalize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-quote-token": lead.token },
+        body: JSON.stringify({
           city: d.city,
           name: d.name.trim(),
           email: d.email.trim(),
@@ -180,41 +289,11 @@ export function QuoteWizard() {
           whatsappOptIn: d.whatsapp,
           consent: d.consent,
           website: honeypot.current?.value ?? "",
-          rooms: rooms.map((r) => ({ roomType: r.roomType, ideas: r.ideas || undefined })),
         }),
       });
-      const lead = await res.json();
-      if (!res.ok) throw new Error(lead.error ?? "Could not submit. Please try again.");
-
-      // One request per room: each can take up to ~a minute to generate.
-      for (let i = 0; i < rooms.length; i++) {
-        const target = lead.rooms[i];
-        const files = photos[rooms[i].key] ?? [];
-        setProgress((p) => p.map((x, j) => (j === i ? { ...x, state: "run" } : x)));
-        const form = new FormData();
-        for (const f of files) form.append("photos", await shrinkImage(f));
-        let msg: string | undefined;
-        // Generation can run ~60s+; a proxy may cut the connection while the server
-        // finishes. The server is idempotent + de-duplicates, so retrying is safe.
-        for (let attempt = 0; attempt < 3; attempt++) {
-          msg = undefined;
-          try {
-            const r = await fetch(`/api/public/quote/${lead.leadId}/rooms/${target.id}`, {
-              method: "POST",
-              headers: { "x-quote-token": lead.token },
-              body: form,
-            });
-            if (r.ok) break;
-            const body = await r.json().catch(() => null);
-            msg = body?.error ?? "Could not generate this image.";
-            if (![502, 503, 504].includes(r.status)) break; // 4xx: retrying won't help
-          } catch {
-            msg = "Network problem — your estimate is still saved.";
-          }
-          await new Promise((res) => setTimeout(res, 4000));
-        }
-        setProgress((p) => p.map((x, j) => (j === i ? { ...x, state: msg ? "fail" : "done", msg } : x)));
-      }
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error ?? "Could not submit. Please try again.");
+      await allDone.current; // contact is saved; now wait for any images still rendering
       router.push(`/get-quote/result/${lead.token}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
@@ -222,31 +301,25 @@ export function QuoteWizard() {
     }
   }
 
+  const slides: SlideItem[] = rooms.map((r) => ({
+    key: r.key,
+    label: r.label,
+    ...(gen[r.key] ?? { state: "queued" as const }),
+  }));
+
   if (submitting) {
+    const pending = slides.filter((x) => x.state === "queued" || x.state === "run").length;
     return (
-      <Shell step={STEPS.length - 1}>
-        <h1 className="editorial-heading text-2xl">Designing your rooms…</h1>
+      <Shell step={LAST_STEP}>
+        <h1 className="editorial-heading text-2xl">Submitting your details…</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          This takes up to a minute per room. Please keep this page open.
+          {pending > 0
+            ? `${pending} room${pending === 1 ? "" : "s"} still rendering. Please keep this page open.`
+            : "Almost there."}
         </p>
-        <ul className="mt-6 space-y-3">
-          {progress.map((p) => (
-            <li key={p.label} className="flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3">
-              <span className="mt-0.5">
-                <Pop key={p.state}>
-                  {p.state === "run" && <Loader2 className="size-4 animate-spin text-primary" />}
-                  {p.state === "done" && <Check className="size-4 text-primary" />}
-                  {p.state === "fail" && <X className="size-4 text-destructive" />}
-                  {p.state === "wait" && <span className="block size-4 rounded-full border border-border" />}
-                </Pop>
-              </span>
-              <span className="text-sm">
-                {p.label}
-                {p.msg && <span className="block text-xs text-destructive">{p.msg}</span>}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-6">
+          <ConceptSlider items={slides} />
+        </div>
       </Shell>
     );
   }
@@ -322,7 +395,7 @@ export function QuoteWizard() {
         </section>
       )}
 
-      {d.step === 2 && (
+      {d.step === PHOTOS_STEP && (
         <section>
           <Heading
             title="Show us the space"
@@ -342,20 +415,16 @@ export function QuoteWizard() {
         </section>
       )}
 
-      {d.step === 3 && (
+      {d.step === 2 && (
         <section>
           <Heading title="Pick your package" sub="You can change this later with your designer." />
           <div className="mt-6 grid gap-3">
             {PACKAGE_TIERS.map((t) => {
               const info = TIER_INFO[t];
-              const r = TIER_RANGE_LAKH[t];
               return (
                 <ChoiceCard key={t} selected={d.tier === t} onClick={() => set("tier", t)} block>
-                  <span className="flex items-baseline justify-between">
+                  <span className="block">
                     <span className="editorial-heading text-lg">{info.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      typically ₹{r.min}–{r.max}L
-                    </span>
                   </span>
                   <span className="mt-1 block text-sm font-normal text-muted-foreground">{info.blurb}</span>
                   <span className="mt-3 block space-y-1">
@@ -373,10 +442,16 @@ export function QuoteWizard() {
         </section>
       )}
 
-      {d.step === 4 && (
+      {d.step === LAST_STEP && (
         <section>
-          <Heading title="Your estimate is almost ready" sub="Where should we send your designs and estimate?" />
-          <div className="mt-6 space-y-4">
+          <Heading
+            title="Your designs are on the way"
+            sub="Swipe through your rooms, then tell us where to send your estimate."
+          />
+          <div className="mt-5">
+            <ConceptSlider items={slides} />
+          </div>
+          <div className="mt-8 space-y-4">
             <Field id="q-name" label="Name">
               <Input id="q-name" autoComplete="name" value={d.name} onChange={(e) => set("name", e.target.value)} />
             </Field>
@@ -456,12 +531,13 @@ export function QuoteWizard() {
             setError(null);
             set("step", Math.max(0, d.step - 1));
           }}
-          disabled={d.step === 0}
+          disabled={d.step === 0 || starting}
         >
           Back
         </Button>
-        <Button size="lg" className="min-w-32" onClick={next}>
-          {d.step === STEPS.length - 1 ? "See my estimate" : "Next"}
+        <Button size="lg" className="min-w-32 gap-2" onClick={() => void next()} disabled={starting}>
+          {starting && <Loader2 className="size-4 animate-spin" />}
+          {d.step === LAST_STEP ? "Submit" : "Next"}
         </Button>
       </div>
 
