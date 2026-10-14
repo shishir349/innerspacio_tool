@@ -104,7 +104,7 @@ const TOOL_SCHEMA: Anthropic.Tool = {
   },
 };
 
-function catalogText(): string {
+export function catalogText(): string {
   return RATE_CARD.map((r) => `${r.id} | ${r.item.slice(0, 72)} | ${r.uom} | ₹${r.rate}`).join("\n");
 }
 
@@ -201,7 +201,15 @@ export async function extractBoqScope(args: {
   );
   if (!use) throw new AIValidationError("The AI response did not include a structured BOQ scope.");
 
-  const raw = use.input as {
+  return normalizeScope(use.input);
+}
+
+/**
+ * Validates a model-produced scope (from any provider) into a BoqScope: invalid rooms and
+ * items are dropped and reported, strings are capped, and at least one room is required.
+ */
+export function normalizeScope(input: unknown): BoqScope {
+  const raw = (input && typeof input === "object" ? input : {}) as {
     rooms?: unknown[];
     items?: unknown[];
     assumptions?: unknown;

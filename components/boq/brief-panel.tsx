@@ -20,6 +20,10 @@ export interface BriefResult {
 }
 
 const MAX_PHOTOS = 6;
+const POLL_MS = 4000;
+const POLL_DEADLINE_MS = 12 * 60 * 1000;
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const selectCls =
   "h-8 w-full rounded-md border border-input bg-background px-1.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const numCls =
@@ -57,6 +61,7 @@ export function BriefPanel({
   const [photos, setPhotos] = useState<File[]>([]);
   const [requirements, setRequirements] = useState("");
   const [busy, setBusy] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const planUrl = useMemo(() => (plan ? URL.createObjectURL(plan) : null), [plan]);
   const photoInput = useRef<HTMLInputElement>(null);
 
@@ -73,14 +78,46 @@ export function BriefPanel({
       fd.append("tier", tier);
       fd.append("city", city);
       const r = await fetch("/api/boq/from-brief", { method: "POST", body: fd });
-      const j = await r.json();
+      let j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not analyse the plan.");
+
+      // The AI agent can take a few minutes: the server returns a task id and we poll it.
+      if (j.async) {
+        const started = Date.now();
+        let failures = 0;
+        for (;;) {
+          if (Date.now() - started > POLL_DEADLINE_MS) {
+            throw new Error("The analysis is taking too long. Try again, or use a smaller plan image.");
+          }
+          await wait(POLL_MS);
+          setElapsed(Math.round((Date.now() - started) / 1000));
+          let p: { status?: string; error?: string } & Record<string, unknown>;
+          try {
+            const pr = await fetch(
+              `/api/boq/from-brief/${encodeURIComponent(j.taskId)}?tier=${tier}&city=${encodeURIComponent(city)}`
+            );
+            p = await pr.json();
+          } catch {
+            if (++failures > 5) throw new Error("Lost connection while waiting for the analysis.");
+            continue;
+          }
+          failures = 0;
+          if (p.status === "running") continue;
+          if (p.status === "failed") throw new Error(p.error ?? "The analysis failed.");
+          if (p.status === "done") {
+            j = p;
+            break;
+          }
+          throw new Error((p.error as string) ?? "Unexpected response while waiting for the analysis.");
+        }
+      }
       onResult(j as BriefResult);
       toast.success(`${j.lines.length} BOQ lines from ${j.rooms.length} rooms on the plan.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not analyse the plan.");
     } finally {
       setBusy(false);
+      setElapsed(0);
     }
   }
 
@@ -165,7 +202,12 @@ export function BriefPanel({
         {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
         {busy ? "Reading the plan…" : "Generate BOQ from plan + requirements"}
       </Button>
-      {busy && <p className="text-xs text-muted-foreground">This can take up to a minute or two.</p>}
+      {busy && (
+        <p role="status" className="text-xs text-muted-foreground">
+          The AI agent is reading the plan and requirements — this usually takes a few minutes
+          {elapsed > 0 ? ` (${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")})` : ""}. Keep this tab open.
+        </p>
+      )}
     </div>
   );
 }

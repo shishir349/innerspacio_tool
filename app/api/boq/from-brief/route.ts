@@ -4,8 +4,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { enforceRateLimit, RateLimitedError } from "@/lib/rate-limit";
 import { AIConfigurationError, AIRequestError, AIValidationError } from "@/lib/ai/errors";
 import { extractBoqScope, type ImageInput } from "@/lib/ai/boq-brief";
-import { quantify } from "@/lib/boq/brief";
-import { summarizeBoq } from "@/lib/boq/build";
+import { briefResponse } from "@/lib/boq/brief-response";
+import { startManusBoq } from "@/lib/ai/boq-manus";
+import { getBoqProvider } from "@/lib/ai/boq-provider";
 import { PhotoUploadError, validatePhotoFile } from "@/lib/storage";
 import { PACKAGE_TIERS } from "@/lib/quote/constants";
 
@@ -107,9 +108,25 @@ export async function POST(request: Request) {
     throw error;
   }
 
-  let scope;
+  const provider = getBoqProvider();
+  if (!provider) {
+    return NextResponse.json(
+      { error: "No AI provider is configured. Set MANUS_API_KEY (or ANTHROPIC_API_KEY) on the server.", code: "not_configured" },
+      { status: 503 }
+    );
+  }
+
   try {
-    scope = await extractBoqScope({ plan, photos, requirements: fields.data.requirements, tier: fields.data.tier });
+    if (provider === "manus") {
+      // Manus agent tasks run for minutes: start it and let the client poll the [taskId] route.
+      const taskId = await startManusBoq({ plan, photos, requirements: fields.data.requirements, tier: fields.data.tier });
+      return NextResponse.json(
+        { async: true, taskId, tier: fields.data.tier, city: fields.data.city },
+        { status: 202 }
+      );
+    }
+    const scope = await extractBoqScope({ plan, photos, requirements: fields.data.requirements, tier: fields.data.tier });
+    return NextResponse.json({ async: false, ...briefResponse(scope, fields.data.tier, fields.data.city) });
   } catch (error) {
     if (error instanceof AIConfigurationError) {
       return NextResponse.json({ error: error.message, code: "not_configured" }, { status: 503 });
@@ -123,22 +140,4 @@ export async function POST(request: Request) {
     }
     throw error;
   }
-
-  const { lines, warnings } = quantify(scope.items, scope.rooms, {
-    tier: fields.data.tier,
-    city: fields.data.city,
-  });
-
-  return NextResponse.json({
-    tier: fields.data.tier,
-    city: fields.data.city,
-    rooms: scope.rooms,
-    items: scope.items,
-    lines,
-    summary: summarizeBoq(lines),
-    warnings: [...warnings, ...scope.dropped],
-    assumptions: scope.assumptions,
-    unpriced: scope.unpriced,
-    questions: scope.questions,
-  });
 }
