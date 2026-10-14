@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { EASE, MOTION_OK, gsap, useGSAP } from "@/lib/motion";
-import { formatLakh } from "@/lib/quote/estimate";
+import { formatLakh } from "@/lib/quote/format";
 
 // Named formatters (not functions) so server components can pass the choice as a prop.
 const FORMATTERS = {

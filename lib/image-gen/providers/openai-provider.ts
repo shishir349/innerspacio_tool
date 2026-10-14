@@ -54,16 +54,25 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
     const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
     const n = Math.max(1, Math.min(request.variantCount, MAX_VARIANTS_PER_REQUEST, 10));
 
-    const referenceImage = await fetchImageBytes(request.referencePhotoUrl);
-    const extension = extensionForContentType(referenceImage.contentType);
+    // Reference first, then extra angles, floor plan last (the prompt says so).
+    const urls = [
+      request.referencePhotoUrl,
+      ...(request.additionalImageUrls ?? []),
+      ...(request.floorPlanUrl ? [request.floorPlanUrl] : []),
+    ];
+    const images = await Promise.all(urls.map((u) => fetchImageBytes(u)));
 
     const form = new FormData();
     form.append("model", model);
-    form.append(
-      "image",
-      new Blob([referenceImage.bytes], { type: referenceImage.contentType }),
-      `reference.${extension}`
-    );
+    // One image uses the plain field; several use the array form gpt-image-1 accepts.
+    const field = images.length > 1 ? "image[]" : "image";
+    images.forEach((img, i) => {
+      form.append(
+        field,
+        new Blob([img.bytes], { type: img.contentType }),
+        `reference-${i + 1}.${extensionForContentType(img.contentType)}`
+      );
+    });
     form.append("prompt", request.brief);
     form.append("size", DEFAULT_SIZE);
     form.append("n", String(n));

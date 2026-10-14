@@ -8,7 +8,7 @@ import { Reveal } from "@/components/motion/reveal";
 import { CountUp } from "@/components/motion/count-up";
 import { EASE, MOTION_OK, gsap, useGSAP } from "@/lib/motion";
 import { TIER_INFO } from "@/lib/quote/constants";
-import { formatRange } from "@/lib/quote/estimate";
+import { formatLakh, formatRange } from "@/lib/quote/format";
 import type { QuoteResult } from "@/lib/leads/service";
 
 export function QuoteResultView({ result, token }: { result: QuoteResult; token: string }) {
@@ -118,6 +118,71 @@ export function QuoteResultView({ result, token }: { result: QuoteResult; token:
             Images are AI-generated concepts for inspiration. Final design depends on a site visit and
             measurements.
           </p>
+        </section>
+
+        <section aria-labelledby="basis">
+          <h2 id="basis" className="editorial-heading text-xl">
+            How we got this number
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your range is built line by line from InnerSpacio&apos;s published rates, not guessed. About{" "}
+            <span className="tabular-nums">{formatLakh(result.breakdown.totalLakh)}</span> of work across{" "}
+            {result.breakdown.byRoom.length} areas, with a range for site conditions and final choices.
+          </p>
+
+          <div className="mt-4 rounded-xl border border-border bg-card p-4">
+            <h3 className="text-sm font-medium">Where the money goes</h3>
+            <ul className="mt-3 space-y-3">
+              {result.breakdown.byTrade.map((t) => (
+                <li key={t.label} className="text-sm">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span>{t.label}</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {formatLakh(t.lakh)} · {t.pct}%
+                    </span>
+                  </div>
+                  <span className="mt-1 block h-1.5 rounded-full bg-border/60" aria-hidden>
+                    <span
+                      data-bar
+                      className="block h-full origin-left rounded-full bg-primary/70"
+                      style={{ width: `${Math.max(3, t.pct)}%` }}
+                    />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h3 className="text-sm font-medium">By room</h3>
+              <ul className="mt-3 space-y-1.5 text-sm">
+                {result.breakdown.byRoom.map((r) => (
+                  <li key={r.label} className="flex justify-between gap-3">
+                    <span>{r.label}</span>
+                    <span className="tabular-nums text-muted-foreground">{formatLakh(r.lakh)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h3 className="text-sm font-medium">Biggest items</h3>
+              <ul className="mt-3 space-y-2 text-sm">
+                {result.breakdown.highlights.map((h, i) => (
+                  <li key={i}>
+                    <span className="text-muted-foreground">{h.room}: </span>
+                    {h.text}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <ul className="mt-4 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+            {result.breakdown.assumptions.map((a) => (
+              <li key={a}>{a}</li>
+            ))}
+          </ul>
         </section>
 
         <section aria-labelledby="compare">

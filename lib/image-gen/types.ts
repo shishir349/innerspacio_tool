@@ -6,6 +6,10 @@ export const MAX_VARIANTS_PER_REQUEST = 4;
 export interface ConceptGenerationRequest {
   /** URL of the client's actual uploaded room photograph — the required reference image. */
   referencePhotoUrl: string;
+  /** Extra photos of the same room (designer flow). Sent after the reference, in order. */
+  additionalImageUrls?: string[];
+  /** The home's floor plan / blueprint (designer flow). Always sent last. */
+  floorPlanUrl?: string;
   roomName: string;
   roomType: string;
   style: string;

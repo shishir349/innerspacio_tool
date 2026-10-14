@@ -6,6 +6,7 @@ import { getImageGenerationProvider } from "@/lib/image-gen/provider";
 import { MAX_VARIANTS_PER_REQUEST } from "@/lib/image-gen/types";
 import { buildConceptEditInstruction } from "@/lib/image-gen/prompt-builder";
 import { uploadConceptImage, ConceptImageUploadError } from "@/lib/storage";
+import { getFloorPlanUrl } from "@/lib/floor-plan";
 import { enforceRateLimit, RateLimitedError } from "@/lib/rate-limit";
 import { isSupabaseConfigured } from "@/lib/config";
 import { ROOM_TYPES } from "@/lib/types";
@@ -16,7 +17,12 @@ const requestSchema = z.object({
   brief: z.string().min(1, "A short styling brief is required."),
   palette: z.string().optional(),
   variantCount: z.coerce.number().int().min(1).max(MAX_VARIANTS_PER_REQUEST).default(1),
+  /** Attach the project's floor plan as a layout reference, if it has one. */
+  useFloorPlan: z.boolean().default(true),
 });
+
+/** Main photo + up to this many extra angles go to the model (cost/latency bound). */
+const MAX_EXTRA_PHOTOS = 2;
 
 function dataUrlToBase64(dataUrl: string): { base64: string; contentType: string } | null {
   const match = /^data:([^;]+);base64,(.*)$/.exec(dataUrl);
@@ -84,7 +90,31 @@ export async function POST(
   const provider = getImageGenerationProvider();
   const roomTypeLabel = ROOM_TYPES.find((t) => t.value === room.type)?.label ?? room.type;
 
+  // Designer flow uses everything on file: all photos (primary first), the
+  // client's own notes, room size, and the floor plan. The public client flow
+  // (lib/leads/service.ts) deliberately keeps its simpler single-photo prompt.
+  const extraPhotos = room.photos.filter((p) => p.id !== referencePhoto.id).slice(0, MAX_EXTRA_PHOTOS);
+  const floorPlanUrl = parsed.data.useFloorPlan ? await getFloorPlanUrl(projectId) : null;
+  const d = room.dimensions;
+  const dimensions =
+    d.length && d.width
+      ? `${d.length} × ${d.width} ${d.unit}${d.ceilingHeight ? `, ceiling ${d.ceilingHeight} ${d.unit}` : ""}`
+      : undefined;
+  const clientDescription = [
+    project.designPreferences,
+    room.existingConditionNotes,
+    room.storageRequirements && `Storage needs: ${room.storageRequirements}`,
+    room.materialPreferences && `Material preferences: ${room.materialPreferences}`,
+    room.constraints && `Constraints: ${room.constraints}`,
+  ]
+    .filter((x): x is string => !!x && x.trim().length > 0)
+    .join(" ");
+
   const instruction = buildConceptEditInstruction({
+    clientDescription: clientDescription || undefined,
+    dimensions,
+    extraPhotoCount: extraPhotos.length,
+    hasFloorPlan: !!floorPlanUrl,
     roomType: room.type,
     style: parsed.data.style,
     palette: parsed.data.palette,
@@ -97,6 +127,8 @@ export async function POST(
   try {
     generated = await provider.generateConcepts({
       referencePhotoUrl: referencePhoto.url,
+      additionalImageUrls: extraPhotos.map((p) => p.url),
+      floorPlanUrl: floorPlanUrl ?? undefined,
       roomName: room.name,
       roomType: roomTypeLabel,
       style: parsed.data.style,

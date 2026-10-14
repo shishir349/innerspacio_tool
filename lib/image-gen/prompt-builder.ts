@@ -8,6 +8,14 @@ export interface ConceptPromptInput {
   userBrief: string;
   analysis?: RoomAnalysis;
   designBrief?: RoomDesignBrief;
+  /** Designer-flow only. What the client said about the space (notes, preferences). */
+  clientDescription?: string;
+  /** Designer-flow only. e.g. "12 ft × 14 ft, ceiling 10 ft". */
+  dimensions?: string;
+  /** Designer-flow only. Extra photos of the same room beyond the main one. */
+  extraPhotoCount?: number;
+  /** Designer-flow only. The last reference image is the home's floor plan. */
+  hasFloorPlan?: boolean;
 }
 
 /**
@@ -27,6 +35,25 @@ export function buildConceptEditInstruction(input: ConceptPromptInput): string {
 
   if (input.palette) {
     parts.push(`Colour palette focus: ${input.palette}.`);
+  }
+
+  if (input.dimensions) parts.push(`Room dimensions: ${input.dimensions}.`);
+
+  if (input.extraPhotoCount && input.extraPhotoCount > 0) {
+    const n = input.extraPhotoCount;
+    parts.push(
+      `${n} additional photo${n === 1 ? "" : "s"} show the same room from other angles — use ${n === 1 ? "it" : "them"} to understand the whole room, not as separate scenes.`
+    );
+  }
+
+  if (input.hasFloorPlan) {
+    parts.push(
+      "The last reference image is the floor plan of the home. Use it only to understand where this room sits, its proportions, openings and circulation; never reproduce it as a drawing, overlay or diagram in the output."
+    );
+  }
+
+  if (input.clientDescription) {
+    parts.push(`Client's description of the space: ${input.clientDescription}`);
   }
 
   if (input.analysis) {

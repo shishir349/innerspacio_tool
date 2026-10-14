@@ -45,3 +45,8 @@ next-env.d.ts
 
 # third-party UI reference screenshots (not ours to publish)
 /references/
+/references_client_image/
+
+# client / third-party pricing sheets and BOQ reference screenshots
+/pricing/
+/reference_BOQ/

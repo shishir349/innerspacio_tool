@@ -17,6 +17,8 @@ import {
 import {
   estimateAllTiers,
   estimateForTier,
+  explainEstimate,
+  type QuoteBreakdown,
   type QuoteEstimateInput,
   type TierEstimate,
 } from "@/lib/quote/estimate";
@@ -371,6 +373,7 @@ export interface QuoteResult {
   selectedTier: PackageTier;
   estimate: { lowLakh: number; highLakh: number };
   tiers: TierEstimate[];
+  breakdown: QuoteBreakdown;
   status: LeadRow["status"];
   rooms: {
     id: string;
@@ -417,6 +420,7 @@ export async function getQuoteResult(lead: LeadRow): Promise<QuoteResult> {
     selectedTier: lead.package_tier,
     estimate: { lowLakh: Number(lead.estimate_low), highLakh: Number(lead.estimate_high) },
     tiers: estimateAllTiers(input),
+    breakdown: explainEstimate(input, lead.package_tier),
     status: lead.status,
     rooms: out,
   };

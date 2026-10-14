@@ -15,7 +15,7 @@ import { getPresentationLinkStatusAction, toggleConceptVisibilityAction } from "
 import { DESIGN_STYLES } from "@/lib/types";
 import { MAX_VARIANTS_PER_REQUEST } from "@/lib/image-gen/types";
 import type { Room } from "@/lib/types";
-import { CheckCircle2, Eye, EyeOff, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, FileImage, Loader2, Sparkles, Trash2, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const CUSTOM_STYLE = "__custom__";
@@ -49,6 +49,44 @@ export function ConceptStudio({
 
   const hasPhoto = room_.photos.length > 0;
 
+  // Project-level floor plan / blueprint, sent to the model as a layout reference.
+  const [floorPlanUrl, setFloorPlanUrl] = useState<string | null>(null);
+  const [useFloorPlan, setUseFloorPlan] = useState(true);
+  const [planBusy, setPlanBusy] = useState(false);
+  const extraPhotoCount = Math.min(Math.max(room_.photos.length - 1, 0), 2);
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/floorplan`)
+      .then((r) => (r.ok ? r.json() : { url: null }))
+      .then((j) => setFloorPlanUrl(j.url ?? null))
+      .catch(() => setFloorPlanUrl(null));
+  }, [projectId]);
+
+  async function uploadPlan(file: File | undefined) {
+    if (!file) return;
+    setPlanBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch(`/api/projects/${projectId}/floorplan`, { method: "POST", body: fd });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Upload failed.");
+      setFloorPlanUrl(j.url);
+      toast.success("Floor plan saved for this project.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed.");
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
+  async function removePlan() {
+    setPlanBusy(true);
+    await fetch(`/api/projects/${projectId}/floorplan`, { method: "DELETE" }).catch(() => null);
+    setFloorPlanUrl(null);
+    setPlanBusy(false);
+  }
+
   useEffect(() => {
     getPresentationLinkStatusAction(projectId).then((result) => {
       if (result.ok && result.data) {
@@ -72,7 +110,13 @@ export function ConceptStudio({
       const response = await fetch(`/api/projects/${projectId}/rooms/${room.id}/concepts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ style: resolvedStyle, brief, palette: palette || undefined, variantCount }),
+        body: JSON.stringify({
+          style: resolvedStyle,
+          brief,
+          palette: palette || undefined,
+          variantCount,
+          useFloorPlan: useFloorPlan && !!floorPlanUrl,
+        }),
       });
       const body = await response.json();
       if (!response.ok) {
@@ -202,6 +246,58 @@ export function ConceptStudio({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
+            <p className="font-medium">What the AI will use</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-muted-foreground">
+              <li>
+                {room_.photos.length === 0
+                  ? "No room photos yet"
+                  : `${1 + extraPhotoCount} room photo${extraPhotoCount ? "s" : ""} (main + ${extraPhotoCount} other angle${extraPhotoCount === 1 ? "" : "s"})`}
+              </li>
+              <li>Client notes, preferences and room size saved on the project and room</li>
+              <li>The design brief and the styling brief below</li>
+              <li>{floorPlanUrl && useFloorPlan ? "The project floor plan" : "No floor plan attached"}</li>
+            </ul>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-xs hover:bg-accent">
+                {planBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+                {floorPlanUrl ? "Replace floor plan" : "Upload floor plan / blueprint"}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  disabled={planBusy}
+                  onChange={(e) => {
+                    void uploadPlan(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {floorPlanUrl && (
+                <>
+                  <a
+                    href={floorPlanUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                  >
+                    <FileImage className="size-3.5" /> View plan
+                  </a>
+                  <label className="inline-flex items-center gap-1.5 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={useFloorPlan}
+                      onChange={(e) => setUseFloorPlan(e.target.checked)}
+                    />
+                    Use for this generation
+                  </label>
+                  <button type="button" onClick={removePlan} className="text-xs text-muted-foreground hover:text-destructive">
+                    Remove
+                  </button>
+                </>
+              )}
             </div>
           </div>
           <div className="grid gap-2">

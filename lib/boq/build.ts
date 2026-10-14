@@ -1,0 +1,441 @@
+import { getRate } from "@/lib/rates/catalog";
+import { BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
+import {
+  METRO_CITIES,
+  type Bhk,
+  type HomeSize,
+  type PackageTier,
+  type QuoteRoomType,
+} from "@/lib/quote/constants";
+
+/**
+ * Scope → BOQ lines. One engine feeds both the public estimate (sum of lines) and the
+ * designer BOQ (editable lines → .xlsx). Pure: no I/O, no server imports.
+ *
+ * Everything under "ASSUMPTIONS" is a placeholder for your estimators to overwrite;
+ * tests pin the tier bands, not these numbers.
+ */
+
+export interface BoqInput {
+  bhk: Bhk;
+  homeSize?: HomeSize;
+  city: string;
+  tier: PackageTier;
+  /** One entry per room instance, in the order the customer added them. */
+  rooms: { roomType: QuoteRoomType }[];
+}
+
+export interface BoqLine {
+  room: BoqRoom;
+  trade: string;
+  /** Standard BOQ item label (BOQ_ITEMS). */
+  item: string;
+  code: string;
+  rateId: string;
+  description: string;
+  uom: string;
+  l?: number;
+  b?: number;
+  h?: number;
+  qty: number;
+  rate: number;
+  amount: number;
+}
+
+// ---------- ASSUMPTIONS ----------
+
+/** Carpet area in sq ft by BHK / size. */
+const CARPET: Record<Bhk, { small: number; large: number }> = {
+  "1": { small: 600, large: 600 },
+  "2": { small: 950, large: 950 },
+  "3": { small: 1250, large: 1600 },
+  "4": { small: 1900, large: 2400 },
+  "5+": { small: 3000, large: 3000 },
+};
+export function carpetArea(bhk: Bhk, size: HomeSize | undefined): number {
+  const c = CARPET[bhk] ?? CARPET["2"];
+  return size === "large" ? c.large : c.small;
+}
+
+/** Standard L × B (ft) of a room at 1,250 sq ft carpet; scaled with the home. */
+const ROOM_DIMS: Record<QuoteRoomType, [number, number]> = {
+  living_room: [14, 16],
+  kitchen: [9, 11],
+  bedroom: [12, 14],
+  bathroom: [5, 8],
+  dining_room: [10, 11],
+  other: [8, 10],
+};
+const CEILING_H = 10;
+const WALL_NET = 0.85; // after doors/windows
+
+/** Which reference-sheet room each instance of a type becomes (index = nth of that type). */
+const ROOM_MAP: Record<QuoteRoomType, BoqRoom[]> = {
+  living_room: ["Living", "TV Lounge/Study"],
+  kitchen: ["Kitchen", "Utility"],
+  bedroom: ["Master Bedroom", "Kids Room", "Guest / Parents Bedroom", "Bedroom - 4", "Bedroom - 5"],
+  bathroom: ["Master Bathroom", "Kids Bathroom", "Guest / Parents Bathroom", "Bathroom - 4", "Bathroom - 5"],
+  dining_room: ["Dining"],
+  other: ["Foyer / Entryway", "Balcony 1"],
+};
+
+/** Rates are Spazay (NCR) selling rates; other cities scale. */
+const NCR = ["Delhi", "Gurugram", "Noida"];
+export function cityFactor(city: string): number {
+  if (NCR.includes(city)) return 1;
+  return METRO_CITIES.includes(city) ? 1.03 : 0.95;
+}
+
+interface Spec {
+  carcass: string;
+  shutter: string;
+  hardware: string;
+  panel: string;
+  ceiling: string;
+  paint: string;
+  stone: string;
+  stoneFab: string;
+  backsplash: "tile" | "stone";
+  sinkCut: string;
+  bathPackage: string;
+  partition: string;
+  mirror: string;
+  lf: "LFB" | "LFE" | "LFL";
+  decor: string | null;
+  kitchenExtras: string[];
+  floor: { living: string | null; bed: string | null };
+  skirt: { living: string | null; bed: string | null };
+  ledProfile: boolean;
+  loft: boolean;
+  curtain: string;
+}
+
+const SPEC: Record<PackageTier, Spec> = {
+  essential: {
+    carcass: "mod:C01",
+    shutter: "mod:S01",
+    hardware: "mod:H01",
+    panel: "wp:WP01",
+    ceiling: "fc:FC01",
+    paint: "pt:PT02",
+    stone: "st:ST02",
+    stoneFab: "cv:CV07",
+    backsplash: "tile",
+    sinkCut: "cv:CV17",
+    bathPackage: "bth:BTH01",
+    partition: "mg:MG12",
+    mirror: "mg:MG01",
+    lf: "LFB",
+    decor: null,
+    kitchenExtras: ["mod:K01"],
+    floor: { living: null, bed: null },
+    skirt: { living: null, bed: null },
+    ledProfile: false,
+    loft: false,
+    curtain: "fu:BF02",
+  },
+  premium: {
+    carcass: "mod:C06",
+    shutter: "mod:S04",
+    hardware: "mod:H02",
+    panel: "wp:WP09",
+    ceiling: "fc:FC02",
+    paint: "pt:PT03",
+    stone: "st:ST08",
+    stoneFab: "cv:CV09",
+    backsplash: "stone",
+    sinkCut: "cv:CV17",
+    bathPackage: "bth:BTH01",
+    partition: "mg:MG13",
+    mirror: "mg:MG04",
+    lf: "LFE",
+    decor: "fu:BF14",
+    kitchenExtras: ["mod:K01", "mod:K09", "mod:K14"],
+    floor: { living: "fl:FL13", bed: "fl:FL04" },
+    skirt: { living: "fl:SK13", bed: "fl:SK03" },
+    ledProfile: false,
+    loft: true,
+    curtain: "fu:BF03",
+  },
+  luxury: {
+    carcass: "mod:C09",
+    shutter: "mod:S05",
+    hardware: "mod:H02",
+    panel: "wp:WP23",
+    ceiling: "fc:FC03",
+    paint: "pt:PT04",
+    stone: "st:ST09",
+    stoneFab: "cv:CV09",
+    backsplash: "stone",
+    sinkCut: "cv:CV18",
+    bathPackage: "bth:BTH02",
+    partition: "mg:MG14",
+    mirror: "mg:MG04",
+    lf: "LFL",
+    decor: "fu:BF15",
+    kitchenExtras: ["mod:K01", "mod:K03", "mod:K09", "mod:K13", "mod:K14", "mod:K15"],
+    floor: { living: "fl:FL10", bed: "fl:FL06" },
+    skirt: { living: "fl:SK10", bed: "fl:SK06" },
+    ledProfile: true,
+    loft: true,
+    curtain: "fu:BF03",
+  },
+};
+
+// ---------- builder ----------
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
+const half = (n: number) => Math.round(n * 2) / 2;
+
+interface Ctx {
+  tier: PackageTier;
+  spec: Spec;
+  factor: number;
+  out: BoqLine[];
+  scale: number;
+}
+
+interface Dims {
+  l?: number;
+  b?: number;
+  h?: number;
+}
+
+function push(
+  ctx: Ctx,
+  room: BoqRoom,
+  rateId: string,
+  item: string,
+  qty: number,
+  dims: Dims = {},
+  note?: string
+) {
+  if (!(qty > 0) || !Number.isFinite(qty)) return;
+  const r = getRate(rateId);
+  const rate = Math.round(r.rate * ctx.factor);
+  const base = r.desc || r.item;
+  const q = r2(qty);
+  ctx.out.push({
+    room,
+    trade: r.trade,
+    item,
+    code: r.code,
+    rateId,
+    description: note ? `${note}. ${base}` : base,
+    uom: r.uom,
+    ...dims,
+    qty: q,
+    rate,
+    amount: r2(q * rate),
+  });
+}
+
+/** Carcass + shutter + hardware for `w × h` ft of cabinet elevation (Spazay prices them separately). */
+function modular(ctx: Ctx, room: BoqRoom, item: string, w: number, h: number, note: string) {
+  const area = w * h;
+  const dims = { l: w, h };
+  push(ctx, room, ctx.spec.carcass, item, area, dims, `${note} — carcass`);
+  push(ctx, room, ctx.spec.shutter, item, area, dims, `${note} — shutters`);
+  push(ctx, room, ctx.spec.hardware, item, area, dims, `${note} — hardware`);
+}
+
+function envelope(ctx: Ctx, room: BoqRoom, L: number, B: number, opts: { paintWalls?: number; wet?: boolean } = {}) {
+  const floor = L * B;
+  const wall = 2 * (L + B) * CEILING_H * WALL_NET;
+  const { spec } = ctx;
+  if (!opts.wet) {
+    push(ctx, room, spec.ceiling, "False Ceiling", floor, { l: L, b: B }, "Gypsum false ceiling");
+    push(ctx, room, "el:EL04", "Electrical Point", floor, { l: L, b: B }, "False-ceiling wiring and conduit");
+    push(ctx, room, spec.paint, "Paint", wall * (opts.paintWalls ?? 1), { l: 2 * (L + B), h: CEILING_H }, "Wall paint, 2 coats over primer");
+    push(ctx, room, "pt:PT11", "Paint", floor, { l: L, b: B }, "Ceiling paint");
+    push(ctx, room, "el:EL30", "Electrical Point", Math.max(2, Math.round(floor / 25)), {}, "Light points");
+    push(ctx, room, "el:EL13", "Electrical Point", floor > 150 ? 2 : 1, {}, "Switch / socket boards");
+  }
+}
+
+function livingRoom(ctx: Ctx, room: BoqRoom, L: number, B: number) {
+  const { spec } = ctx;
+  envelope(ctx, room, L, B);
+  modular(ctx, room, "TV Unit", 8, 2, "TV base unit, 8 ft × 2 ft");
+  modular(ctx, room, "TV Unit", 4, 2, "TV floating wall unit, 4 ft × 2 ft");
+  push(ctx, room, spec.panel, "Wall Panelling", 8 * 7, { l: 8, h: 7 }, "TV wall panelling, 8 ft × 7 ft");
+  push(ctx, room, "el:EL11", "Electrical Point", 1, {}, "TV + data point");
+  push(ctx, room, "el:EL35", "Electrical Point", 1, {}, "32A AC point");
+  if (spec.floor.living) {
+    push(ctx, room, spec.floor.living, "Floor Tiling", L * B, { l: L, b: B }, "Flooring");
+    if (spec.skirt.living) push(ctx, room, spec.skirt.living, "Floor Tiling", 2 * (L + B), {}, "Skirting");
+  }
+  if (spec.ledProfile) push(ctx, room, "el:EL08", "Decorative Lighting", L * B, { l: L, b: B }, "LED profile lighting allowance");
+  push(ctx, room, spec.curtain, "Curtain Channels/Rods", B, { l: B }, "Curtain channel along window wall");
+  push(ctx, room, `lf:${spec.lf}01`, "Sofa", 1, {}, "3-seater sofa");
+  push(ctx, room, `lf:${spec.lf}03`, "Coffee Table", 1, {}, "Coffee table");
+  push(ctx, room, `lf:${spec.lf}04`, "End/Side Table", 1, {}, "Side table");
+  if (ctx.tier !== "essential") push(ctx, room, `lf:${spec.lf}02`, "Loose Furniture - Other", 1, {}, "Accent chair");
+}
+
+function diningRoom(ctx: Ctx, room: BoqRoom, L: number, B: number) {
+  const { spec } = ctx;
+  envelope(ctx, room, L, B);
+  modular(ctx, room, "Crockery Unit", 5, 7, "Crockery unit, 5 ft × 7 ft");
+  if (spec.floor.living) push(ctx, room, spec.floor.living, "Floor Tiling", L * B, { l: L, b: B }, "Flooring");
+  push(ctx, room, `lf:${spec.lf}${ctx.tier === "luxury" ? "06" : "05"}`, "Dining Table With Chairs", 1, {}, "Dining table with chairs");
+}
+
+function kitchen(ctx: Ctx, room: BoqRoom, L: number, B: number) {
+  const { spec } = ctx;
+  const run = Math.max(8, L + B - 3); // L-shaped run, ft
+  const top = run * 2; // 2 ft deep counter
+  envelope(ctx, room, L, B, { paintWalls: 0.4 });
+  modular(ctx, room, "Kitchen Base Unit", run, 2.5, `Base units, ${r2(run)} ft run`);
+  modular(ctx, room, "Kitchen Wall Unit", r2(run * 0.8), 2.5, `Wall units, ${r2(run * 0.8)} ft run`);
+  modular(ctx, room, "Kitchen Tall Unit", 2, 7, "Tall pantry unit, 2 ft × 7 ft");
+  push(ctx, room, spec.stone, "Countertop - Supply", top, { l: run, b: 2 }, "Countertop slab supply");
+  push(ctx, room, spec.stoneFab, "Countertop", top, { l: run, b: 2 }, "Countertop fabrication and installation");
+  if (spec.backsplash === "stone") {
+    push(ctx, room, spec.stone, "Countertop - Supply", top, { l: run, h: 2 }, "Backsplash slab supply");
+    push(ctx, room, "cv:CV15", "Backsplash", top, { l: run, h: 2 }, "Backsplash fabrication and installation");
+  } else {
+    push(ctx, room, "cv:CV05", "Backsplash", top, { l: run, h: 2 }, "Backsplash tiling");
+  }
+  push(ctx, room, "cv:CV16", "Countertop", 1, {}, "Hob cut-out");
+  push(ctx, room, spec.sinkCut, "Sink & Faucet", 1, {}, "Sink cut-out");
+  for (const id of spec.kitchenExtras) push(ctx, room, id, "Kitchen Cabinetry (Top & Bottom)", 1, {}, getRate(id).item);
+  push(ctx, room, "cv:CV25", "Plumbing Point", 2, {}, "Sink and appliance plumbing points");
+  push(ctx, room, "cv:WP03", "Civil Work", L * B, { l: L, b: B }, "Kitchen wet-area waterproofing");
+  push(ctx, room, "el:EL03", "Electrical Point", 3, {}, "Hob, fridge, microwave points");
+  push(ctx, room, "el:EL35", "Electrical Point", 1, {}, "32A point");
+  push(ctx, room, "el:EL09", "Electrical Point", 1, {}, "Exhaust-fan point");
+  if (ctx.tier !== "essential") push(ctx, room, "cv:CV04", "Floor Tiling", L * B, { l: L, b: B }, "Floor tiling");
+}
+
+function bedroom(ctx: Ctx, room: BoqRoom, L: number, B: number, index: number) {
+  const { spec } = ctx;
+  envelope(ctx, room, L, B);
+  const w = index === 0 ? 8 : 6;
+  modular(ctx, room, "Wardrobe", w, 7, `Wardrobe, ${w} ft × 7 ft`);
+  if (spec.loft) modular(ctx, room, "Wardrobe", w, 2.5, `Wardrobe loft, ${w} ft × 2.5 ft`);
+  push(ctx, room, spec.panel, "Bed Back Panel", 5.5 * 4, { l: 5.5, h: 4 }, "Bed back panel, 5.5 ft × 4 ft");
+  if (index === 0 && ctx.tier !== "essential") modular(ctx, room, "Console/Chest Of Drawers", 4, 3, "Dresser unit, 4 ft × 3 ft");
+  if (index === 1) {
+    push(ctx, room, `lf:${spec.lf}11`, "Study Table/Desk", 1, {}, "Study desk");
+    push(ctx, room, `lf:${spec.lf}12`, "Office/Study Chair", 1, {}, "Ergonomic study chair");
+  }
+  push(ctx, room, `lf:${spec.lf}${index === 0 ? "08" : "07"}`, index === 0 ? "King Size Bed" : "Queen Size Bed", 1, {}, "Bed with storage, frame only");
+  push(ctx, room, `lf:${spec.lf}09`, "Soft Furnishings", 1, {}, "Mattress");
+  push(ctx, room, `lf:${spec.lf}10`, "End/Side Table", 1, {}, "Pair of bedside tables");
+  push(ctx, room, "el:EL35", "Electrical Point", 1, {}, "32A AC point");
+  if (spec.floor.bed) {
+    push(ctx, room, spec.floor.bed, "Floor Tiling", L * B, { l: L, b: B }, "Flooring");
+    if (spec.skirt.bed) push(ctx, room, spec.skirt.bed, "Floor Tiling", 2 * (L + B), {}, "Skirting");
+  }
+  if (spec.ledProfile) push(ctx, room, "el:EL08", "Decorative Lighting", L * B, { l: L, b: B }, "LED profile lighting allowance");
+  push(ctx, room, spec.curtain, "Curtain Channels/Rods", B, { l: B }, "Curtain channel along window wall");
+}
+
+function bathroom(ctx: Ctx, room: BoqRoom, L: number, B: number) {
+  const { spec } = ctx;
+  const floor = L * B;
+  const wallTile = 2 * (L + B) * 8 * WALL_NET;
+  push(ctx, room, "cv:CV10", "Civil Work", floor, { l: L, b: B }, "Bathroom waterproofing");
+  push(ctx, room, "cv:CV04", "Floor Tiling", floor, { l: L, b: B }, "Floor tiling");
+  push(ctx, room, "cv:CV03", "Wall Tiling", wallTile, { l: 2 * (L + B), h: 8 }, "Wall tiling up to 8 ft");
+  push(ctx, room, "fc:FC28", "False Ceiling", floor, { l: L, b: B }, "Grid ceiling");
+  push(ctx, room, spec.bathPackage, "Sanitary Fittings", 1, {}, "Sanitaryware and CP fittings package");
+  modular(ctx, room, "Bathroom Vanity", 3, 2.5, "Vanity unit, 3 ft × 2.5 ft");
+  push(ctx, room, spec.partition, "Mirror / Glass", 3 * 7, { l: 3, h: 7 }, "Shower partition, 3 ft × 7 ft");
+  push(ctx, room, spec.mirror, "Mirror / Glass", 2 * 3, { l: 2, h: 3 }, "Vanity mirror, 2 ft × 3 ft");
+  push(ctx, room, "fu:BF10", "Sanitary Fittings", 1, {}, "Storage geyser, supply");
+  push(ctx, room, "el:EL09", "Electrical Point", 1, {}, "Exhaust-fan point");
+  push(ctx, room, "el:EL30", "Electrical Point", 3, {}, "Light points");
+}
+
+function otherRoom(ctx: Ctx, room: BoqRoom, L: number, B: number) {
+  envelope(ctx, room, L, B);
+  modular(ctx, room, "Study Table/Desk", 6, 2.5, "Study / utility unit, 6 ft × 2.5 ft");
+}
+
+function wholeHome(ctx: Ctx, carpet: number) {
+  const room: BoqRoom = "Others / Whole Home Civil";
+  push(ctx, room, "sc:SC04", "Cleaning / Protection", carpet, {}, "Floor protection during works");
+  push(ctx, room, "sc:SC02", "Cleaning / Protection", carpet, {}, "Post-renovation deep cleaning");
+  if (ctx.spec.decor) push(ctx, room, ctx.spec.decor, "Furnishing", 1, {}, "Art & décor styling allowance");
+}
+
+export function buildBoq(input: BoqInput): BoqLine[] {
+  const carpet = carpetArea(input.bhk, input.homeSize);
+  const scale = Math.min(1.25, Math.max(0.8, Math.sqrt(carpet / 1250)));
+  const ctx: Ctx = {
+    tier: input.tier,
+    spec: SPEC[input.tier],
+    factor: cityFactor(input.city),
+    out: [],
+    scale,
+  };
+
+  const seen: Partial<Record<QuoteRoomType, number>> = {};
+  for (const { roomType } of input.rooms) {
+    const idx = seen[roomType] ?? 0;
+    seen[roomType] = idx + 1;
+    const names = ROOM_MAP[roomType];
+    if (!names) continue;
+    const room = names[Math.min(idx, names.length - 1)];
+    const [bl, bb] = ROOM_DIMS[roomType];
+    // Secondary bedrooms are smaller than the master.
+    const shrink = roomType === "bedroom" && idx > 0 ? 0.9 : 1;
+    const L = half(bl * ctx.scale * shrink);
+    const B = half(bb * ctx.scale * shrink);
+    switch (roomType) {
+      case "living_room":
+        livingRoom(ctx, room, L, B);
+        break;
+      case "dining_room":
+        diningRoom(ctx, room, L, B);
+        break;
+      case "kitchen":
+        kitchen(ctx, room, L, B);
+        break;
+      case "bedroom":
+        bedroom(ctx, room, L, B, idx);
+        break;
+      case "bathroom":
+        bathroom(ctx, room, bl, bb);
+        break;
+      default:
+        otherRoom(ctx, room, L, B);
+    }
+  }
+
+  if (input.rooms.length > 0) wholeHome(ctx, carpet);
+
+  // Reference-sheet room order, stable within a room.
+  const order = new Map<string, number>(BOQ_ROOMS.map((r, i) => [r, i]));
+  return ctx.out
+    .map((l, i) => ({ l, i }))
+    .sort((a, b) => (order.get(a.l.room)! - order.get(b.l.room)!) || a.i - b.i)
+    .map((x) => x.l);
+}
+
+export interface BoqSummary {
+  total: number;
+  byTrade: { trade: string; amount: number }[];
+  byRoom: { room: string; amount: number }[];
+}
+
+export function summarizeBoq(lines: Pick<BoqLine, "trade" | "room" | "amount">[]): BoqSummary {
+  const trade = new Map<string, number>();
+  const room = new Map<string, number>();
+  let total = 0;
+  for (const l of lines) {
+    const a = Number.isFinite(l.amount) ? l.amount : 0;
+    total += a;
+    trade.set(l.trade, (trade.get(l.trade) ?? 0) + a);
+    room.set(l.room, (room.get(l.room) ?? 0) + a);
+  }
+  const ranked = (m: Map<string, number>) =>
+    [...m.entries()].map(([k, amount]) => ({ k, amount: r2(amount) })).sort((a, b) => b.amount - a.amount);
+  return {
+    total: r2(total),
+    byTrade: ranked(trade).map(({ k, amount }) => ({ trade: k, amount })),
+    byRoom: ranked(room).map(({ k, amount }) => ({ room: k, amount })),
+  };
+}

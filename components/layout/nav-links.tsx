@@ -9,12 +9,16 @@ import {
   Sparkles,
   Receipt,
   Settings,
+  ClipboardList,
+  Users,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/design-studio", label: "Design Studio", icon: Sparkles },
+  { href: "/leads", label: "Leads", icon: Users },
+  { href: "/boq", label: "BOQ Builder", icon: ClipboardList },
   { href: "/cost-catalogue", label: "Cost Catalogue", icon: Receipt },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
