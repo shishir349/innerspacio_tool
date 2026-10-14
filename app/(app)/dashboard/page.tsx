@@ -1,3 +1,5 @@
+import { Reveal } from "@/components/motion/reveal";
+import { CountUp } from "@/components/motion/count-up";
 import Link from "next/link";
 import { getRepository } from "@/lib/data";
 import { requirePageUser } from "@/lib/auth";
@@ -48,16 +50,18 @@ export default async function DashboardPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" stagger={0.07} immediate delay={0.1}>
         {stats.map((stat) => (
           <Card key={stat.label} className="border-border/80">
             <CardContent className="pt-6">
-              <p className="text-3xl font-medium text-foreground">{stat.value}</p>
+              <p className="text-3xl font-medium text-foreground">
+                <CountUp value={stat.value} format="int" duration={0.9} />
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
             </CardContent>
           </Card>
         ))}
-      </div>
+      </Reveal>
 
       <Card className="border-border/80">
         <CardHeader className="flex flex-row items-center justify-between">

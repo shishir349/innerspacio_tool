@@ -6,13 +6,14 @@ import { enforceRateLimit, RateLimitedError } from "@/lib/rate-limit";
 // /login: unauthenticated-by-definition. /present: its own token-based auth
 // (see lib/presentation-links/token.ts) — never gated by a Supabase session,
 // since the client visiting it has no Supabase account.
-const PUBLIC_PATHS = ["/login", "/present"];
+// /get-quote and /api/public: the public self-serve quote flow (token-gated per lead).
+const PUBLIC_PATHS = ["/login", "/present", "/get-quote", "/api/public"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-function clientIp(request: NextRequest): string {
+export function clientIp(request: NextRequest): string {
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) return forwardedFor.split(",")[0].trim();
   return request.headers.get("x-real-ip") ?? "unknown";
@@ -53,7 +54,10 @@ async function enforcePresentRouteRateLimit(request: NextRequest): Promise<NextR
  */
 export async function updateSessionAndAuthorize(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
-  const isPresentRoute = pathname === "/present" || pathname.startsWith("/present/");
+  // Same treatment for every anonymous surface: IP rate limit + never cached.
+  const isPresentRoute = ["/present", "/get-quote", "/api/public"].some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
 
   if (isPresentRoute) {
     const limited = await enforcePresentRouteRateLimit(request);

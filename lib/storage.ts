@@ -81,7 +81,7 @@ export function sniffImageDimensions(buffer: Buffer): { width: number; height: n
   return null;
 }
 
-function validate(file: File, buffer?: Buffer): void {
+export function validatePhotoFile(file: File, buffer?: Buffer): void {
   if (!ACCEPTED_PHOTO_TYPES.includes(file.type)) {
     throw new PhotoUploadError(
       `Unsupported file type "${file.type || "unknown"}". Please upload a JPEG, PNG, WEBP or HEIC photo.`
@@ -120,7 +120,7 @@ function validate(file: File, buffer?: Buffer): void {
  */
 export async function uploadRoomPhoto(roomId: string, file: File): Promise<UploadedPhoto> {
   const buffer = Buffer.from(await file.arrayBuffer());
-  validate(file, buffer);
+  validatePhotoFile(file, buffer);
 
   if (isSupabaseConfigured()) {
     // Session-bound client: the storage RLS policies in

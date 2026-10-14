@@ -33,13 +33,14 @@ export async function createSupabaseServerClient() {
 }
 
 /**
- * Service-role client — bypasses RLS entirely. Not currently called from
- * anywhere in the running app (every request-handling code path uses
- * `createSupabaseServerClient()` above instead, so Postgres RLS is always
- * the enforcing layer for a live request). The only consumer is
- * scripts/create-user.ts, an operator-run CLI script, which imports
- * `@supabase/supabase-js` directly rather than this file (this file has
- * `import "server-only"` at the top, which breaks outside Next's runtime).
+ * Service-role client — bypasses RLS entirely. Allowed consumers in the
+ * running app: lib/presentation-links/token.ts and lib/leads/service.ts (both
+ * serve anonymous visitors with no Supabase session, and scope every query
+ * to one token-resolved record). Everything else uses
+ * `createSupabaseServerClient()` above so Postgres RLS enforces. The other
+ * consumer is scripts/create-user.ts, an operator-run CLI script, which
+ * imports `@supabase/supabase-js` directly (this file has
+ * `import "server-only"`, which breaks outside Next's runtime).
  * Keep it that way: if you're tempted to call this from a Server Action,
  * API route or page, add an explicit `requireUser()`/authorization check
  * immediately before the call, and say why RLS alone wasn't enough.

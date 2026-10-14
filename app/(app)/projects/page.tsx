@@ -1,3 +1,4 @@
+import { Reveal } from "@/components/motion/reveal";
 import { getRepository } from "@/lib/data";
 import { requirePageUser } from "@/lib/auth";
 import { ProjectCard } from "@/components/projects/project-card";
@@ -29,11 +30,11 @@ export default async function ProjectsPage({
           <p className="text-sm text-muted-foreground">No projects yet.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" stagger={0.06} immediate>
           {projects.map((project) => (
             <ProjectCard key={project.id} project={project} />
           ))}
-        </div>
+        </Reveal>
       )}
     </div>
   );

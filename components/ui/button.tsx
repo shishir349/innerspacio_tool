@@ -48,6 +48,8 @@ function Button({
   return (
     <ButtonPrimitive
       data-slot="button"
+      // render={<Link/>} etc. produces a non-<button>; Base UI warns unless told. Caller can override.
+      nativeButton={props.render ? false : undefined}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
