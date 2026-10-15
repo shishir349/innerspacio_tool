@@ -72,5 +72,15 @@ export const exportRequestSchema = z.object({
   lines: z.array(lineSchema).min(1).max(MAX_BOQ_LINES),
 });
 
+/** Save the workbench under a project (the export payload plus where it belongs). */
+export const saveRequestSchema = exportRequestSchema.extend({
+  projectId: z.string().min(1).max(64),
+  boqId: z.string().max(64).optional(),
+  leadId: z.string().uuid().optional(),
+  title: z.string().trim().min(1).max(120),
+  tier: z.enum(PACKAGE_TIERS),
+  city: z.string().trim().max(60),
+});
+
 export type BuildRequest = z.infer<typeof buildRequestSchema>;
 export type ExportRequest = z.infer<typeof exportRequestSchema>;

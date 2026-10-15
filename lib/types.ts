@@ -477,3 +477,18 @@ export interface PresentationAuditEvent {
   metadata?: Record<string, unknown>;
   createdAt: string;
 }
+
+/** A saved bill of quantities, always under a project. `payload` is the BOQ workbench state (lines, coverage, plan rooms). */
+export interface BoqRecord {
+  id: Id;
+  projectId: Id;
+  leadId?: Id;
+  title: string;
+  tier: string;
+  city: string;
+  sheet: string;
+  total: number;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}

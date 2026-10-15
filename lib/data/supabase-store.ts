@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_SETTINGS } from "@/lib/types";
 import type {
   AppSettings,
+  BoqRecord,
   CatalogueItem,
   DesignConcept,
   Estimate,
@@ -17,6 +18,7 @@ import type {
   NewProjectInput,
   NewRoomInput,
   Repository,
+  SaveBoqInput,
   UpdateCatalogueItemInput,
   UpdateProjectInput,
   UpdateRoomInput,
@@ -27,6 +29,22 @@ import { refreshSignedPhotoUrl } from "@/lib/storage";
 // ─────────────────────────── row <-> domain mapping ───────────────────────
 
 type Row = Record<string, unknown>;
+
+function mapBoqRow(row: Row): BoqRecord {
+  return {
+    id: row.id as string,
+    projectId: row.project_id as string,
+    leadId: (row.lead_id as string) ?? undefined,
+    title: row.title as string,
+    tier: row.tier as string,
+    city: row.city as string,
+    sheet: row.sheet as string,
+    total: Number(row.total),
+    payload: (row.payload as Record<string, unknown>) ?? {},
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
 
 function mapProjectRow(row: Row, rooms: Room[]): Project {
   return {
@@ -320,6 +338,70 @@ export class SupabaseRepository implements Repository {
   async deleteProject(projectId: string): Promise<void> {
     const { error } = await this.client.from("projects").delete().eq("id", projectId);
     throwIfError(error, "Deleting project");
+  }
+
+  private async assertProject(projectId: string): Promise<void> {
+    const { data, error } = await this.client.from("projects").select("id").eq("id", projectId).maybeSingle();
+    throwIfError(error, "Checking project");
+    if (!data) throw new RepositoryError(`Project ${projectId} not found`, "not_found");
+  }
+
+  async listBoqs(projectId: string): Promise<BoqRecord[]> {
+    const { data, error } = await this.client
+      .from("boqs")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("updated_at", { ascending: false });
+    // Migration 0005 not applied yet: the project page still has to render.
+    if (error && /does not exist|schema cache/i.test(error.message)) return [];
+    throwIfError(error, "Listing BOQs");
+    return (data ?? []).map(mapBoqRow);
+  }
+
+  async getBoq(projectId: string, boqId: string): Promise<BoqRecord | null> {
+    const { data, error } = await this.client
+      .from("boqs")
+      .select("*")
+      .eq("id", boqId)
+      .eq("project_id", projectId)
+      .maybeSingle();
+    if (error && /does not exist|schema cache/i.test(error.message)) return null;
+    throwIfError(error, "Loading BOQ");
+    return data ? mapBoqRow(data) : null;
+  }
+
+  async saveBoq(projectId: string, input: SaveBoqInput): Promise<BoqRecord> {
+    await this.assertProject(projectId);
+    const row = {
+      project_id: projectId,
+      lead_id: input.leadId ?? null,
+      title: input.title,
+      tier: input.tier,
+      city: input.city,
+      sheet: input.sheet,
+      total: input.total,
+      payload: input.payload,
+    };
+    if (input.id) {
+      const { data, error } = await this.client
+        .from("boqs")
+        .update(row)
+        .eq("id", input.id)
+        .eq("project_id", projectId)
+        .select("*")
+        .maybeSingle();
+      throwIfError(error, "Saving BOQ");
+      if (!data) throw new RepositoryError(`BOQ ${input.id} not found`, "not_found");
+      return mapBoqRow(data);
+    }
+    const { data, error } = await this.client.from("boqs").insert(row).select("*").single();
+    throwIfError(error, "Saving BOQ");
+    return mapBoqRow(data as Row);
+  }
+
+  async deleteBoq(projectId: string, boqId: string): Promise<void> {
+    const { error } = await this.client.from("boqs").delete().eq("id", boqId).eq("project_id", projectId);
+    throwIfError(error, "Deleting BOQ");
   }
 
   async addRoom(projectId: string, input: NewRoomInput): Promise<Room> {

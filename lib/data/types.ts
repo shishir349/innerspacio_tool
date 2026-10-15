@@ -1,5 +1,6 @@
 import type {
   AppSettings,
+  BoqRecord,
   CatalogueItem,
   DesignConcept,
   Estimate,
@@ -40,6 +41,18 @@ export type NewRoomInput = {
 };
 
 export type UpdateRoomInput = Partial<NewRoomInput>;
+
+export type SaveBoqInput = {
+  /** Present = update that BOQ; absent = create. */
+  id?: string;
+  leadId?: string;
+  title: string;
+  tier: string;
+  city: string;
+  sheet: string;
+  total: number;
+  payload: Record<string, unknown>;
+};
 
 export type NewCatalogueItemInput = {
   name: string;
@@ -103,6 +116,12 @@ export interface Repository {
   createCatalogueItem(input: NewCatalogueItemInput): Promise<CatalogueItem>;
   updateCatalogueItem(itemId: string, patch: UpdateCatalogueItemInput): Promise<CatalogueItem>;
   deleteCatalogueItem(itemId: string): Promise<void>;
+
+  /** BOQs live under a project; every method verifies the project first. */
+  listBoqs(projectId: string): Promise<BoqRecord[]>;
+  getBoq(projectId: string, boqId: string): Promise<BoqRecord | null>;
+  saveBoq(projectId: string, input: SaveBoqInput): Promise<BoqRecord>;
+  deleteBoq(projectId: string, boqId: string): Promise<void>;
 
   getSettings(): Promise<AppSettings>;
   updateSettings(patch: Partial<AppSettings>): Promise<AppSettings>;

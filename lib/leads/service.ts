@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { generateToken, hashToken } from "@/lib/presentation-links/crypto";
+import { ensureLeadProject } from "@/lib/leads/project";
 import { getImageGenerationProvider } from "@/lib/image-gen/provider";
 import { buildConceptEditInstruction } from "@/lib/image-gen/prompt-builder";
 import { refreshSignedPhotoUrl, validatePhotoFile, PhotoUploadError } from "@/lib/storage";
@@ -182,6 +183,8 @@ export async function finalizeLead(lead: LeadRow, input: FinalizeLeadInput): Pro
     })
     .eq("id", lead.id);
   if (error) throw new Error("Could not save your details. Please try again.");
+  // Every lead lives under a project (rooms included) so staff land in one place.
+  await ensureLeadProject(client, lead.id).catch(() => null);
   return estimate;
 }
 

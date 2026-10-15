@@ -46,6 +46,11 @@ export interface WorkbenchInitial {
   rooms: Partial<Record<string, number>>;
   client: string;
   leadId?: string;
+  /** Every BOQ lives under a project. */
+  projectId: string;
+  projectTitle?: string;
+  /** A previously saved BOQ being reopened. */
+  saved?: { id: string; title: string; sheet: string; payload: Record<string, unknown> };
 }
 
 type Coverage = { requirement: string; room: string; lines: number; codes: string[]; titles: string[] };
@@ -127,17 +132,26 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
   const [homeSize, setHomeSize] = useState<HomeSize>(initial.homeSize ?? "small");
   const [city, setCity] = useState(initial.city);
   const [tier, setTier] = useState<PackageTier>(initial.tier);
-  const [sheet, setSheet] = useState<RateSheet>("spazay");
-  const [coverage, setCoverage] = useState<Coverage[]>([]);
+  const savedPayload = initial.saved?.payload as
+    | { lines?: LineLike[]; coverage?: Coverage[]; planRooms?: PlanRoom[]; specification?: string; location?: string; client?: string }
+    | undefined;
+  const [sheet, setSheet] = useState<RateSheet>(
+    (RATE_SHEETS as readonly string[]).includes(initial.saved?.sheet ?? "") ? (initial.saved!.sheet as RateSheet) : "spazay"
+  );
+  const [boqId, setBoqId] = useState<string | undefined>(initial.saved?.id);
+  const [title, setTitle] = useState(
+    initial.saved?.title ?? `${initial.client || initial.projectTitle || "Project"} — BOQ`
+  );
+  const [coverage, setCoverage] = useState<Coverage[]>(savedPayload?.coverage ?? []);
   const [rooms, setRooms] = useState<Partial<Record<string, number>>>(initial.rooms);
-  const [client, setClient] = useState(initial.client);
-  const [location, setLocation] = useState("");
-  const [rows, setRows] = useState<Row[]>([]);
-  const [spec, setSpec] = useState("");
-  const [busy, setBusy] = useState<"build" | "export" | null>(null);
+  const [client, setClient] = useState(savedPayload?.client ?? initial.client);
+  const [location, setLocation] = useState(savedPayload?.location ?? "");
+  const [rows, setRows] = useState<Row[]>(() => (savedPayload?.lines ? toRows(savedPayload.lines) : []));
+  const [spec, setSpec] = useState(savedPayload?.specification ?? "");
+  const [busy, setBusy] = useState<"build" | "export" | "save" | null>(null);
   const [pick, setPick] = useState("");
   const [mode, setMode] = useState<"brief" | "spec">("brief");
-  const [planRooms, setPlanRooms] = useState<PlanRoom[]>([]);
+  const [planRooms, setPlanRooms] = useState<PlanRoom[]>(savedPayload?.planRooms ?? []);
   const [briefItems, setBriefItems] = useState<BriefItem[]>([]);
   const [notes, setNotes] = useState<Pick<BriefResult, "warnings" | "assumptions" | "unpriced" | "questions"> | null>(null);
 
@@ -249,13 +263,9 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
     });
   }
 
-  async function download() {
-    setBusy("export");
-    try {
-      const r = await fetch("/api/boq/export", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
+  /** What the workbook export and the project save both send. */
+  function exportBody() {
+    return {
           client,
           location,
           specification: spec || undefined,
@@ -282,7 +292,43 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
             qty: r.qty,
             rate: r.rate,
           })),
+        };
+  }
+
+  async function save() {
+    setBusy("save");
+    try {
+      const r = await fetch("/api/boq/save", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...exportBody(),
+          projectId: initial.projectId,
+          boqId,
+          leadId: initial.leadId,
+          title: title.trim() || "BOQ",
+          tier,
+          city,
         }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Could not save.");
+      setBoqId(j.id);
+      toast.success("Saved to the project.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function download() {
+    setBusy("export");
+    try {
+      const r = await fetch("/api/boq/export", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(exportBody()),
       });
       if (!r.ok) throw new Error((await r.json()).error ?? "Export failed.");
       const blob = await r.blob();
@@ -526,7 +572,17 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                 <Button variant="outline" onClick={deleteAll} disabled={busy !== null} className="gap-2 text-destructive">
                   <Trash2 className="size-4" /> Delete BOQ
                 </Button>
-                <Button onClick={download} disabled={busy !== null} className="gap-2">
+                <Input
+                  aria-label="BOQ name"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="h-9 w-56"
+                />
+                <Button onClick={save} disabled={busy !== null} className="gap-2">
+                  {busy === "save" ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
+                  {boqId ? "Update in project" : "Save to project"}
+                </Button>
+                <Button variant="outline" onClick={download} disabled={busy !== null} className="gap-2">
                   {busy === "export" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
                   Download .xlsx
                 </Button>

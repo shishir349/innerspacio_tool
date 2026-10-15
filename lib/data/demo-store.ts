@@ -5,6 +5,7 @@ import { buildSeedCatalogue } from "@/lib/catalogue/seed-data";
 import { DEFAULT_SETTINGS } from "@/lib/types";
 import type {
   AppSettings,
+  BoqRecord,
   CatalogueItem,
   DesignConcept,
   Estimate,
@@ -18,6 +19,7 @@ import type {
   NewProjectInput,
   NewRoomInput,
   Repository,
+  SaveBoqInput,
   UpdateCatalogueItemInput,
   UpdateProjectInput,
   UpdateRoomInput,
@@ -26,6 +28,7 @@ import { RepositoryError } from "@/lib/data/types";
 
 interface DbShape {
   projects: Project[];
+  boqs?: BoqRecord[];
   catalogue: CatalogueItem[];
   settings: AppSettings;
 }
@@ -242,6 +245,41 @@ export class DemoRepository implements Repository {
   async deleteProject(projectId: string): Promise<void> {
     await mutate((db) => {
       db.projects = db.projects.filter((p) => p.id !== projectId);
+      db.boqs = (db.boqs ?? []).filter((b) => b.projectId !== projectId);
+    });
+  }
+
+  async listBoqs(projectId: string): Promise<BoqRecord[]> {
+    const db = await getDb();
+    return (db.boqs ?? []).filter((b) => b.projectId === projectId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  async getBoq(projectId: string, boqId: string): Promise<BoqRecord | null> {
+    const db = await getDb();
+    return (db.boqs ?? []).find((b) => b.id === boqId && b.projectId === projectId) ?? null;
+  }
+
+  async saveBoq(projectId: string, input: SaveBoqInput): Promise<BoqRecord> {
+    return mutate((db) => {
+      findProjectOrThrow(db, projectId);
+      db.boqs ??= [];
+      const now = nowIso();
+      const existing = input.id ? db.boqs.find((b) => b.id === input.id && b.projectId === projectId) : undefined;
+      if (input.id && !existing) throw new RepositoryError(`BOQ ${input.id} not found`, "not_found");
+      if (existing) {
+        Object.assign(existing, { ...input, id: existing.id, projectId, updatedAt: now });
+        return existing;
+      }
+      const rec: BoqRecord = { ...input, id: randomUUID(), projectId, createdAt: now, updatedAt: now };
+      db.boqs.unshift(rec);
+      return rec;
+    });
+  }
+
+  async deleteBoq(projectId: string, boqId: string): Promise<void> {
+    await mutate((db) => {
+      findProjectOrThrow(db, projectId);
+      db.boqs = (db.boqs ?? []).filter((b) => !(b.id === boqId && b.projectId === projectId));
     });
   }
 

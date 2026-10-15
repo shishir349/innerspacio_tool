@@ -6,6 +6,7 @@ import { TIER_INFO, type PackageTier } from "@/lib/quote/constants";
 import { formatDate } from "@/lib/format";
 import { formatRange } from "@/lib/quote/format";
 import { Button } from "@/components/ui/button";
+import { openLeadProjectAction } from "@/lib/actions/leads";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ interface LeadListRow {
   estimate_high: number;
   status: string;
   created_at: string;
+  project_id: string | null;
 }
 
 const STATUS: Record<string, string> = {
@@ -36,13 +38,20 @@ export default async function LeadsPage() {
   if (isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
     // Staff session + RLS. Drafts (no consent yet) are abandoned sessions — hide them.
-    const { data } = await supabase
-      .from("leads")
-      .select("id, name, email, phone, city, bhk, package_tier, estimate_low, estimate_high, status, created_at")
-      .gt("consent_at", "1970-01-02T00:00:00Z")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    leads = (data ?? []) as LeadListRow[];
+    const cols = "id, name, email, phone, city, bhk, package_tier, estimate_low, estimate_high, status, created_at";
+    const query = (select: string) =>
+      supabase
+        .from("leads")
+        .select(select)
+        .gt("consent_at", "1970-01-02T00:00:00Z")
+        .order("created_at", { ascending: false })
+        .limit(100);
+    const withProject = await query(`${cols}, project_id`);
+    // Before migration 0005 there is no project_id column.
+    const rows: unknown[] = withProject.data
+      ? withProject.data
+      : ((await query(cols)).data ?? []).map((l) => ({ ...(l as object), project_id: null }));
+    leads = rows as LeadListRow[];
   }
 
   return (
@@ -71,9 +80,19 @@ export default async function LeadsPage() {
                   {STATUS[l.status] ?? l.status} · {formatDate(l.created_at)}
                 </p>
               </div>
-              <Button render={<Link href={`/boq?lead=${l.id}`} />} size="sm" variant="outline">
-                Open BOQ
-              </Button>
+              <div className="flex gap-2">
+                <form action={openLeadProjectAction}>
+                  <input type="hidden" name="leadId" value={l.id} />
+                  <Button type="submit" size="sm" variant="outline">
+                    {l.project_id ? "Open project" : "Create project"}
+                  </Button>
+                </form>
+                {l.project_id && (
+                  <Button render={<Link href={`/boq?project=${l.project_id}&lead=${l.id}`} />} size="sm">
+                    Open BOQ
+                  </Button>
+                )}
+              </div>
             </li>
           ))}
         </ul>

@@ -6,6 +6,8 @@ import type { BoqInput } from "@/lib/boq/build";
 export interface LeadSpec {
   input: BoqInput;
   client: string;
+  /** The project this lead lives under (null until staff open it). */
+  projectId: string | null;
 }
 
 /**
@@ -14,11 +16,20 @@ export interface LeadSpec {
  */
 export async function loadLeadSpec(leadId: string): Promise<LeadSpec | null> {
   const supabase = await createSupabaseServerClient();
-  const { data: lead } = await supabase
+  let { data: lead } = await supabase
     .from("leads")
-    .select("id, name, city, bhk, home_size, package_tier")
+    .select("id, name, city, bhk, home_size, package_tier, project_id")
     .eq("id", leadId)
     .maybeSingle();
+  if (!lead) {
+    // Before migration 0005 there is no project_id column: fall back to the old shape.
+    const old = await supabase
+      .from("leads")
+      .select("id, name, city, bhk, home_size, package_tier")
+      .eq("id", leadId)
+      .maybeSingle();
+    lead = old.data ? { ...old.data, project_id: null } : null;
+  }
   if (!lead) return null;
   const { data: rooms } = await supabase
     .from("lead_rooms")
@@ -27,6 +38,7 @@ export async function loadLeadSpec(leadId: string): Promise<LeadSpec | null> {
     .order("created_at", { ascending: true });
   return {
     client: (lead.name as string) || "",
+    projectId: (lead.project_id as string | null) ?? null,
     input: {
       bhk: lead.bhk as Bhk,
       homeSize: (lead.home_size as HomeSize | null) ?? undefined,
