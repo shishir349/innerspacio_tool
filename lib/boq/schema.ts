@@ -30,6 +30,8 @@ export const lineSchema = z.object({
   title: z.string().trim().max(160).optional(),
   code: z.string().trim().max(20).optional(),
   description: z.string().max(1200),
+  remarks: z.string().max(400).optional(),
+  area: z.string().trim().max(80).optional(),
   uom: z.string().trim().min(1).max(12),
   l: num.nullish(),
   b: num.nullish(),

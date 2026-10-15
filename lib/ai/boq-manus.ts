@@ -42,7 +42,7 @@ ${requirements}
 
 OUTPUT: do not browse the web, write files or ask questions. Reply with ONE JSON object only - no prose, no markdown fences:
 {"rooms":[{"id":"r1","name":"as on plan","boqRoom":<one of ROOMS>,"l":feet,"b":feet,"h":feet (10 if unknown),"source":"labelled"|"scaled"|"assumed"}],
-"items":[{"room":<ROOMS>,"requirement":"quoted","title":"specific line title","sides":1|2?,"kind":"rate"|"modular","rateId":"id (kind=rate)","item":<ITEMS>,"basis":<BASES>,"width":feet?,"height":feet?,"count":number?,"note":"?"}],
+"items":[{"room":<ROOMS>,"requirement":"quoted","title":"specific line title","area":"plan label e.g. Kids Bedroom-2?","sides":1|2?,"kind":"rate"|"modular","rateId":"id (kind=rate)","item":<ITEMS>,"basis":<BASES>,"width":feet?,"height":feet?,"count":number?,"note":"?"}],
 "assumptions":[string],"unpriced":[{"requirement":string,"reason":string}],"questions":[string]}
 ROOMS = ${JSON.stringify(BOQ_ROOMS)}
 ITEMS = ${JSON.stringify(BOQ_ITEMS)}

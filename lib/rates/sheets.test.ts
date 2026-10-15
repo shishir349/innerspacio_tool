@@ -31,7 +31,7 @@ describe("rate sheet resolution", () => {
 
   it("allowances are on the card, provisional, and positive", () => {
     const al = RATE_CARD.filter((r) => r.provisional);
-    expect(al.map((r) => r.id).sort()).toEqual(["al:CURTAIN", "al:NAMEPLATE", "al:VGARDEN"]);
+    expect(al.map((r) => r.id).sort()).toEqual(["al:CURTAIN", "al:JACUZZI", "al:NAMEPLATE", "al:RAILING", "al:VGARDEN"]);
     for (const r of al) expect(r.rate).toBeGreaterThan(0);
   });
 
@@ -61,9 +61,13 @@ describe("sheet applied to a BOQ", () => {
     expect(both.find((x) => x.rateId === "pt:PT03")!.altRate).toBeGreaterThan(0);
   });
 
-  it("modular unit under livspace is one all-in line, spazay is three", () => {
+  it("a modular unit is one all-in line (carcass + shutter + hardware) on every sheet", () => {
     const m = [rate({ kind: "modular", item: "Wardrobe", basis: "elevation", width: 8, height: 7 })];
-    expect(quantify(m, [room], { ...base, sheet: "spazay" }).lines).toHaveLength(3);
+    const sp = quantify(m, [room], { ...base, sheet: "spazay" }).lines;
+    expect(sp).toHaveLength(1);
+    expect(sp[0].qty).toBe(56);
+    expect(sp[0].rate).toBe(1152 + 950 + 467); // premium: C06 + S04 + H02
+    expect(sp[0].description).toMatch(/carcass, .* shutters\/fronts and Hettich/);
     const ls = quantify(m, [room], { ...base, sheet: "livspace" }).lines;
     expect(ls).toHaveLength(1);
     expect(ls[0].qty).toBe(56);

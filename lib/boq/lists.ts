@@ -31,6 +31,7 @@ export const BOQ_ROOMS = [
   "Dining",
   "Kitchen",
   "Utility",
+  "Study / Office",
   "Balcony 1",
   "Balcony 2",
   "Kids Room",

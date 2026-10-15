@@ -52,15 +52,15 @@ describe("quantify", () => {
     expect(lines.map((l) => l.qty)).toEqual([6, 1]);
   });
 
-  it("modular unit expands into carcass + shutter + hardware at the tier spec", () => {
+  it("modular unit is one all-in line at the tier spec", () => {
     const { lines } = quantify(
       [item({ kind: "modular", item: "Wardrobe", basis: "elevation", width: 8, height: 7 })],
       [master],
       opts
     );
     const mod = lines.filter((l) => l.trade === "Modular Woodwork");
-    expect(mod).toHaveLength(3);
-    for (const l of mod) expect(l.qty).toBe(56);
+    expect(mod).toHaveLength(1);
+    expect(mod[0].qty).toBe(56);
   });
 
   it("explicit width × height works without any plan room", () => {

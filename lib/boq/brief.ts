@@ -45,6 +45,8 @@ export const briefItemSchema = z.object({
   requirement: z.string().max(300),
   /** Specific line title for the "Line / BOQ Item" column, e.g. "Entrance feature wall — fluted HDHMR panelling". */
   title: z.string().max(140).optional(),
+  /** The client plan's own label for the space, e.g. "Kids Bedroom-2", "Boot Room" (Area column). */
+  area: z.string().max(60).optional(),
   /** Faces to finish for an area item (a door painted on both faces = 2). */
   sides: z.number().min(1).max(2).optional(),
   kind: z.enum(["rate", "modular"]),
@@ -144,6 +146,7 @@ export function quantify(
       const key = `${it.room}|${it.requirement}`;
       const row = coverage.get(key) ?? { requirement: it.requirement, room: it.room, lines: 0, codes: [], titles: [] };
       for (const l of lines.slice(before)) {
+        if (!l.area) l.area = it.area?.trim() || (group.length === 1 ? group[0].name : it.room);
         row.lines++;
         if (!row.codes.includes(l.code)) row.codes.push(l.code);
         if (l.title && !row.titles.includes(l.title)) row.titles.push(l.title);
@@ -161,8 +164,7 @@ export function quantify(
       }
       const made = modularLines(opts.tier, opts.city, it.room, it.item ?? "Wardrobe", w, h, it.note ?? "", sheet);
       for (const l of made) {
-        const part = l.rateSource === "livspace" ? "" : ` — ${findRate(l.rateId)?.item ?? ""}`;
-        l.title = `${title ?? it.requirement.slice(0, 90)}${part}`;
+        l.title = title ?? it.requirement.slice(0, 90);
       }
       lines.push(...made);
       track();
@@ -277,7 +279,7 @@ export function quantify(
       }
       for (const [id, note, title] of extras) {
         const l = makeLine(id, home, "Cleaning / Protection", r2(floor), {}, note, opts.city, sheet, title);
-        if (l) lines.push(l);
+        if (l) lines.push({ ...l, area: "Whole Home" });
       }
     }
   }

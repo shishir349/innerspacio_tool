@@ -26,6 +26,7 @@ describe("buildBoqWorkbook", () => {
       "Room Summary",
       "Lists",
       "General Assumptions",
+      "Terms & Conditions",
     ]);
   });
 
@@ -61,11 +62,11 @@ describe("buildBoqWorkbook", () => {
     expect(grandOf("Room Summary")).toBeCloseTo(total, 0);
   });
 
-  it("puts dropdown validations on room, trade, item and uom", async () => {
+  it("puts dropdown validations on room, trade and uom", async () => {
     const wb = await load(await buildBoqWorkbook({ lines }));
     const ws = wb.getWorksheet("Master BOQ")!;
-    const first = ws.getRow(8);
-    for (const c of [1, 2, 3, 5]) expect(first.getCell(c).dataValidation?.type).toBe("list");
+    const first = ws.getRow(9);
+    for (const c of [1, 2, 5]) expect(first.getCell(c).dataValidation?.type).toBe("list");
   });
 });
 
@@ -87,10 +88,10 @@ describe("professional-BOQ parity in the workbook", () => {
     const wb = await load(await buildBoqWorkbook(withMeta));
     const ws = wb.getWorksheet("Master BOQ")!;
     expect(String(ws.getCell("A3").value)).toContain("Spazay billed · Livspace shown for comparison");
-    expect(ws.getCell("C8").value).toBe("Entrance feature wall — fluted HDHMR");
-    expect(ws.getCell("L8").value).toBe("Spazay");
-    expect(ws.getCell("M8").value).toBe(900);
-    expect(String(ws.getCell("L12").value)).toMatch(/Provisional/);
+    expect(ws.getCell("C9").value).toBe("Entrance feature wall — fluted HDHMR");
+    expect(ws.getCell("N9").value).toBe("Spazay");
+    expect(ws.getCell("O9").value).toBe(900);
+    expect(String(ws.getCell("N11").value)).toMatch(/Provisional/);
   });
 
   it("ends with a Grand Total, the client-scope exclusions and the disclaimers", async () => {
@@ -117,6 +118,52 @@ describe("professional-BOQ parity in the workbook", () => {
     expect(all).toContain("NOT PRICED");
     expect(all).toContain("1 line(s) are provisional allowances");
     expect(all).toContain("10 ft × 8 ft = 80 sq ft");
+  });
+
+  it("never prints a room-only row: every line row is fully populated", async () => {
+    const wb = await load(await buildBoqWorkbook({ lines }));
+    const ws = wb.getWorksheet("Master BOQ")!;
+    let lineRows = 0;
+    ws.eachRow((row, n) => {
+      if (n < 7 || !row.getCell(1).value) return;
+      const filled = (c: number) => row.getCell(c).value !== null && row.getCell(c).value !== "";
+      if (row.getCell(2).value && !row.getCell(2).isMerged) {
+        for (const c of [1, 2, 3, 4, 5, 9, 10, 11]) expect(filled(c), `row ${n} col ${c}`).toBe(true);
+        lineRows++;
+      } else if (String(row.getCell(1).value) !== "Grand Total") {
+        // room header or annexure heading: must say what it is
+        expect(String(row.getCell(4).value ?? row.getCell(1).value).length).toBeGreaterThan(3);
+      }
+    });
+    expect(lineRows).toBe(lines.length);
+  });
+
+  it("splits fixed/modular (Annexure A) from loose furniture (Annexure B) with subtotals that add to the grand total", async () => {
+    const mixed = [
+      { room: "Living", trade: "Wall Panelling", item: "Wall Panelling", description: "d", uom: "Sq.Ft.", qty: 10, rate: 1000, area: "Living" },
+      { room: "Living", trade: "Loose Furniture", item: "Sofa", description: "d", uom: "Nos", qty: 1, rate: 50000, area: "Living" },
+    ];
+    const ws = (await load(await buildBoqWorkbook({ lines: mixed }))).getWorksheet("Master BOQ")!;
+    const heads: string[] = [];
+    const subs: number[] = [];
+    let grand = 0;
+    ws.eachRow((row) => {
+      const a = String(row.getCell(1).value ?? "");
+      if (a.startsWith("COSTING ANNEXURE")) heads.push(a);
+      if (String(row.getCell(4).value ?? "").startsWith("Subtotal")) subs.push(((row.getCell(11).value as ExcelJS.CellFormulaValue).result as number) ?? 0);
+      if (a === "Grand Total") grand = ((row.getCell(11).value as ExcelJS.CellFormulaValue).result as number) ?? 0;
+    });
+    expect(heads).toEqual(["COSTING ANNEXURE A (FIXED & MODULAR)", "COSTING ANNEXURE B (LOOSE FURNITURE)"]);
+    expect(subs).toEqual([10000, 50000]);
+    expect(grand).toBe(60000);
+  });
+
+  it("prints the plan area and remarks beside each line", async () => {
+    const ws = (await load(await buildBoqWorkbook({ lines: [
+      { room: "Kids Room", trade: "Wall Panelling", item: "Wall Panelling", description: "d", uom: "Sq.Ft.", qty: 1, rate: 1, area: "Kids Bedroom-2", remarks: "100 sq ft assumed" },
+    ] }))).getWorksheet("Master BOQ")!;
+    expect(ws.getCell("L9").value).toBe("Kids Bedroom-2");
+    expect(ws.getCell("M9").value).toBe("100 sq ft assumed");
   });
 
   it("omits Scope Coverage when there is nothing to cover (spec-built BOQ)", async () => {

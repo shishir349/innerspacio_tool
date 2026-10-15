@@ -38,6 +38,10 @@ export interface BoqLine {
   code: string;
   rateId: string;
   description: string;
+  /** Estimator note / assumption for this line (kept apart from the standard description). */
+  remarks?: string;
+  /** Area label from the client's plan (e.g. "Kids Bedroom-2", "Boot Room"); falls back to the room. */
+  area?: string;
   uom: string;
   l?: number;
   b?: number;
@@ -250,7 +254,8 @@ function push(
     ...(title ? { title } : {}),
     code: r.code,
     rateId,
-    description: `${base}${note ? ` ${note}.` : ""}${lump}`,
+    description: `${base}${lump}`,
+    ...(note ? { remarks: note } : {}),
     uom,
     ...(lump ? {} : dims),
     qty: q,
@@ -277,7 +282,8 @@ function modular(ctx: Ctx, room: BoqRoom, item: string, w: number, h: number, no
       item,
       code: "LS-MOD",
       rateId: `ls:modular:${item}`,
-      description: `${m.label} — carcass, shutter and standard hardware complete; measured on finished cabinet elevation area. ${note}.`,
+      description: `${m.label} — carcass, shutter and standard hardware complete; measured on finished cabinet elevation area.`,
+      ...(note ? { remarks: note } : {}),
       uom: "Sq.Ft.",
       ...dims,
       qty: q,
@@ -287,10 +293,34 @@ function modular(ctx: Ctx, room: BoqRoom, item: string, w: number, h: number, no
     });
     return;
   }
-  push(ctx, room, ctx.spec.carcass, item, area, dims, `${note} — carcass`);
-  push(ctx, room, ctx.spec.shutter, item, area, dims, `${note} — shutters`);
-  push(ctx, room, ctx.spec.hardware, item, area, dims, `${note} — hardware`);
+  // Spazay's professional BOQ prices a unit as ONE all-in line (carcass + shutter + hardware).
+  const parts = [ctx.spec.carcass, ctx.spec.shutter, ctx.spec.hardware].map((id) => getRate(id));
+  const rate = parts.reduce((n, p) => n + Math.round(p.rate * ctx.factor), 0);
+  const q = r2(area);
+  const alt = ctx.sheet === "both" ? Math.round(livspaceModular(item).rate * ctx.factor) : undefined;
+  ctx.out.push({
+    room,
+    trade: "Modular Woodwork",
+    item,
+    code: parts.map((p) => p.code).join("+"),
+    rateId: MODULAR_ALLIN,
+    description:
+      `Modular ${item.toLowerCase()} with ${parts[0].item} carcass, ${parts[1].item} shutters/fronts and ${parts[2].item}, ` +
+      "including standard internal shelves, drawers and hanging provision as per approved design. " +
+      "Measured on finished cabinet elevation area; visible sides, extra depth and add-ons are separate.",
+    ...(note ? { remarks: note } : {}),
+    uom: "Sq.Ft.",
+    ...dims,
+    qty: q,
+    rate,
+    amount: r2(q * rate),
+    rateSource: "spazay",
+    ...(alt ? { altRate: alt } : {}),
+  });
 }
+
+/** Synthetic rate id of an all-in modular line (not a rate-card row). */
+export const MODULAR_ALLIN = "mod:unit";
 
 function envelope(ctx: Ctx, room: BoqRoom, L: number, B: number, opts: { paintWalls?: number; wet?: boolean } = {}) {
   const floor = L * B;

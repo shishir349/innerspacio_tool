@@ -16,6 +16,9 @@ export interface BoqSheetLine {
   item: string;
   /** Specific line title; the "Line / BOQ Item" column prints this, falling back to `item`. */
   title?: string;
+  remarks?: string;
+  /** Area label from the client plan (Area column); falls back to the room. */
+  area?: string;
   rateSource?: "spazay" | "livspace";
   /** Livspace reference rate (compare mode). */
   altRate?: number | null;
@@ -62,13 +65,41 @@ const DISCLAIMERS = [
   "*This quotation is based on preliminary discussions and approximate estimates; final quantities, specifications and rates may vary subject to actual site measurements, detailed design development and material selections.",
 ];
 
+/** Professional design & project inclusions (professional BOQ, boq_sample2). */
+const INCLUSIONS = [
+  "Interior design, space planning and design development as per the approved scope.",
+  "Material, finish, colour and fixture selection assistance.",
+  "3D visualisations / renders for the identified key spaces.",
+  "2Ds and GFC (Good for Construction) drawings: furniture layouts, modular details, wall-panelling details, ceiling / lighting intent and site-execution drawings.",
+  "BOQ preparation, scope coordination and design-based cost planning.",
+  "Project management, vendor coordination and periodic site supervision during execution.",
+  "Quality checks, snag-list preparation and follow-up for works within the approved scope.",
+  "Final coordination and handover support, where included in the approved design scope.",
+];
+/** Site assessment, measurement-based conditions and exclusions. */
+const CONDITIONS = [
+  "All quantities are provisional and shall be remeasured at site after final design closure and confirmation of execution drawings. Final billing is on approved site measurements and actual executed quantities.",
+  "Paint quantities and scope are provisional. Putty, primer, crack filling, POP punning, damp treatment, levelling, texture removal and wall repair are determined only after detailed inspection and are carried out only where necessary.",
+  "Modular furniture quantities, depths, heights, shutter areas, visible sides, internal divisions, drawer counts, hardware, handles, fillers, end panels and cut-outs are finalised after site measurement and design closure.",
+  "Rates for custom modular units are subject to final material selection (carcass, shutter finish, hardware brand, drawer systems, profile handles, glass, lighting). Add-ons such as pull-outs, corner units, appliance pockets and LED profiles are finalised post design.",
+  "Countertop, quartz and granite quantities are based on final on-site templates after cabinetry is installed. Slab selection, wastage, joints, edge profiles, cut-outs, backsplash, transport and strengthening supports are confirmed separately.",
+  "Wall panelling, wallpaper, WPC louvres, mirrors, PVD / metal inlays, POP mouldings and decorative lighting are subject to final wall measurements, substrate condition, approved sample and electrical-point availability. Additional framing, levelling or backing is charged separately.",
+  "Mirror and glass quantities are based on final measurements after supporting surfaces are complete. Special shapes, bevels, tinting, profiles, LED lighting and non-standard hardware are excluded unless mentioned.",
+  "Shower partitions are subject to final bathroom dimensions, tile levels, slope, fixing feasibility and hardware selection. Civil backing and waterproofing repairs are charged additionally.",
+  "Bathroom vanity installation is subject to confirmation of plumbing points, drainage, wall condition and sanitaryware selection. Concealed plumbing modifications, wall repair, waterproofing and CP fittings are excluded unless specified.",
+  "uPVC window, PVC ceiling, facade and glass-railing work is subject to final openings, levels, access, site conditions and structural feasibility. Scaffolding, civil repair, special glass / hardware and approvals are excluded unless specified.",
+  "Deep cleaning covers normal post-work cleaning only. Permanent stains, paint overspray, cement residue, restoration and shifting of heavy furniture are assessed separately.",
+  "Concealed defects, seepage, dampness, hollow tiles, damaged plaster, uneven walls / floors or unforeseen work found during execution are additional work after client approval.",
+  "Any change in design, material, finish, brand, quantity, site condition or method after BOQ approval is a variation and charged separately.",
+  "The quoted scope does not include statutory approvals, society permissions, external-agency charges, utility deposits, structural alterations or work not expressly included in the approved BOQ.",
+];
+
 const BROWN = "FF5E3A1E";
 const TAN = "FFE8D9CB";
 const YELLOW = "FFFFF2CC";
 const BLUE = "FFD9E2F3";
 const GREEN = "FFE2EFDA";
 
-const SPARE_ROWS = 2;
 const FIRST = 7; // first Master BOQ data row
 const LAST = 3000;
 
@@ -169,8 +200,9 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
   ws.columns = [
     { width: 24 }, { width: 30 }, { width: 40 }, { width: 62 }, { width: 8 },
     { width: 8 }, { width: 8 }, { width: 8 }, { width: 11 }, { width: 12 }, { width: 15 },
-    { width: 26 }, { width: 16 },
+    { width: 24 }, { width: 40 }, { width: 24 }, { width: 16 },
   ];
+  const LASTCOL = compare ? 15 : 14;
   ws.mergeCells("A1:K1");
   const title = ws.getCell("A1");
   title.value = "InnerSpacio — Bill of Quantities";
@@ -180,7 +212,7 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
   ws.getRow(1).height = 34;
   ws.mergeCells("A2:K2");
   ws.getCell("A2").value =
-    "Enter scope, measurements and rate in the yellow cells. Amount calculates as Quantity × Rate. Trade labels are fixed in the dropdown list.";
+    "Every line is complete: room, trade, item, description, unit, quantity and rate. Amount = Quantity × Rate; edit the yellow cells to revise.";
   ws.getCell("A2").font = { italic: true };
   ws.getCell("A2").fill = fill(TAN);
   ws.getCell("A3").value = `Rates: ${RATE_SHEET_LABEL[opts.sheet ?? "spazay"]}   ·   Prepared by: ${opts.preparedBy || "InnerSpacio"}`;
@@ -191,38 +223,48 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
   ws.mergeCells("F5:H5");
   ws.getCell("F5").value = "Measurements";
   header(ws.getRow(5), 6, 8);
-  ws.getRow(6).values = ["Room", "Trade", "Line / BOQ Item", "Description", "UOM", "L", "B", "H", "Quantity", "Rate (₹)", "Amount (₹)"];
-  ws.getCell("L6").value = "Rate basis";
-  if (compare) ws.getCell("M6").value = "Livspace ref (₹)";
-  header(ws.getRow(6), 1, compare ? 13 : 12);
+  ws.getRow(6).values = ["Room", "Trade", "Line / BOQ Item", "Description", "UOM", "L", "B", "H", "Quantity", "Rate (₹)", "Amount (₹)", "Area (per plan)", "Remarks / assumptions", "Rate basis"];
+  if (compare) ws.getCell("O6").value = "Livspace ref (₹)";
+  header(ws.getRow(6), 1, LASTCOL);
 
-  const rooms: string[] = [...BOQ_ROOMS.filter((r) => opts.lines.some((l) => l.room === r))];
-  for (const l of opts.lines) if (!rooms.includes(l.room)) rooms.push(l.room);
+  const isLoose = (l: BoqSheetLine) => l.trade === "Loose Furniture";
+  const allRooms: string[] = [...BOQ_ROOMS.filter((r) => opts.lines.some((l) => l.room === r))];
+  for (const l of opts.lines) if (!allRooms.includes(l.room)) allRooms.push(l.room);
 
   let row = FIRST;
   const trades = new Map<string, number>();
   const roomTotals = new Map<string, number>();
+  const subtotalCells: string[] = [];
 
   const dv = (r: number, col: string, ref: string) => {
     ws.getCell(`${col}${r}`).dataValidation = { type: "list", allowBlank: true, formulae: [ref], showErrorMessage: false };
   };
 
-  for (const room of rooms) {
-    const sec = ws.getRow(row);
-    sec.getCell(1).value = room;
-    for (let c = 1; c <= 11; c++) {
-      sec.getCell(c).fill = fill(BLUE);
-      sec.getCell(c).font = { bold: true };
-    }
+  /** One costing annexure: room sections of fully-populated lines, then a subtotal. */
+  const annexure = (heading: string, pick: (l: BoqSheetLine) => boolean) => {
+    const lines = opts.lines.filter(pick);
+    if (!lines.length) return;
+    ws.mergeCells(`A${row}:K${row}`);
+    const h = ws.getCell(`A${row}`);
+    h.value = heading;
+    h.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+    h.fill = fill(BROWN);
     row++;
-    const mine = opts.lines.filter((l) => l.room === room);
-    const total = mine.length + SPARE_ROWS;
-    for (let i = 0; i < total; i++, row++) {
-      const l = mine[i];
-      const r = ws.getRow(row);
-      r.getCell(1).value = room;
-      let amount = 0;
-      if (l) {
+    const first = row;
+    for (const room of allRooms) {
+      const mine = lines.filter((l) => l.room === room);
+      if (!mine.length) continue;
+      const sec = ws.getRow(row);
+      sec.getCell(1).value = room;
+      sec.getCell(4).value = `${mine.length} line item${mine.length === 1 ? "" : "s"}`;
+      for (let c = 1; c <= 11; c++) {
+        sec.getCell(c).fill = fill(BLUE);
+        sec.getCell(c).font = { bold: true };
+      }
+      row++;
+      for (const l of mine) {
+        const r = ws.getRow(row);
+        r.getCell(1).value = room;
         r.getCell(2).value = l.trade;
         r.getCell(3).value = l.title || l.item;
         r.getCell(4).value = l.description;
@@ -232,37 +274,49 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
         if (l.h) r.getCell(8).value = l.h;
         r.getCell(9).value = l.qty;
         r.getCell(10).value = l.rate;
-        r.getCell(12).value = l.provisional
+        r.getCell(12).value = l.area || room;
+        if (l.remarks) r.getCell(13).value = l.remarks;
+        r.getCell(14).value = l.provisional
           ? "Provisional allowance — confirm"
           : l.rateSource === "livspace"
             ? "Livspace NCR MRC"
             : "Spazay";
         if (l.provisional) r.getCell(10).fill = fill("FFF8CBAD");
         if (compare && l.altRate) {
-          r.getCell(13).value = l.altRate;
-          r.getCell(13).numFmt = MONEY;
+          r.getCell(15).value = l.altRate;
+          r.getCell(15).numFmt = MONEY;
         }
-        amount = Math.round(l.qty * l.rate * 100) / 100;
+        const amount = Math.round(l.qty * l.rate * 100) / 100;
         trades.set(l.trade, (trades.get(l.trade) ?? 0) + amount);
         roomTotals.set(room, (roomTotals.get(room) ?? 0) + amount);
+        r.getCell(11).value = { formula: `I${row}*J${row}`, result: amount };
+        for (let c = 1; c <= 10; c++) r.getCell(c).fill = fill(YELLOW);
+        for (const c of [3, 4, 12, 13]) r.getCell(c).alignment = { wrapText: true, vertical: "top" };
+        r.getCell(9).numFmt = "0.00";
+        r.getCell(10).numFmt = MONEY;
+        r.getCell(11).numFmt = MONEY;
+        dv(row, "A", rng("B", BOQ_ROOMS.length));
+        dv(row, "B", rng("A", BOQ_TRADES.length));
+        dv(row, "E", rng("E", BOQ_UOMS.length));
+        row++;
       }
-      r.getCell(11).value = { formula: `I${row}*J${row}`, result: amount };
-      for (let c = 1; c <= 10; c++) r.getCell(c).fill = fill(YELLOW);
-      r.getCell(4).alignment = { wrapText: true, vertical: "top" };
-      r.getCell(9).numFmt = "0.00";
-      r.getCell(10).numFmt = MONEY;
-      r.getCell(11).numFmt = MONEY;
-      dv(row, "A", rng("B", BOQ_ROOMS.length));
-      dv(row, "B", rng("A", BOQ_TRADES.length));
-      dv(row, "C", rng("C", BOQ_ITEMS.length));
-      dv(row, "E", rng("E", BOQ_UOMS.length));
     }
-  }
+    const sub = lines.reduce((n, l) => n + Math.round(l.qty * l.rate * 100) / 100, 0);
+    ws.getCell(`D${row}`).value = `Subtotal — ${heading}`;
+    ws.getCell(`K${row}`).value = { formula: `SUM(K${first}:K${row - 1})`, result: sub };
+    ws.getCell(`K${row}`).numFmt = MONEY;
+    for (let c = 1; c <= 11; c++) ws.getRow(row).getCell(c).font = { bold: true };
+    subtotalCells.push(`K${row}`);
+    row += 2;
+  };
+
+  annexure("COSTING ANNEXURE A (FIXED & MODULAR)", (l) => !isLoose(l));
+  annexure("COSTING ANNEXURE B (LOOSE FURNITURE)", isLoose);
 
   // ---- Grand total, client scope, disclaimers ----
-  const lastData = row - 1;
+  const grand = [...trades.values()].reduce((a, b) => a + b, 0);
   ws.getCell(`A${row}`).value = "Grand Total";
-  ws.getCell(`K${row}`).value = { formula: `SUM(K${FIRST}:K${lastData})`, result: [...trades.values()].reduce((a, b) => a + b, 0) };
+  ws.getCell(`K${row}`).value = { formula: subtotalCells.length ? subtotalCells.join("+") : "0", result: grand };
   ws.getCell(`K${row}`).numFmt = MONEY;
   header(ws.getRow(row), 1, 11);
   row += 2;
@@ -280,7 +334,6 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
   }
 
   const sumRange = (col: string) => `'Master BOQ'!$${col}$${FIRST}:$${col}$${LAST}`;
-  const grand = [...trades.values()].reduce((a, b) => a + b, 0);
 
   function summary(s: ExcelJS.Worksheet, heading: string, sub: string, label: string, keys: readonly string[], col: "A" | "B", totals: Map<string, number>) {
     s.columns = [{ width: 46 }, { width: 20 }];
@@ -321,6 +374,26 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
     r.values = [...a];
     for (let c = 1; c <= 5; c++) r.getCell(c).alignment = { wrapText: true, vertical: "top" };
   });
+
+  // ---- Terms & Conditions ----
+  const tc = wb.addWorksheet("Terms & Conditions");
+  tc.columns = [{ width: 6 }, { width: 130 }];
+  band(tc, 1, "B", "Terms & Conditions", "Provisional estimate: subject to site assessment, detailed measurement and design closure.");
+  let t = 5;
+  const block = (heading: string, items: string[], numbered: boolean) => {
+    tc.getRow(t).values = ["", heading];
+    header(tc.getRow(t), 1, 2);
+    t++;
+    items.forEach((x, i) => {
+      tc.getRow(t).values = [numbered ? i + 1 : "•", x];
+      tc.getRow(t).getCell(2).alignment = { wrapText: true, vertical: "top" };
+      t++;
+    });
+    t++;
+  };
+  block("Professional design & project inclusions", INCLUSIONS, false);
+  block("Site assessment, measurement-based conditions & exclusions", CONDITIONS, true);
+  block("Client scope (excluded from this estimate)", CLIENT_SCOPE, false);
 
   // ---- Scope Coverage ----
   if (opts.coverage?.length || opts.planRooms?.length) {

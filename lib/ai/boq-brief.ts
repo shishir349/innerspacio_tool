@@ -68,6 +68,7 @@ const TOOL_SCHEMA: Anthropic.Tool = {
             room: { type: "string", enum: [...BOQ_ROOMS] },
             requirement: { type: "string", description: "The designer's requirement this answers, quoted or closely paraphrased." },
             title: { type: "string", description: "Specific line title: what, where, finish (max ~100 chars)." },
+            area: { type: "string", description: "The plan's own label for the space (e.g. \"Kids Bedroom-2\", \"Boot Room\"); omit if same as room." },
             sides: { type: "number", description: "Faces to finish for an area item (door painted both sides = 2)." },
             kind: {
               type: "string",
@@ -123,7 +124,11 @@ export const SCOPE_RULES = `SCOPE RULES (a senior estimator's BOQ, not a maximal
 - Dresser, vanity, wardrobe, TV unit: kind=modular, plus the add-on rate ids the text mentions (extra drawer mod:A02, LED profile lighting mod:K12).
 - A partition panel is fluted HDHMR + PU (wp:WP11), measured on one face; CNC jaali only if "jaali" is written.
 - Dismantling existing woodwork: cv:CV22 (count=1 when the size is unknown). Closing an opening / reducing a door height: cv:CV30 (sq ft of opening).
-- Curtains (fabric + stitching), a nameplate and a vertical garden have no card rate: use al:CURTAIN (running ft), al:NAMEPLATE (count), al:VGARDEN (sq ft). They print as provisional allowances. Anything else the card cannot price goes in "unpriced".
+- Curtains (fabric + stitching), a nameplate and a vertical garden have no card rate: use al:CURTAIN (running ft), al:NAMEPLATE (count), al:VGARDEN (sq ft). They print as provisional allowances. A glass railing is al:RAILING (running ft); a jacuzzi provision is al:JACUZZI (count=1, lump sum). Anything else the card cannot price goes in "unpriced".
+- Set "room" to the BOQ section and "area" to the plan's own label when they differ (a second kids bedroom: room "Kids Room", area "Kids Bedroom-2"; boot room: room "Foyer / Entryway", area "Boot Room"; study: room "Study / Office"). Repeat every unit for each such room — two kids bedrooms each get their own wardrobe, study, dresser, mirror and bathroom vanity.
+- Every item is complete: room, title, rate id (or modular item), basis and a measurement or count. Never emit a bare room heading.
+- Loose furniture (sofas, beds, tables, chairs, study desks) are separate one-per-piece items from the lf: ids at the tier grade (count = pieces); they print in Annexure B, not with the built-in work.
+- Whole-home work (repaint of the whole house, PVC / false ceiling, uPVC windows, glass railing, deep cleaning) goes in room "Others / Whole Home Civil" with area "Whole Home".
 - When a redesign names no finish, choose the standard grade for the tier (wallpaper / laminate), not the premium one, and record the assumption.`;
 
 export function catalogText(): string {

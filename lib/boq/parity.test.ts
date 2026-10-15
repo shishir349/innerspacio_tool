@@ -19,7 +19,7 @@ describe("repaint is measured net of the feature wall", () => {
     const { lines } = quantify(paintFirst, [master], { ...o, homeCare: false });
     const paint = lines.find((l) => l.rateId === "pt:PT08")!;
     expect(paint.qty).toBeCloseTo(2 * 26 * 10 * 0.85 - 80, 2);
-    expect(paint.description).toContain("Net of the 80 sq ft");
+    expect(paint.remarks).toContain("Net of the 80 sq ft");
   });
 
   it("does not net features from another room", () => {

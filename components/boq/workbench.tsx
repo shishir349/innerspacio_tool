@@ -54,6 +54,8 @@ interface Row {
   key: number;
   /** Specific line title (what / where / finish); falls back to the standard item. */
   title?: string;
+  area?: string;
+  remarks?: string;
   rateSource?: "spazay" | "livspace";
   altRate?: number | null;
   provisional?: boolean;
@@ -105,6 +107,8 @@ function toRows(lines: LineLike[]): Row[] {
     trade: l.trade,
     item: l.item,
     title: l.title,
+    area: l.area,
+    remarks: l.remarks,
     rateSource: l.rateSource,
     altRate: l.altRate ?? null,
     provisional: l.provisional,
@@ -265,6 +269,8 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
             trade: r.trade,
             item: r.item,
             title: r.title || undefined,
+            area: r.area || undefined,
+            remarks: r.remarks || undefined,
             rateSource: r.rateSource,
             altRate: r.altRate ?? undefined,
             provisional: r.provisional || undefined,

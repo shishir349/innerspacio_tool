@@ -28,6 +28,16 @@ const ALLOWANCES: readonly RateEntry[] = [
     uom: "Sq.Ft.", unit: "sq ft", rate: 1000, provisional: true,
     desc: `Supply and installation of a modular vertical garden to the wall, including growing-medium pockets, selected plants, drip irrigation and drainage arrangement, complete as per approved layout. Plant replacement guarantee, structural support and water point provision are excluded unless separately specified. ${NOT_IN_CARD}`,
   },
+  {
+    id: "al:RAILING", code: "AL04", trade: "Mirrors, Glass & Metal Works", item: "Toughened glass railing on SS handrail (stairs / balcony / terrace)",
+    uom: "Rft", unit: "running ft", rate: 6500, provisional: true,
+    desc: `Providing and fixing internal glass railing with toughened safety glass panels on SS 304 handrail/posts, including brackets, clamps, channels, fittings and standard installation. Civil work, structural modification and special hardware are excluded unless separately specified. ${NOT_IN_CARD}`,
+  },
+  {
+    id: "al:JACUZZI", code: "AL05", trade: "Civil Works", item: "Jacuzzi provision — civil, plumbing, electrical and tiling",
+    uom: "L.S.", unit: "lump sum", rate: 150000, provisional: true,
+    desc: `Civil, plumbing, electrical and tiling work for the jacuzzi provision, complete with installation (jacuzzi unit supply excluded). Tile at base rate as per selection. ${NOT_IN_CARD}`,
+  },
 ];
 
 const ALL: readonly RateEntry[] = [...SPAZAY_RATES, ...ALLOWANCES];
