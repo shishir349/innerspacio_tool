@@ -53,7 +53,8 @@ export const briefItemSchema = z.object({
   rateId: z.string().max(40).optional(),
   item: z.enum(BOQ_ITEMS).optional(),
   basis: z.enum(BASES),
-  width: z.number().min(0).max(300).optional(),
+  /** Feet — or, for a whole-home area item (basis area, height 1), the sq ft itself. */
+  width: z.number().min(0).max(50000).optional(),
   height: z.number().min(0).max(40).optional(),
   count: z.number().min(0).max(1000).optional(),
   note: z.string().max(300).optional(),
@@ -260,7 +261,9 @@ export function quantify(
     track();
   }
 
-  if (opts.homeCare !== false) {
+  // The scope may already carry its own cleaning line; do not add a second one.
+  const hasCleaning = lines.some((l) => l.trade === "Site Protection, Deep Cleaning & Handover");
+  if (opts.homeCare !== false && !hasCleaning) {
     const seen = new Set<string>();
     let floor = 0;
     for (const r of rooms) {

@@ -129,6 +129,13 @@ export const SCOPE_RULES = `SCOPE RULES (a senior estimator's BOQ, not a maximal
 - Every item is complete: room, title, rate id (or modular item), basis and a measurement or count. Never emit a bare room heading.
 - Loose furniture (sofas, beds, tables, chairs, study desks) are separate one-per-piece items from the lf: ids at the tier grade (count = pieces); they print in Annexure B, not with the built-in work.
 - Whole-home work (repaint of the whole house, PVC / false ceiling, uPVC windows, glass railing, deep cleaning) goes in room "Others / Whole Home Civil" with area "Whole Home".
+- Never list a requirement as "unpriced" if the card has an equivalent: floating / boot-room shelves are mod:FS01 (9 in) or mod:FS02 (12 in) in running ft; PVC ceiling is fc:FC16; paint is the pt: ids; a study / office storage unit is kind=modular.
+- Whole-home repaint with no wall dimensions: room "Others / Whole Home Civil", basis=area, width = 2.3 x the total floor area in sq ft, height = 1.
+- A sitting area, dress, lounge or walk-in inside a bedroom belongs to that bedroom's BOQ room (area = its plan label). Give every plan room a unique name ("Master Bedroom", "Kids Bedroom-1", "Kids Bedroom-2", "Guest Dress").
+- A reading nook / window seat with built-in seating and shelves is a modular unit (width x height), not loose furniture.
+- When furnishing is requested, add the standard loose set as separate lf: lines (grade the brief names, else the tier): living = 3-seater (lf: ...01) + 2-seater (al:SOFA2) sofa, a large L-shaped corner sofa is al:SOFAL, 2 accent chairs, coffee table x2; dining = 6-seater table set; each bedroom = king bed, pair of bedside tables, 2 accent chairs; study = desk + ergonomic chair; each kids room also a study chair.
+- Size built-in units to the room, not to a token size: a full-height wardrobe runs the whole wall it stands on (wall length x 9-10 ft); a walk-in dress is two walls x 9-10 ft; a U-shaped kitchen is base + wall runs along all three sides (each side length x 2.5 ft base, x 2.5 ft wall), island separate; a TV unit is 8-10 ft x 7-8 ft; a feature wall is the full wall width x ceiling height. State the sizes in "assumptions".
+- A whole-home interior design (new finishes throughout, not a one-room refresh) uses FRESH paint of the tier grade for the whole home, not repaint.
 - When a redesign names no finish, choose the standard grade for the tier (wallpaper / laminate), not the premium one, and record the assumption.`;
 
 export function catalogText(): string {

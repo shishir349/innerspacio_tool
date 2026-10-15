@@ -62,3 +62,13 @@ describe("quantify edge cases", () => {
     ).toBe(false);
   });
 });
+
+import { quantify as q2 } from "@/lib/boq/brief";
+describe("home care does not double an explicit cleaning line", () => {
+  it("skips the automatic deep clean when the scope already has one", () => {
+    const r = { id: "a", name: "A", boqRoom: "Living" as const, l: 10, b: 10, h: 10, source: "labelled" as const };
+    const own = { room: "Others / Whole Home Civil" as const, requirement: "clean", kind: "rate" as const, rateId: "sc:SC01", basis: "area" as const, width: 500, height: 1 };
+    const { lines } = q2([own], [r], { tier: "premium", city: "Delhi" });
+    expect(lines.filter((l) => l.trade.startsWith("Site Protection"))).toHaveLength(1);
+  });
+});

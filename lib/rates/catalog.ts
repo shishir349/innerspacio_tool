@@ -29,13 +29,23 @@ const ALLOWANCES: readonly RateEntry[] = [
     desc: `Supply and installation of a modular vertical garden to the wall, including growing-medium pockets, selected plants, drip irrigation and drainage arrangement, complete as per approved layout. Plant replacement guarantee, structural support and water point provision are excluded unless separately specified. ${NOT_IN_CARD}`,
   },
   {
+    id: "al:SOFA2", code: "AL06", trade: "Loose Furniture", item: "Luxury — 2-seater sofa",
+    uom: "Nos", unit: "per piece", rate: 107962, provisional: true,
+    desc: `Supply of Luxury — 2-seater sofa, complete as per approved dimensions, material, finish, upholstery and selected model. Delivery and standard placement are included; customisation, wall fixing, electrical work and site assembly beyond standard supplier scope are excluded unless separately specified. ${NOT_IN_CARD}`,
+  },
+  {
+    id: "al:SOFAL", code: "AL07", trade: "Loose Furniture", item: "Luxury — L-shaped 8-seater corner sofa",
+    uom: "Nos", unit: "per piece", rate: 228000, provisional: true,
+    desc: `Supply of Luxury L-shaped sofa — L-shaped corner sofa, complete as per approved dimensions, material, finish, upholstery and selected model. Delivery and standard placement are included; customisation, wall fixing, electrical work and site assembly beyond standard supplier scope are excluded unless separately specified. ${NOT_IN_CARD}`,
+  },
+  {
     id: "al:RAILING", code: "AL04", trade: "Mirrors, Glass & Metal Works", item: "Toughened glass railing on SS handrail (stairs / balcony / terrace)",
-    uom: "Rft", unit: "running ft", rate: 6500, provisional: true,
+    uom: "Rft", unit: "running ft", rate: 2491, provisional: true,
     desc: `Providing and fixing internal glass railing with toughened safety glass panels on SS 304 handrail/posts, including brackets, clamps, channels, fittings and standard installation. Civil work, structural modification and special hardware are excluded unless separately specified. ${NOT_IN_CARD}`,
   },
   {
     id: "al:JACUZZI", code: "AL05", trade: "Civil Works", item: "Jacuzzi provision — civil, plumbing, electrical and tiling",
-    uom: "L.S.", unit: "lump sum", rate: 150000, provisional: true,
+    uom: "L.S.", unit: "lump sum", rate: 60000, provisional: true,
     desc: `Civil, plumbing, electrical and tiling work for the jacuzzi provision, complete with installation (jacuzzi unit supply excluded). Tile at base rate as per selection. ${NOT_IN_CARD}`,
   },
 ];

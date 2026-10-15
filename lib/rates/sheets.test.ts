@@ -31,7 +31,7 @@ describe("rate sheet resolution", () => {
 
   it("allowances are on the card, provisional, and positive", () => {
     const al = RATE_CARD.filter((r) => r.provisional);
-    expect(al.map((r) => r.id).sort()).toEqual(["al:CURTAIN", "al:JACUZZI", "al:NAMEPLATE", "al:RAILING", "al:VGARDEN"]);
+    expect(al.map((r) => r.id).sort()).toEqual(["al:CURTAIN", "al:JACUZZI", "al:NAMEPLATE", "al:RAILING", "al:SOFA2", "al:SOFAL", "al:VGARDEN"]);
     for (const r of al) expect(r.rate).toBeGreaterThan(0);
   });
 
