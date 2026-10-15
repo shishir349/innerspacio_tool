@@ -6,12 +6,14 @@ import { AIConfigurationError, AIRequestError, AIValidationError } from "@/lib/a
 import { finishManusBoq } from "@/lib/ai/boq-manus";
 import { briefResponse } from "@/lib/boq/brief-response";
 import { PACKAGE_TIERS } from "@/lib/quote/constants";
+import { RATE_SHEETS } from "@/lib/rates/sheets";
 
 export const runtime = "nodejs";
 
 const querySchema = z.object({
   tier: z.enum(PACKAGE_TIERS),
   city: z.string().trim().max(60).default("Delhi"),
+  sheet: z.enum(RATE_SHEETS).default("spazay"),
 });
 const TASK_ID = /^[A-Za-z0-9_-]{6,80}$/;
 
@@ -34,6 +36,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const q = querySchema.safeParse({
     tier: request.nextUrl.searchParams.get("tier"),
     city: request.nextUrl.searchParams.get("city") ?? undefined,
+    sheet: request.nextUrl.searchParams.get("sheet") ?? undefined,
   });
   if (!TASK_ID.test(taskId) || !q.success) {
     return NextResponse.json({ error: "Invalid request.", code: "invalid" }, { status: 400 });
@@ -43,7 +46,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const p = await finishManusBoq(taskId);
     if (p.state === "running") return NextResponse.json({ status: "running" });
     if (p.state === "failed") return NextResponse.json({ status: "failed", error: p.error }, { status: 502 });
-    return NextResponse.json({ status: "done", ...briefResponse(p.scope, q.data.tier, q.data.city) });
+    return NextResponse.json({ status: "done", ...briefResponse(p.scope, q.data.tier, q.data.city, q.data.sheet) });
   } catch (error) {
     if (error instanceof AIConfigurationError) {
       return NextResponse.json({ status: "failed", error: error.message, code: "not_configured" }, { status: 503 });

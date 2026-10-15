@@ -1,5 +1,5 @@
 // Frozen BOQ vocabularies, transcribed from the reference workbook's "Lists" sheet
-// (reference_BOQ/6.png and 2a–2d.png). Client-safe: no server imports.
+// (reference_BOQ/6.png and 2a–2d.png; expected_BOQ/…Lists.csv). Client-safe: no server imports.
 
 export const BOQ_TRADES = [
   "Civil Works",
@@ -25,6 +25,7 @@ export const BOQ_TRADES = [
 export type BoqTrade = (typeof BOQ_TRADES)[number];
 
 export const BOQ_ROOMS = [
+  "Entrance",
   "Foyer / Entryway",
   "Living",
   "Dining",

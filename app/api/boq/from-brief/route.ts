@@ -9,6 +9,7 @@ import { startManusBoq } from "@/lib/ai/boq-manus";
 import { getBoqProvider } from "@/lib/ai/boq-provider";
 import { PhotoUploadError, validatePhotoFile } from "@/lib/storage";
 import { PACKAGE_TIERS } from "@/lib/quote/constants";
+import { RATE_SHEETS } from "@/lib/rates/sheets";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -23,6 +24,7 @@ const fieldsSchema = z.object({
   requirements: z.string().trim().min(10, "Describe the requirements (at least a sentence).").max(MAX_REQUIREMENTS),
   tier: z.enum(PACKAGE_TIERS),
   city: z.string().trim().max(60).default("Delhi"),
+  sheet: z.enum(RATE_SHEETS).default("spazay"),
 });
 
 const MEDIA = ["image/jpeg", "image/png", "image/webp"] as const;
@@ -75,6 +77,7 @@ export async function POST(request: Request) {
     requirements: form.get("requirements"),
     tier: form.get("tier"),
     city: form.get("city") ?? undefined,
+    sheet: form.get("sheet") ?? undefined,
   });
   if (!fields.success) {
     return NextResponse.json(
@@ -121,12 +124,12 @@ export async function POST(request: Request) {
       // Manus agent tasks run for minutes: start it and let the client poll the [taskId] route.
       const taskId = await startManusBoq({ plan, photos, requirements: fields.data.requirements, tier: fields.data.tier });
       return NextResponse.json(
-        { async: true, taskId, tier: fields.data.tier, city: fields.data.city },
+        { async: true, taskId, tier: fields.data.tier, city: fields.data.city, sheet: fields.data.sheet },
         { status: 202 }
       );
     }
     const scope = await extractBoqScope({ plan, photos, requirements: fields.data.requirements, tier: fields.data.tier });
-    return NextResponse.json({ async: false, ...briefResponse(scope, fields.data.tier, fields.data.city) });
+    return NextResponse.json({ async: false, ...briefResponse(scope, fields.data.tier, fields.data.city, fields.data.sheet) });
   } catch (error) {
     if (error instanceof AIConfigurationError) {
       return NextResponse.json({ error: error.message, code: "not_configured" }, { status: 503 });

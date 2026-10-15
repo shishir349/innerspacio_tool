@@ -1,4 +1,5 @@
 import { findRate, getRate } from "@/lib/rates/catalog";
+import { livspaceModular, resolveRate, type RateSheet, type RateSource } from "@/lib/rates/sheets";
 import { BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
 import {
   METRO_CITIES,
@@ -23,6 +24,8 @@ export interface BoqInput {
   tier: PackageTier;
   /** One entry per room instance, in the order the customer added them. */
   rooms: { roomType: QuoteRoomType }[];
+  /** Rate sheet that prices the BOQ (default Spazay). */
+  sheet?: RateSheet;
 }
 
 export interface BoqLine {
@@ -30,6 +33,8 @@ export interface BoqLine {
   trade: string;
   /** Standard BOQ item label (BOQ_ITEMS). */
   item: string;
+  /** Specific line title shown in the "Line / BOQ Item" column (falls back to `item`). */
+  title?: string;
   code: string;
   rateId: string;
   description: string;
@@ -40,6 +45,12 @@ export interface BoqLine {
   qty: number;
   rate: number;
   amount: number;
+  /** Which sheet priced this line. */
+  rateSource: RateSource;
+  /** Livspace reference rate (sheet = "both", where a verified equivalent exists). */
+  altRate?: number;
+  /** No rate in the sheet — a placeholder allowance to confirm before issue. */
+  provisional?: boolean;
 }
 
 // ---------- ASSUMPTIONS ----------
@@ -193,7 +204,13 @@ interface Ctx {
   factor: number;
   out: BoqLine[];
   scale: number;
+  sheet: RateSheet;
 }
+
+/** Minimum billable amount per rate id: a small job is a lump sum, not qty × a tiny rate. */
+const MIN_AMOUNT: Record<string, number> = {
+  "cv:CV22": 2500, // dismantling a unit: site mobilisation minimum
+};
 
 interface Dims {
   l?: number;
@@ -208,25 +225,40 @@ function push(
   item: string,
   qty: number,
   dims: Dims = {},
-  note?: string
+  note?: string,
+  title?: string
 ) {
   if (!(qty > 0) || !Number.isFinite(qty)) return;
   const r = getRate(rateId);
-  const rate = Math.round(r.rate * ctx.factor);
+  const res = resolveRate(rateId, r.rate, ctx.sheet);
+  const rate = Math.round(res.rate * ctx.factor);
   const base = r.desc || r.item;
-  const q = r2(qty);
+  let q = r2(qty);
+  let uom = r.uom;
+  let lump = "";
+  const min = MIN_AMOUNT[rateId];
+  if (min && q * rate < min) {
+    q = 1;
+    uom = "L.S.";
+    lump = " Lump-sum minimum allowance; measured and settled on actuals.";
+  }
+  const unit = uom === "L.S." && lump ? min : rate;
   ctx.out.push({
     room,
     trade: r.trade,
     item,
+    ...(title ? { title } : {}),
     code: r.code,
     rateId,
-    description: note ? `${note}. ${base}` : base,
-    uom: r.uom,
-    ...dims,
+    description: `${base}${note ? ` ${note}.` : ""}${lump}`,
+    uom,
+    ...(lump ? {} : dims),
     qty: q,
-    rate,
-    amount: r2(q * rate),
+    rate: unit,
+    amount: r2(q * unit),
+    rateSource: res.source,
+    ...(res.alt !== undefined ? { altRate: Math.round(res.alt * ctx.factor) } : {}),
+    ...(r.provisional ? { provisional: true } : {}),
   });
 }
 
@@ -234,6 +266,27 @@ function push(
 function modular(ctx: Ctx, room: BoqRoom, item: string, w: number, h: number, note: string) {
   const area = w * h;
   const dims = { l: w, h };
+  if (ctx.sheet === "livspace") {
+    // Livspace prices a unit as one all-in standard rate, not carcass + shutter + hardware.
+    const m = livspaceModular(item);
+    const rate = Math.round(m.rate * ctx.factor);
+    const q = r2(area);
+    ctx.out.push({
+      room,
+      trade: "Modular Woodwork",
+      item,
+      code: "LS-MOD",
+      rateId: `ls:modular:${item}`,
+      description: `${m.label} — carcass, shutter and standard hardware complete; measured on finished cabinet elevation area. ${note}.`,
+      uom: "Sq.Ft.",
+      ...dims,
+      qty: q,
+      rate,
+      amount: r2(q * rate),
+      rateSource: "livspace",
+    });
+    return;
+  }
   push(ctx, room, ctx.spec.carcass, item, area, dims, `${note} — carcass`);
   push(ctx, room, ctx.spec.shutter, item, area, dims, `${note} — shutters`);
   push(ctx, room, ctx.spec.hardware, item, area, dims, `${note} — hardware`);
@@ -370,6 +423,7 @@ export function buildBoq(input: BoqInput): BoqLine[] {
     factor: cityFactor(input.city),
     out: [],
     scale,
+    sheet: input.sheet ?? "spazay",
   };
 
   const seen: Partial<Record<QuoteRoomType, number>> = {};
@@ -442,8 +496,8 @@ export function summarizeBoq(lines: Pick<BoqLine, "trade" | "room" | "amount">[]
 
 // ---------- helpers for the brief-driven (plan + requirements) flow ----------
 
-function stubCtx(tier: PackageTier, city: string): Ctx {
-  return { tier, spec: SPEC[tier], factor: cityFactor(city), out: [], scale: 1 };
+function stubCtx(tier: PackageTier, city: string, sheet: RateSheet): Ctx {
+  return { tier, spec: SPEC[tier], factor: cityFactor(city), out: [], scale: 1, sheet };
 }
 
 /** One priced line for a rate-card id, or null if the id is unknown / qty is not positive. */
@@ -454,12 +508,14 @@ export function makeLine(
   qty: number,
   dims: Dims,
   note: string | undefined,
-  city: string
+  city: string,
+  sheet: RateSheet = "spazay",
+  title?: string
 ): BoqLine | null {
   if (!findRate(rateId)) return null;
   // Tier is irrelevant for a single explicit rate id (push() only reads factor).
-  const ctx = stubCtx("premium", city);
-  push(ctx, room, rateId, item, qty, dims, note);
+  const ctx = stubCtx("premium", city, sheet);
+  push(ctx, room, rateId, item, qty, dims, note, title);
   return ctx.out[0] ?? null;
 }
 
@@ -471,12 +527,20 @@ export function modularLines(
   item: string,
   w: number,
   h: number,
-  note: string
+  note: string,
+  sheet: RateSheet = "spazay"
 ): BoqLine[] {
-  const ctx = stubCtx(tier, city);
+  const ctx = stubCtx(tier, city, sheet);
   modular(ctx, room, item, w, h, note);
   return ctx.out;
 }
+
+/** Repaint (existing painted walls) by tier — a renovation repaints, it does not "fresh paint". */
+export const REPAINT: Record<PackageTier, string> = {
+  essential: "pt:PT07",
+  premium: "pt:PT08",
+  luxury: "pt:PT09",
+};
 
 /** Rate ids the tier uses for common finishes — a hint for the AI scope step. */
 export function tierHints(tier: PackageTier): Record<string, string> {
@@ -488,6 +552,7 @@ export function tierHints(tier: PackageTier): Record<string, string> {
     wallPanelling: s.panel,
     falseCeiling: s.ceiling,
     wallPaint: s.paint,
+    repaintExistingWalls: REPAINT[tier],
     stone: s.stone,
     showerPartition: s.partition,
     mirror: s.mirror,

@@ -1,6 +1,7 @@
 import "server-only";
 import ExcelJS from "exceljs";
 import { BOQ_ITEMS, BOQ_ROOMS, BOQ_TRADES, BOQ_UOMS } from "@/lib/boq/lists";
+import { RATE_SHEET_LABEL, type RateSheet } from "@/lib/rates/sheets";
 
 /**
  * Builds the BOQ workbook in the reference layout (Instructions · Master BOQ ·
@@ -13,6 +14,12 @@ export interface BoqSheetLine {
   room: string;
   trade: string;
   item: string;
+  /** Specific line title; the "Line / BOQ Item" column prints this, falling back to `item`. */
+  title?: string;
+  rateSource?: "spazay" | "livspace";
+  /** Livspace reference rate (compare mode). */
+  altRate?: number | null;
+  provisional?: boolean;
   description: string;
   uom: string;
   l?: number | null;
@@ -29,7 +36,31 @@ export interface BoqSheetOptions {
   date?: string;
   /** e.g. "Premium specification" — printed on the Instructions sheet. */
   specification?: string;
+  preparedBy?: string;
+  /** Rate sheet the lines were priced from (printed on the Master BOQ). */
+  sheet?: RateSheet;
+  /** Requirement → lines map for the Scope Coverage sheet. */
+  coverage?: { requirement: string; room: string; lines: number; codes: string[]; titles: string[] }[];
+  /** Rooms read from the plan, for the assumed-areas table. */
+  planRooms?: { name: string; boqRoom: string; l: number; b: number; h: number; source: string }[];
 }
+
+/** Standard client-scope exclusions and disclaimers (professional BOQ, expected_BOQ Master sheet). */
+const CLIENT_SCOPE = [
+  "Electrical appliances & white goods",
+  "Switches / switchboards & light fixtures / fancy / decorative lighting",
+  "Tiles except kitchen dado / floor tiles",
+  "Exterior paint",
+  "Civil & structural changes",
+  "Taxes & GST are applicable extra",
+  "Electrical work on actuals after design finalisation — the amount quoted is an estimate",
+  "Sink, fixtures and faucet supply",
+  "Flooring work & tiling / stone work (unless specified above)",
+];
+const DISCLAIMERS = [
+  "*This quotation includes design work (2Ds, working drawings / GFCs, elevations and 3Ds) & project management of items under the company's scope.",
+  "*This quotation is based on preliminary discussions and approximate estimates; final quantities, specifications and rates may vary subject to actual site measurements, detailed design development and material selections.",
+];
 
 const BROWN = "FF5E3A1E";
 const TAN = "FFE8D9CB";
@@ -134,9 +165,11 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
   const rng = (col: string, n: number) => `Lists!$${col}$6:$${col}$${5 + n}`;
 
   // ---- Master BOQ ----
+  const compare = opts.sheet === "both";
   ws.columns = [
-    { width: 24 }, { width: 30 }, { width: 28 }, { width: 62 }, { width: 8 },
+    { width: 24 }, { width: 30 }, { width: 40 }, { width: 62 }, { width: 8 },
     { width: 8 }, { width: 8 }, { width: 8 }, { width: 11 }, { width: 12 }, { width: 15 },
+    { width: 26 }, { width: 16 },
   ];
   ws.mergeCells("A1:K1");
   const title = ws.getCell("A1");
@@ -150,6 +183,8 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
     "Enter scope, measurements and rate in the yellow cells. Amount calculates as Quantity × Rate. Trade labels are fixed in the dropdown list.";
   ws.getCell("A2").font = { italic: true };
   ws.getCell("A2").fill = fill(TAN);
+  ws.getCell("A3").value = `Rates: ${RATE_SHEET_LABEL[opts.sheet ?? "spazay"]}   ·   Prepared by: ${opts.preparedBy || "InnerSpacio"}`;
+  ws.getCell("A3").font = { italic: true };
   ws.getCell("A4").value = `Project / Client: ${opts.client || "______________________"}`;
   ws.getCell("D4").value = `Project location: ${opts.location || "______________________"}`;
   ws.getCell("I4").value = `Date: ${opts.date || new Date().toISOString().slice(0, 10)}`;
@@ -157,7 +192,9 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
   ws.getCell("F5").value = "Measurements";
   header(ws.getRow(5), 6, 8);
   ws.getRow(6).values = ["Room", "Trade", "Line / BOQ Item", "Description", "UOM", "L", "B", "H", "Quantity", "Rate (₹)", "Amount (₹)"];
-  header(ws.getRow(6), 1, 11);
+  ws.getCell("L6").value = "Rate basis";
+  if (compare) ws.getCell("M6").value = "Livspace ref (₹)";
+  header(ws.getRow(6), 1, compare ? 13 : 12);
 
   const rooms: string[] = [...BOQ_ROOMS.filter((r) => opts.lines.some((l) => l.room === r))];
   for (const l of opts.lines) if (!rooms.includes(l.room)) rooms.push(l.room);
@@ -187,7 +224,7 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
       let amount = 0;
       if (l) {
         r.getCell(2).value = l.trade;
-        r.getCell(3).value = l.item;
+        r.getCell(3).value = l.title || l.item;
         r.getCell(4).value = l.description;
         r.getCell(5).value = l.uom;
         if (l.l) r.getCell(6).value = l.l;
@@ -195,6 +232,16 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
         if (l.h) r.getCell(8).value = l.h;
         r.getCell(9).value = l.qty;
         r.getCell(10).value = l.rate;
+        r.getCell(12).value = l.provisional
+          ? "Provisional allowance — confirm"
+          : l.rateSource === "livspace"
+            ? "Livspace NCR MRC"
+            : "Spazay";
+        if (l.provisional) r.getCell(10).fill = fill("FFF8CBAD");
+        if (compare && l.altRate) {
+          r.getCell(13).value = l.altRate;
+          r.getCell(13).numFmt = MONEY;
+        }
         amount = Math.round(l.qty * l.rate * 100) / 100;
         trades.set(l.trade, (trades.get(l.trade) ?? 0) + amount);
         roomTotals.set(room, (roomTotals.get(room) ?? 0) + amount);
@@ -210,6 +257,26 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
       dv(row, "C", rng("C", BOQ_ITEMS.length));
       dv(row, "E", rng("E", BOQ_UOMS.length));
     }
+  }
+
+  // ---- Grand total, client scope, disclaimers ----
+  const lastData = row - 1;
+  ws.getCell(`A${row}`).value = "Grand Total";
+  ws.getCell(`K${row}`).value = { formula: `SUM(K${FIRST}:K${lastData})`, result: [...trades.values()].reduce((a, b) => a + b, 0) };
+  ws.getCell(`K${row}`).numFmt = MONEY;
+  header(ws.getRow(row), 1, 11);
+  row += 2;
+  ws.getCell(`D${row}`).value = "Client scope (i.e. excluded from the scope of this estimate)";
+  ws.getCell(`D${row}`).font = { bold: true };
+  row++;
+  for (const t of CLIENT_SCOPE) ws.getCell(`D${row++}`).value = t;
+  row++;
+  for (const t of DISCLAIMERS) {
+    ws.mergeCells(`A${row}:K${row}`);
+    ws.getCell(`A${row}`).value = t;
+    ws.getCell(`A${row}`).alignment = { wrapText: true, vertical: "top" };
+    ws.getRow(row).height = 32;
+    row++;
   }
 
   const sumRange = (col: string) => `'Master BOQ'!$${col}$${FIRST}:$${col}$${LAST}`;
@@ -254,6 +321,59 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
     r.values = [...a];
     for (let c = 1; c <= 5; c++) r.getCell(c).alignment = { wrapText: true, vertical: "top" };
   });
+
+  // ---- Scope Coverage ----
+  if (opts.coverage?.length || opts.planRooms?.length) {
+    const sc = wb.addWorksheet("Scope Coverage");
+    sc.columns = [{ width: 44 }, { width: 70 }, { width: 24 }, { width: 30 }];
+    band(
+      sc,
+      1,
+      "D",
+      "Scope Coverage",
+      "Every point in the brief is mapped to the BOQ lines that price it. Quantities rest on the assumed areas below and must be confirmed on site before work order."
+    );
+    sc.getRow(5).values = ["Brief point", "What is covered in this BOQ", "Room section", "Rate codes used"];
+    header(sc.getRow(5), 1, 4);
+    let r = 6;
+    for (const c of opts.coverage ?? []) {
+      sc.getRow(r).values = [
+        c.requirement,
+        c.lines > 0 ? c.titles.join("; ") : "NOT PRICED — add a line or confirm it is out of scope.",
+        c.room,
+        c.codes.join(", "),
+      ];
+      for (let k = 1; k <= 4; k++) sc.getRow(r).getCell(k).alignment = { wrapText: true, vertical: "top" };
+      if (c.lines === 0) sc.getRow(r).getCell(2).fill = fill("FFF8CBAD");
+      r++;
+    }
+    const prov = opts.lines.filter((l) => l.provisional);
+    if (prov.length) {
+      r++;
+      sc.mergeCells(`A${r}:D${r}`);
+      sc.getCell(`A${r}`).value = `${prov.length} line(s) are provisional allowances with no rate in the reference list — ${prov
+        .map((l) => l.title || l.item)
+        .join("; ")}. Confirm each against the approved selection or a vendor quote before issue.`;
+      sc.getCell(`A${r}`).alignment = { wrapText: true, vertical: "top" };
+      sc.getRow(r).height = 48;
+      r++;
+    }
+    if (opts.planRooms?.length) {
+      r += 1;
+      sc.getRow(r).values = ["Assumed areas used for quantities", "Assumption", "Basis", "Status"];
+      header(sc.getRow(r), 1, 4);
+      r++;
+      for (const p of opts.planRooms) {
+        sc.getRow(r).values = [
+          p.name,
+          `${p.l} ft × ${p.b} ft = ${Math.round(p.l * p.b)} sq ft, ceiling ${p.h} ft`,
+          p.source === "labelled" ? "Dimensions written on the plan" : p.source === "scaled" ? "Scaled from the plan" : "Typical size assumed",
+          p.source === "labelled" ? "Per plan — verify" : "Confirm on site",
+        ];
+        r++;
+      }
+    }
+  }
 
   return Buffer.from(await wb.xlsx.writeBuffer());
 }

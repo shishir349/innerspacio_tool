@@ -26,6 +26,7 @@ import { formatInr } from "@/lib/format";
 import { autoQty } from "@/lib/boq/measure";
 import { BriefNotes, BriefPanel, PlanRoomsEditor, type BriefResult } from "@/components/boq/brief-panel";
 import type { BriefItem, PlanRoom } from "@/lib/boq/brief";
+import { RATE_SHEETS, RATE_SHEET_LABEL, type RateSheet } from "@/lib/rates/sheets";
 
 export interface CatalogRate {
   id: string;
@@ -47,8 +48,15 @@ export interface WorkbenchInitial {
   leadId?: string;
 }
 
+type Coverage = { requirement: string; room: string; lines: number; codes: string[]; titles: string[] };
+
 interface Row {
   key: number;
+  /** Specific line title (what / where / finish); falls back to the standard item. */
+  title?: string;
+  rateSource?: "spazay" | "livspace";
+  altRate?: number | null;
+  provisional?: boolean;
   /** Rate-card id when the rate came from the sheet; empty = custom rate. */
   rateId: string;
   room: string;
@@ -96,6 +104,10 @@ function toRows(lines: LineLike[]): Row[] {
     room: l.room,
     trade: l.trade,
     item: l.item,
+    title: l.title,
+    rateSource: l.rateSource,
+    altRate: l.altRate ?? null,
+    provisional: l.provisional,
     description: l.description,
     uom: l.uom,
     l: l.l ?? null,
@@ -111,6 +123,8 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
   const [homeSize, setHomeSize] = useState<HomeSize>(initial.homeSize ?? "small");
   const [city, setCity] = useState(initial.city);
   const [tier, setTier] = useState<PackageTier>(initial.tier);
+  const [sheet, setSheet] = useState<RateSheet>("spazay");
+  const [coverage, setCoverage] = useState<Coverage[]>([]);
   const [rooms, setRooms] = useState<Partial<Record<string, number>>>(initial.rooms);
   const [client, setClient] = useState(initial.client);
   const [location, setLocation] = useState("");
@@ -156,7 +170,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
       const r = await fetch("/api/boq/build", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ bhk, homeSize: SIZED_BHKS.includes(bhk) ? homeSize : undefined, city, tier, rooms: roomList }),
+        body: JSON.stringify({ bhk, homeSize: SIZED_BHKS.includes(bhk) ? homeSize : undefined, city, tier, sheet, rooms: roomList }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not build the BOQ.");
@@ -165,6 +179,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
       setPlanRooms([]);
       setBriefItems([]);
       setNotes(null);
+      setCoverage([]);
       toast.success(`${j.lines.length} lines generated.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not build the BOQ.");
@@ -178,6 +193,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
     setPlanRooms(r.rooms);
     setBriefItems(r.items);
     setNotes({ warnings: r.warnings, assumptions: r.assumptions, unpriced: r.unpriced, questions: r.questions });
+    setCoverage(r.coverage ?? []);
     setSpec(`${TIER_INFO[tier].label} specification`);
   }
 
@@ -189,11 +205,12 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
       const r = await fetch("/api/boq/quantify", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tier, city, rooms: planRooms, items: briefItems }),
+        body: JSON.stringify({ tier, city, sheet, rooms: planRooms, items: briefItems }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not recalculate.");
       setRows(toRows(j.lines));
+      setCoverage(j.coverage ?? []);
       setNotes((n) => (n ? { ...n, warnings: j.warnings } : n));
       toast.success("Quantities recalculated.");
     } catch (e) {
@@ -238,10 +255,19 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
           client,
           location,
           specification: spec || undefined,
+          sheet,
+          coverage: coverage.length ? coverage : undefined,
+          planRooms: planRooms.length
+            ? planRooms.map((p) => ({ name: p.name, boqRoom: p.boqRoom, l: p.l, b: p.b, h: p.h, source: p.source }))
+            : undefined,
           lines: rows.map((r) => ({
             room: r.room,
             trade: r.trade,
             item: r.item,
+            title: r.title || undefined,
+            rateSource: r.rateSource,
+            altRate: r.altRate ?? undefined,
+            provisional: r.provisional || undefined,
             description: r.description,
             uom: r.uom,
             l: r.l,
@@ -396,6 +422,27 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
               ))}
             </select>
           </label>
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">Rate sheet</span>
+            <select
+              className={selectCls + " h-9"}
+              value={sheet}
+              onChange={(e) => setSheet(e.target.value as RateSheet)}
+              aria-describedby="sheet-hint"
+            >
+              {RATE_SHEETS.map((s) => (
+                <option key={s} value={s}>
+                  {RATE_SHEET_LABEL[s]}
+                </option>
+              ))}
+            </select>
+            <span id="sheet-hint" className="block text-[11px] text-muted-foreground">
+              {sheet === "spazay" && "Full card; every line priced from Spazay."}
+              {sheet === "livspace" && "Livspace where a verified equivalent exists; other lines fall back to Spazay (marked)."}
+              {sheet === "both" && "Billed on Spazay; Livspace shown beside each comparable line."}
+              {rows.length > 0 && " Recalculate / regenerate to re-price."}
+            </span>
+          </label>
           {mode === "spec" && (
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">BHK</span>
@@ -421,7 +468,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
           )}
         </div>
 
-        {mode === "brief" && <BriefPanel tier={tier} city={city} onResult={onBriefResult} />}
+        {mode === "brief" && <BriefPanel tier={tier} city={city} sheet={sheet} onResult={onBriefResult} />}
 
         {mode === "spec" && (
         <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -510,12 +557,14 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                           ))}
                         </select>
                       </td>
-                      <td className="w-40 p-1">
-                        <select className={selectCls} value={r.item} onChange={(e) => patch(r.key, { item: e.target.value })}>
-                          {BOQ_ITEMS.map((x) => (
-                            <option key={x}>{x}</option>
-                          ))}
-                        </select>
+                      <td className="w-56 p-1">
+                        <textarea
+                          rows={2}
+                          className="w-full resize-y rounded-md border border-input bg-background px-1.5 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          value={r.title ?? r.item}
+                          aria-label="Line / BOQ item"
+                          onChange={(e) => patch(r.key, { title: e.target.value })}
+                        />
                       </td>
                       <td className="w-56 p-1">
                         <select className={selectCls} value={r.rateId} onChange={(e) => pickRate(r.key, e.target.value)}>
@@ -569,6 +618,15 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                           value={r.rate}
                           onChange={(e) => patch(r.key, { rate: Math.max(0, Number(e.target.value) || 0) })}
                         />
+                        <span
+                          className={
+                            "mt-0.5 block text-[10px] " +
+                            (r.provisional ? "font-medium text-amber-600" : "text-muted-foreground")
+                          }
+                        >
+                          {r.provisional ? "Provisional" : r.rateSource === "livspace" ? "Livspace" : r.rateSource === "spazay" ? "Spazay" : ""}
+                          {r.altRate ? ` · LS ₹${r.altRate.toLocaleString("en-IN")}` : ""}
+                        </span>
                       </td>
                       <td className="w-28 px-1.5 py-2 text-right tabular-nums">{formatInr(r.qty * r.rate)}</td>
                       <td className="w-8 p-1">

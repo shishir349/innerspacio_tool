@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   if ("leadId" in parsed.data) {
     const lead = await loadLeadSpec(parsed.data.leadId);
     if (!lead) return NextResponse.json({ error: "Lead not found.", code: "not_found" }, { status: 404 });
-    input = lead.input;
+    input = { ...lead.input, sheet: parsed.data.sheet };
     client = lead.client;
   } else {
     input = parsed.data as BoqInput;

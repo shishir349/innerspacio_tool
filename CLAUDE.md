@@ -14,7 +14,7 @@ Next.js 16.4 (App Router, Turbopack), React 19, TypeScript strict, Tailwind v4 +
 npm run dev            # dev server, demo mode if no Supabase env
 npm run build / start
 npm run lint           # eslint
-npm run test           # vitest run (all **/*.test.ts, node env); 140 tests
+npm run test           # vitest run (all **/*.test.ts, node env)
                        # if "Cannot find native binding": npm i --no-save @rolldown/binding-win32-x64-msvc@<rolldown version>
 npx tsc --noEmit       # typecheck (pre-deploy check per README)
 npm run create-user -- "email" "password"   # Supabase Auth admin create; needs .env.local
@@ -49,7 +49,7 @@ lib/
   presentation-links/       token crypto, resolve (service-role), designer ops, preview
   leads/service.ts          public quote flow (service-role, token-scoped): createLead, processRoom, getQuoteResult
   quote/                    constants (tiers, rooms, cities), estimate.ts (range = BOQ total × 0.92–1.12 + customer-safe breakdown), format.ts (client-safe), schema.ts (zod)
-  rates/                    spazay-data.ts (GENERATED selling-rate card, ids `<sheet>:<code>`), catalog.ts (getRate), livspace-benchmarks.ts (cross-check only)
+  rates/                    spazay-data.ts (GENERATED selling-rate card, ids `<sheet>:<code>`), catalog.ts (getRate; + 3 provisional `al:*` allowances with no card rate), sheets.ts (RateSheet spazay|livspace|both, verified Livspace equivalents, GST strip), livspace-benchmarks.ts (cross-check only)
   boq/                      build.ts (room×tier scope → lines; ASSUMPTIONS live here), lists.ts (frozen trades/rooms/items/UOM), xlsx.ts (exceljs, reference layout), schema.ts, lead.ts, brief.ts (plan rooms + requirement items → quantified lines; all qty/₹ computed here), measure.ts
   ai/boq-brief.ts           vision step: plan image + photos + requirements → rooms/dims + rate-card items (reads only; never prices)
   motion.ts                 gsap+ScrollTrigger+useGSAP registration, MOTION_OK/REDUCED media queries, EASE
@@ -70,6 +70,8 @@ scripts/create-user.ts      operator CLI (service-role)
 - **Client-safe boundary**: client-facing pages render only `lib/presentation/*` DTO types. Never add cost/margin/supplier/internal-notes fields to them; `estimate_versions` has no cost columns by design. Tests in `dto.test.ts` / `token.test.ts` enforce it.
 - **BOQ**: `/boq` + `/api/boq/*` are staff-only (JSON 401). Export recomputes nothing client-trusted: Amount is an `I*J` formula in the sheet. Lead prefill (`lib/boq/lead.ts`) uses the signed-in session + RLS, NOT the service-role client. Plan-driven BOQ (`/api/boq/from-brief`, paid, 10/hr/user): the model only reads rooms/dimensions and picks rate-card ids; `lib/boq/brief.ts` computes every quantity and rupee, drops unknown ids with a warning. Unpriceable requirements surface as `unpriced`, never guessed. "Delete BOQ" clears the working BOQ (undo toast). No BOQ table yet (export-first); add one if designers must resume edits.
 - **Image generation, two flows**: public client flow (`lib/leads/service.ts`) = one photo + the customer's ideas, unchanged. Designer flow (`/api/projects/.../concepts`) = all room photos (main + ≤2 angles) + client notes/room size + design brief + styling brief + project floor plan (`lib/floor-plan.ts`, one per project at `floorplans/<projectId>/plan` in the private bucket, no table). Extra prompt sections are opt-in fields on `buildConceptEditInstruction`, so the client prompt stays identical (tested).
+- **Rate sheet** (`lib/rates/sheets.ts`): the designer BOQ picks `spazay` (default) / `livspace` / `both` (bill Spazay, show Livspace ref). Livspace is a small hand-verified map (PDF is unparseable in bulk); unmapped ids fall back to Spazay and each line records `rateSource`. Livspace prices are incl. 18% GST and stripped. The public quote flow never passes a sheet (always Spazay). Provisional `al:*` allowances print flagged and list on the Scope Coverage sheet.
+- **BOQ parity with the professional** (`expected_BOQ/`, `PLAN_BOQ_V3.md`): `SCOPE_RULES` in `lib/ai/boq-brief.ts` feeds both AI prompts; `quantify()` adds wallpaper→oil-primer, nets repaint against panelled features, applies `sides`, lump-sum minimums, deep-clean only (floor protection opt-in). `lib/boq/apex.test.ts` pins the Apex brief against the professional's lines.
 - **Photos**: private bucket; persist only `storage_path`, mint ~10 min signed URLs on read. Deleting a photo must remove the storage object.
 - **Server Actions** return `ActionResult<T>` (`{ok:true,data}|{ok:false,error}`), validate with Zod, call `revalidatePath`. **API routes** (AI/pricing) validate body with Zod and return `{error, code}` with real HTTP status; rate-limit expensive ones (concepts: 15/hr/user).
 - **Pricing**: margin-based, not markup (40% margin ≠ 40% markup); GST on selling subtotal; keep engine pure and tested.

@@ -31,9 +31,10 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
-  const { lines, warnings } = quantify(parsed.data.items, parsed.data.rooms, {
+  const { lines, warnings, coverage } = quantify(parsed.data.items, parsed.data.rooms, {
     tier: parsed.data.tier,
     city: parsed.data.city,
+    sheet: parsed.data.sheet,
   });
-  return NextResponse.json({ lines, summary: summarizeBoq(lines), warnings });
+  return NextResponse.json({ lines, summary: summarizeBoq(lines), warnings, coverage });
 }

@@ -8,6 +8,7 @@ import { BOQ_ROOMS } from "@/lib/boq/lists";
 import { shrinkImage } from "@/lib/client-image";
 import type { BriefItem, PlanRoom } from "@/lib/boq/brief";
 import type { PackageTier } from "@/lib/quote/constants";
+import type { RateSheet } from "@/lib/rates/sheets";
 
 export interface BriefResult {
   rooms: PlanRoom[];
@@ -17,6 +18,7 @@ export interface BriefResult {
   assumptions: string[];
   unpriced: { requirement: string; reason: string }[];
   questions: string[];
+  coverage?: { requirement: string; room: string; lines: number; codes: string[]; titles: string[] }[];
 }
 
 const MAX_PHOTOS = 6;
@@ -51,10 +53,12 @@ function Thumb({ file, onRemove }: { file: File; onRemove: () => void }) {
 export function BriefPanel({
   tier,
   city,
+  sheet,
   onResult,
 }: {
   tier: PackageTier;
   city: string;
+  sheet: RateSheet;
   onResult: (r: BriefResult) => void;
 }) {
   const [plan, setPlan] = useState<File | null>(null);
@@ -77,6 +81,7 @@ export function BriefPanel({
       fd.append("requirements", requirements);
       fd.append("tier", tier);
       fd.append("city", city);
+      fd.append("sheet", sheet);
       const r = await fetch("/api/boq/from-brief", { method: "POST", body: fd });
       let j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not analyse the plan.");
@@ -94,7 +99,7 @@ export function BriefPanel({
           let p: { status?: string; error?: string } & Record<string, unknown>;
           try {
             const pr = await fetch(
-              `/api/boq/from-brief/${encodeURIComponent(j.taskId)}?tier=${tier}&city=${encodeURIComponent(city)}`
+              `/api/boq/from-brief/${encodeURIComponent(j.taskId)}?tier=${tier}&city=${encodeURIComponent(city)}&sheet=${sheet}`
             );
             p = await pr.json();
           } catch {
