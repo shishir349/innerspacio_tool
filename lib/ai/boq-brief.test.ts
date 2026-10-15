@@ -88,7 +88,7 @@ describe("extractBoqScope", () => {
         ],
         items: [
           { room: "Master Bedroom", requirement: "paint", kind: "rate", rateId: "pt:PT03", basis: "wall_area" },
-          { room: "Master Bedroom", requirement: "x", kind: "rate", basis: "bogus" },
+          { room: "Not A Room", requirement: "x", kind: "rate", basis: "area" },
         ],
         assumptions: ["a".repeat(900), 5],
         unpriced: [{ requirement: 5 }, null, { requirement: "x" }],

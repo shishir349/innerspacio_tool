@@ -6,6 +6,7 @@ import { RATE_CARD } from "@/lib/rates/catalog";
 import { BOQ_ITEMS, BOQ_ROOMS } from "@/lib/boq/lists";
 import { BASES, briefItemSchema, planRoomSchema, type BriefItem, type PlanRoom } from "@/lib/boq/brief";
 import { tierHints } from "@/lib/boq/build";
+import { UNIT_IDS, unitClassText } from "@/lib/boq/classes";
 import type { PackageTier } from "@/lib/quote/constants";
 
 const TOOL = "submit_boq_scope";
@@ -68,6 +69,7 @@ const TOOL_SCHEMA: Anthropic.Tool = {
             room: { type: "string", enum: [...BOQ_ROOMS] },
             requirement: { type: "string", description: "The designer's requirement this answers, quoted or closely paraphrased." },
             title: { type: "string", description: "Specific line title: what, where, finish (max ~100 chars)." },
+            unit: { type: "string", enum: [...UNIT_IDS], description: "Unit class when the item is one of the standard units (see UNIT CLASSES); omit rateId/width/height unless the designer states a size." },
             area: { type: "string", description: "The plan's own label for the space (e.g. \"Kids Bedroom-2\", \"Boot Room\"); omit if same as room." },
             sides: { type: "number", description: "Faces to finish for an area item (door painted both sides = 2)." },
             kind: {
@@ -113,6 +115,8 @@ const TOOL_SCHEMA: Anthropic.Tool = {
  * (expected_BOQ vs your_BOQ). Shared by every AI provider so they estimate the same way.
  */
 export const SCOPE_RULES = `SCOPE RULES (a senior estimator's BOQ, not a maximal one)
+- UNIT CLASSES: when an item is one of the classes below, set "unit" to the class id and the room; do NOT choose a rate id and do NOT give width/height/count unless the designer's text states that size (the system sizes the unit from the plan and prices it at the estimator's rate). Use rateId only for items no class covers (wallpaper, trims, lighting points, electrical, loose furniture lf: ids, curtains...). One item per physical unit; never split one unit into base / wall / runs.
+${unitClassText()}
 - Price only what the requirements ask for. "Renovate the room" does NOT mean demolish everything or add a false ceiling: keep the existing ceiling, floor and walls unless a requirement says otherwise.
 - Existing painted walls are REPAINT (pt:PT06-PT10), never "Fresh Paint". Fresh is for new plaster / bare surfaces only. Paint lines use basis=wall_area; the panelled/wallpapered feature is netted off automatically.
 - The Entrance (main door, nameplate, entry feature) is its own room "Entrance"; the Foyer is separate when both appear.
@@ -129,13 +133,13 @@ export const SCOPE_RULES = `SCOPE RULES (a senior estimator's BOQ, not a maximal
 - Every item is complete: room, title, rate id (or modular item), basis and a measurement or count. Never emit a bare room heading.
 - Loose furniture (sofas, beds, tables, chairs, study desks) are separate one-per-piece items from the lf: ids at the tier grade (count = pieces); they print in Annexure B, not with the built-in work.
 - Whole-home work (repaint of the whole house, PVC / false ceiling, uPVC windows, glass railing, deep cleaning) goes in room "Others / Whole Home Civil" with area "Whole Home".
-- Never list a requirement as "unpriced" if the card has an equivalent: floating / boot-room shelves are mod:FS01 (9 in) or mod:FS02 (12 in) in running ft; PVC ceiling is fc:FC16; paint is the pt: ids; a study / office storage unit is kind=modular.
-- Whole-home repaint with no wall dimensions: room "Others / Whole Home Civil", basis=area, width = 2.3 x the total floor area in sq ft, height = 1.
+- Every bathroom gets a vanity, a vanity mirror and a glass shower partition (shower_partition) unless the requirement says no shower.
+- Never list a requirement as "unpriced" if the card or a unit class covers it: floating / boot-room shelves are mod:FS01 (9 in) or mod:FS02 (12 in) in running ft. Only things with no rate at all (design fees, third-party works) are unpriced.
+- Whole-home paint and cleaning: one fresh_paint and one deep_clean unit per level, room "Others / Whole Home Civil", area "Whole Home".
 - A sitting area, dress, lounge or walk-in inside a bedroom belongs to that bedroom's BOQ room (area = its plan label). Give every plan room a unique name ("Master Bedroom", "Kids Bedroom-1", "Kids Bedroom-2", "Guest Dress").
 - A reading nook / window seat with built-in seating and shelves is a modular unit (width x height), not loose furniture.
 - When furnishing is requested, add the standard loose set as separate lf: lines (grade the brief names, else the tier): living = 3-seater (lf: ...01) + 2-seater (al:SOFA2) sofa, a large L-shaped corner sofa is al:SOFAL, 2 accent chairs, coffee table x2; dining = 6-seater table set; each bedroom = king bed, pair of bedside tables, 2 accent chairs; study = desk + ergonomic chair; each kids room also a study chair.
-- Size built-in units to the room, not to a token size: a full-height wardrobe runs the whole wall it stands on (wall length x 9-10 ft); a walk-in dress is two walls x 9-10 ft; a U-shaped kitchen is base + wall runs along all three sides (each side length x 2.5 ft base, x 2.5 ft wall), island separate; a TV unit is 8-10 ft x 7-8 ft; a feature wall is the full wall width x ceiling height. State the sizes in "assumptions".
-- A whole-home interior design (new finishes throughout, not a one-room refresh) uses FRESH paint of the tier grade for the whole home, not repaint.
+- A glass railing with no length on the plan: balconies = their open edge, stairs = each flight, terrace = the building footprint perimeter 2 x (overall width + depth); give width in running ft per run.
 - When a redesign names no finish, choose the standard grade for the tier (wallpaper / laminate), not the premium one, and record the assumption.`;
 
 export function catalogText(): string {
@@ -246,6 +250,12 @@ export async function extractBoqScope(args: {
  * Validates a model-produced scope (from any provider) into a BoqScope: invalid rooms and
  * items are dropped and reported, strings are capped, and at least one room is required.
  */
+const ROOM_BY_NAME: [RegExp, PlanRoom["boqRoom"]][] = [
+  [/utility|laundry/i, "Utility"],
+  [/kitchen/i, "Kitchen"],
+  [/study/i, "Study / Office"],
+];
+
 export function normalizeScope(input: unknown): BoqScope {
   const raw = (input && typeof input === "object" ? input : {}) as {
     rooms?: unknown[];
@@ -259,7 +269,12 @@ export function normalizeScope(input: unknown): BoqScope {
   const rooms: PlanRoom[] = [];
   for (const r of raw.rooms ?? []) {
     const p = planRoomSchema.safeParse(r);
-    if (p.success) rooms.push(p.data);
+    if (p.success) {
+      // A room's own name beats the model's section choice for the few unambiguous ones.
+      const label = p.data.name.replace(/\s*\(.*$/, "");
+      const forced = ROOM_BY_NAME.find(([re]) => re.test(label))?.[1];
+      rooms.push(forced ? { ...p.data, boqRoom: forced } : p.data);
+    }
     else dropped.push(`Room skipped: ${p.error.issues[0]?.message ?? "invalid"}`);
   }
   const items: BriefItem[] = [];

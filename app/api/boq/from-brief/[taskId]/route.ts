@@ -15,7 +15,8 @@ const querySchema = z.object({
   city: z.string().trim().max(60).default("Delhi"),
   sheet: z.enum(RATE_SHEETS).default("spazay"),
 });
-const TASK_ID = /^[A-Za-z0-9_-]{6,80}$/;
+// One provider id, or up to five joined with "." (consensus runs).
+const TASK_ID = /^[A-Za-z0-9_-]{6,80}(\.[A-Za-z0-9_-]{6,80}){0,4}$/;
 
 // Staff-only: one poll of a plan analysis started by POST /api/boq/from-brief.
 export async function GET(request: NextRequest, { params }: { params: Promise<{ taskId: string }> }) {

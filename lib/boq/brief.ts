@@ -2,6 +2,7 @@ import { z } from "zod";
 import { makeLine, modularLines, type BoqLine } from "@/lib/boq/build";
 import { BOQ_ITEMS, BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
 import { findRate } from "@/lib/rates/catalog";
+import { normalizeUnit, ordinalOf, resolveUnit, UNIT_CLASSES } from "@/lib/boq/classes";
 import { RATE_SHEETS, type RateSheet } from "@/lib/rates/sheets";
 import { PACKAGE_TIERS, type PackageTier } from "@/lib/quote/constants";
 
@@ -49,13 +50,18 @@ export const briefItemSchema = z.object({
   area: z.string().max(60).optional(),
   /** Faces to finish for an area item (a door painted on both faces = 2). */
   sides: z.number().min(1).max(2).optional(),
-  kind: z.enum(["rate", "modular"]),
+  /** Anything but "modular" is a plain rate item (a unit class sets its own). */
+  kind: z.preprocess((v) => (v === "modular" ? "modular" : "rate"), z.enum(["rate", "modular"])),
+  /** Unit class (lib/boq/classes.ts): fixes the rate item and a default size from the plan. */
+  unit: z.string().max(40).optional(),
   rateId: z.string().max(40).optional(),
   item: z.enum(BOQ_ITEMS).optional(),
-  basis: z.enum(BASES),
+  /** An unknown / missing measure falls back to "area" (a unit class carries its own). */
+  basis: z.preprocess((v) => (BASES.includes(v as Basis) ? v : "area"), z.enum(BASES)),
   /** Feet — or, for a whole-home area item (basis area, height 1), the sq ft itself. */
   width: z.number().min(0).max(50000).optional(),
-  height: z.number().min(0).max(40).optional(),
+  /** Feet; an implausible height (the model put an area here) is ignored, not fatal. */
+  height: z.preprocess((v) => (typeof v === "number" && v > 40 ? undefined : v), z.number().min(0).max(40).optional()),
   count: z.number().min(0).max(1000).optional(),
   note: z.string().max(300).optional(),
 });
@@ -133,7 +139,37 @@ export function quantify(
     const rate = it.rateId ? findRate(it.rateId) : undefined;
     return it.kind === "rate" && it.basis === "wall_area" && rate?.trade === "Paint & Polish";
   };
-  const ordered = [...items.filter((i) => !isWallPaint(i)), ...items.filter(isWallPaint)];
+  // "One per room / level" classes: a second copy is the model double-counting, not a second unit.
+  const seenUnit = new Set<string>();
+  const unique = items.map(normalizeUnit).filter((i) => {
+    const c = i.unit ? UNIT_CLASSES[i.unit] : undefined;
+    if (!c?.once) return true;
+    // Kids Bedroom-1 vs -2 are two units; "Bedroom" + "Dress" of one master are one.
+    const nth = ordinalOf(`${i.area ?? ""} ${i.title ?? ""} ${i.requirement}`);
+    const key = c.once === "level" ? i.unit! : `${i.unit}|${i.room}|${nth}`;
+    if (seenUnit.has(key)) {
+      warnings.push(`${i.room}: duplicate “${i.unit}” ignored (one per ${c.once}).`);
+      return false;
+    }
+    seenUnit.add(key);
+    return true;
+  });
+  // The plan-area label is the model's most reliable pointer: an item whose area is exactly a plan
+  // room belongs to that room's BOQ section (it filed a utility counter under Kitchen).
+  // Only when the label names ONE section: "BEDROOM" appears on every floor of a plan.
+  const bySpace = new Map<string, BoqRoom | null>();
+  for (const r of rooms) {
+    const k = r.name.replace(/\s*\(.*$/, "").trim().toLowerCase();
+    bySpace.set(k, bySpace.has(k) && bySpace.get(k) !== r.boqRoom ? null : r.boqRoom);
+  }
+  const homed = unique.map((i) => {
+    const to = i.area ? bySpace.get(i.area.trim().toLowerCase()) : undefined;
+    return to && to !== i.room ? { ...i, room: to } : i;
+  });
+  const resolved = homed.map((i) => resolveUnit(i, rooms, opts.tier));
+  const scaleOf = new Map<BriefItem, number>(resolved.map((r) => [r.item, r.scale]));
+  const list = resolved.map((r) => r.item);
+  const ordered = [...list.filter((i) => !isWallPaint(i)), ...list.filter(isWallPaint)];
   const primerRooms = new Set(items.filter((i) => i.rateId === PRIMER).map((i) => i.room));
 
   for (const it of ordered) {
@@ -239,6 +275,16 @@ export function quantify(
       if (qty !== null && it.sides && it.sides > 1) qty *= it.sides;
     }
 
+    if ((qty === null || !(qty > 0)) && it.room === "Others / Whole Home Civil" && rate.trade === "Paint & Polish" && rate.uom === "Sq.Ft.") {
+      // Whole-home paint with no size: walls + ceilings ≈ 2.45 x the floor area of the plan.
+      const seen = new Set<string>();
+      const floor = rooms.reduce((n, r) => (r.l > 0 && r.b > 0 && !seen.has(r.id) && seen.add(r.id) ? n + r.l * r.b : n), 0);
+      if (floor > 0) {
+        qty = floor * 2.45;
+        dims = {};
+        note = `${note ? `${note} ` : ""}Assumed size (2.45 x plan floor area) — confirm on site.`.trim();
+      }
+    }
     if (qty === null || !(qty > 0)) {
       warnings.push(`${label} — no dimensions for this room on the plan; enter a width/height or add the room.`);
       track();
@@ -247,6 +293,11 @@ export function quantify(
     const lineTitle = title ?? `${it.requirement.slice(0, 90)} — ${rate.item}`;
     const line = makeLine(it.rateId, it.room, item, r2(qty), dims, note || undefined, opts.city, sheet, lineTitle);
     if (line) {
+      const scale = scaleOf.get(it) ?? 1;
+      if (scale !== 1) {
+        line.rate = Math.round(line.rate * scale);
+        line.amount = r2(line.qty * line.rate);
+      }
       lines.push(line);
       // Wallpaper needs its oil-primer base coat; the designer rarely writes it out.
       if (it.rateId === WALLPAPER && !primerRooms.has(it.room)) {
