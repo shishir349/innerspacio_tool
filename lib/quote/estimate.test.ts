@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildBoq, summarizeBoq } from "@/lib/boq/build";
 import { estimateAllTiers, estimateForTier, explainEstimate, formatRange, toBoqInput } from "@/lib/quote/estimate";
-import { PACKAGE_TIERS } from "@/lib/quote/constants";
+import { PACKAGE_BANDS, PACKAGE_TIERS } from "@/lib/quote/constants";
 
 const base = {
   bhk: "2" as const,
@@ -50,6 +50,16 @@ describe("quote estimate (BOQ-backed)", () => {
       const e = estimateForTier({ ...base, rooms }, tier);
       expect(e.lowLakh).toBeCloseTo(boq * 0.92, 0);
       expect(e.highLakh).toBeCloseTo(boq * 1.12, 0);
+    }
+  });
+
+  it("a 2 BHK full home's estimate midpoint lands in the price sheet's band for every tier", () => {
+    for (const tier of PACKAGE_TIERS) {
+      const x = estimateForTier({ bhk: "2", city: "Delhi", rooms: { living_room: 1, dining_room: 1, kitchen: 1, bedroom: 2, bathroom: 2 } }, tier);
+      const mid = ((x.lowLakh + x.highLakh) / 2) * 1e5;
+      const { min, max } = PACKAGE_BANDS["2"][tier];
+      expect(mid, tier).toBeGreaterThanOrEqual(min * 0.95);
+      expect(mid, tier).toBeLessThanOrEqual(max * 1.05);
     }
   });
 

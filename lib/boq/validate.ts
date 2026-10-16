@@ -42,7 +42,9 @@ const EPS = 0.06;
 
 const label = (l: CheckLine) => (l.title || l.item).slice(0, 60);
 
-export function validateBoq(lines: CheckLine[]): Issue[] {
+/** `cardRates: false` for spec-mode BOQs, whose rates are package rates, so a drift from the card is expected. */
+export function validateBoq(lines: CheckLine[], opts: { cardRates?: boolean } = {}): Issue[] {
+  const cardRates = opts.cardRates ?? true;
   const out: Issue[] = [];
   const seen = new Map<string, number>();
 
@@ -82,7 +84,7 @@ export function validateBoq(lines: CheckLine[]): Issue[] {
 
     // A rate edited far away from its card rate.
     const card = l.rateId && l.rateId !== "mod:unit" ? findRate(l.rateId) : undefined;
-    if (card && l.rate > 0 && Math.abs(l.rate - card.rate) / card.rate > RATE_DRIFT && !l.rateNote) {
+    if (cardRates && card && l.rate > 0 && Math.abs(l.rate - card.rate) / card.rate > RATE_DRIFT && !l.rateNote) {
       at("warn", `rate ₹${l.rate} differs from the card rate ₹${card.rate} by more than ${RATE_DRIFT * 100}%.`);
     }
     if (l.provisional) at("warn", "provisional allowance with no card rate; confirm before issue.");

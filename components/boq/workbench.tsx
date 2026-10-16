@@ -190,7 +190,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
     const area = planRooms.length
       ? planRooms.reduce((n, p) => n + p.l * p.b, 0)
       : carpetArea(bhk, SIZED_BHKS.includes(bhk) ? homeSize : undefined);
-    return [...validateBoq(rows), ...sanityChecks({ total: totals.all, area, bhk, tier })];
+    return [...validateBoq(rows, { cardRates: planRooms.length > 0 }), ...sanityChecks({ total: totals.all, area, bhk, tier })];
   }, [rows, totals.all, planRooms, bhk, homeSize, tier]);
   const qtyCounts = useMemo(() => {
     const c = { measured: 0, entered: 0, estimated: 0 };

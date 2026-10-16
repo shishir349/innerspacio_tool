@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildBoq, cityFactor, cityNote, summarizeBoq, type BoqInput } from "@/lib/boq/build";
-import { tierScale } from "@/lib/boq/classes";
+import { buildBoq, cityFactor, cityNote, packageFactor, summarizeBoq, type BoqInput } from "@/lib/boq/build";
 import { BOQ_ITEMS, BOQ_ROOMS, BOQ_TRADES, BOQ_UOMS } from "@/lib/boq/lists";
 import { RATE_CARD, getRate } from "@/lib/rates/catalog";
 import { LIVSPACE_NCR } from "@/lib/rates/livspace-benchmarks";
-import { BHK_ROOM_DEFAULTS, PACKAGE_TIERS, type Bhk, type QuoteRoomType } from "@/lib/quote/constants";
+import { BHK_ROOM_DEFAULTS, PACKAGE_BANDS, PACKAGE_TIERS, type Bhk, type QuoteRoomType } from "@/lib/quote/constants";
 
 const threeBhk: BoqInput = {
   bhk: "3",
@@ -90,25 +89,35 @@ describe("buildBoq", () => {
   const total = (i: BoqInput) => summarizeBoq(buildBoq(i)).total;
   const BHKS = ["1", "2", "3", "4", "5+"] as const;
 
-  it("prices at the Spazay card: a modular line is the card's carcass + shutter + hardware, no multiplier", () => {
-    const wardrobe = (tier: (typeof PACKAGE_TIERS)[number]) => buildBoq({ ...threeBhk, city: "Delhi", tier }).find((l) => l.item === "Wardrobe")!;
-    expect(wardrobe("premium").rate).toBe(getRate("mod:C06").rate + getRate("mod:S04").rate + getRate("mod:H02").rate);
-    expect(wardrobe("essential").rate).toBe(getRate("mod:C01").rate + getRate("mod:S01").rate + getRate("mod:H01").rate);
-    expect(wardrobe("luxury").rate).toBe(getRate("mod:C09").rate + getRate("mod:S05").rate + getRate("mod:H02").rate);
-  });
-
-  it("every non-modular line carries exactly the card rate", () => {
-    for (const l of buildBoq({ ...threeBhk, city: "Delhi" })) {
-      if (l.rateId === "mod:unit") continue;
-      expect(l.rate, l.rateId).toBe(getRate(l.rateId).rate);
+  it("a full home of every BHK lands inside the price sheet's band for every tier and size", () => {
+    for (const bhk of BHKS) {
+      for (const tier of PACKAGE_TIERS) {
+        const { min, max } = PACKAGE_BANDS[bhk][tier];
+        for (const size of [undefined, "small", "large"] as const) {
+          const t = total(fullHome(bhk, tier, size));
+          expect(t, `${bhk} ${tier} ${size} = ${Math.round(t)}`).toBeGreaterThanOrEqual(min * 0.99);
+          expect(t, `${bhk} ${tier} ${size} = ${Math.round(t)}`).toBeLessThanOrEqual(max * 1.01);
+        }
+      }
     }
   });
 
-  it("spec mode and plan mode agree on the same item: modular wardrobe within 5% at every tier", () => {
+  it("size moves the price inside the band: large > unknown > small", () => {
     for (const tier of PACKAGE_TIERS) {
-      const spec = buildBoq({ ...threeBhk, city: "Delhi", tier }).find((l) => l.item === "Wardrobe")!.rate;
-      const plan = getRate("pr:WARDROBE").rate * tierScale(tier);
-      expect(Math.abs(spec - plan) / spec, `${tier} spec ${spec} vs plan ${Math.round(plan)}`).toBeLessThan(0.05);
+      const [s, u, l] = [total(fullHome("3", tier, "small")), total(fullHome("3", tier)), total(fullHome("3", tier, "large"))];
+      expect(s).toBeLessThan(u);
+      expect(u).toBeLessThan(l);
+    }
+  });
+
+  it("package rates are one multiplier on the card: every line keeps its card ratio", () => {
+    const full = fullHome("3", "premium");
+    const f = packageFactor(full);
+    expect(f).toBeGreaterThan(0.2);
+    expect(f).toBeLessThan(1);
+    for (const l of buildBoq(full)) {
+      if (l.rateId === "mod:unit") continue;
+      expect(l.rate / getRate(l.rateId).rate, l.rateId).toBeCloseTo(f, 1);
     }
   });
 

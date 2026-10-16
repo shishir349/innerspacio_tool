@@ -3,6 +3,8 @@ import { CEILING_H, FURNITURE as F, ROOM_STANDARDS, SECONDARY_BEDROOM, WALL_NET,
 import { livspaceModular, resolveRate, type RateSheet, type RateSource } from "@/lib/rates/sheets";
 import { BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
 import {
+  BHK_ROOM_DEFAULTS,
+  PACKAGE_BANDS,
   type Bhk,
   type HomeSize,
   type PackageTier,
@@ -449,8 +451,38 @@ function wholeHome(ctx: Ctx, carpet: number) {
   if (ctx.spec.decor) push(ctx, room, ctx.spec.decor, "Furnishing", 1, {}, "Art & décor styling allowance");
 }
 
+/** Where in the tier band a home lands: smaller homes sit lower, larger ones higher, unknown size mid-band. */
+function bandPosition(size: HomeSize | undefined): number {
+  return size === "large" ? 0.75 : size === "small" ? 0.35 : 0.5;
+}
+
+const rawTotals = new Map<string, number>();
+
+/**
+ * Package pricing for the quote / spec-mode BOQ, per InnerSpacio's price sheet (PACKAGE_BANDS).
+ * The bottom-up build prices every item at the full à-la-carte Spazay card; a package is priced to the
+ * sheet. One multiplier on every rate, fitted so the BHK's standard room set lands at the band position
+ * for the home size. qty × rate still equals each amount; extra or fewer rooms scale from there.
+ * Plan mode (brief.ts) is NOT calibrated: it prices the plan's own scope at card/estimator rates.
+ */
+export function packageFactor(input: Pick<BoqInput, "bhk" | "homeSize" | "tier" | "sheet">): number {
+  const band = PACKAGE_BANDS[input.bhk]?.[input.tier];
+  const defaults = BHK_ROOM_DEFAULTS[input.bhk];
+  if (!band || !defaults) return 1;
+  const key = `${input.bhk}|${input.homeSize ?? ""}|${input.tier}|${input.sheet ?? "spazay"}`;
+  let raw = rawTotals.get(key);
+  if (raw === undefined) {
+    const rooms: BoqInput["rooms"] = [];
+    for (const [roomType, n] of Object.entries(defaults)) for (let i = 0; i < (n ?? 0); i++) rooms.push({ roomType: roomType as QuoteRoomType });
+    raw = summarizeBoq(buildLines({ ...input, city: "Delhi", rooms }, 1)).total;
+    rawTotals.set(key, raw);
+  }
+  if (!(raw > 0)) return 1;
+  return (band.min + (band.max - band.min) * bandPosition(input.homeSize)) / raw;
+}
+
 export function buildBoq(input: BoqInput): BoqLine[] {
-  return buildLines(input, cityFactor(input.city));
+  return buildLines(input, cityFactor(input.city) * packageFactor(input));
 }
 
 function buildLines(input: BoqInput, factor: number): BoqLine[] {
@@ -612,6 +644,6 @@ export function specAssumptions(input: Pick<BoqInput, "bhk" | "homeSize">): stri
     `All quantities are standard-size ESTIMATES for a ${input.bhk} BHK of about ${carpet} sq ft carpet, not measurements. Replace with site measurements before issue.`,
     `Room sizes (ft): living ${dim("living_room")}, dining ${dim("dining_room")}, kitchen ${dim("kitchen")}, bedroom ${dim("bedroom")} (later bedrooms ${Math.round((1 - SECONDARY_BEDROOM) * 100)}% smaller), bathroom ${dim("bathroom")}; ceiling ${CEILING_H} ft; ${Math.round(WALL_NET * 100)}% of wall area after doors and windows.`,
     `Joinery: master wardrobe ${F.wardrobeMaster.w}×${F.wardrobeMaster.h} ft, other bedrooms ${F.wardrobeOther.w}×${F.wardrobeOther.h} ft (never more than ${Math.round(F.wardrobeMaxShare * 100)}% of the room's long side), TV unit ${F.tvBase.w}×${F.tvBase.h} ft plus a ${F.tvFloat.w}×${F.tvFloat.h} ft floating unit, crockery ${F.crockery.w}×${F.crockery.h} ft.`,
-    "Rates are the Spazay card (NCR). Essential, Premium and Luxury change the specification and scope, not the rates.",
+    "Rates are package rates: the Spazay card items scaled so a standard home of this size and tier lands in InnerSpacio's price band. Essential, Premium and Luxury change the specification and scope.",
   ];
 }
