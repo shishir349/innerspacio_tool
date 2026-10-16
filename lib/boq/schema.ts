@@ -42,6 +42,7 @@ export const lineSchema = z.object({
   altRate: num.nullish(),
   provisional: z.boolean().optional(),
   rateNote: z.string().max(200).optional(),
+  qtySource: z.enum(["measured", "entered", "estimated"]).optional(),
 });
 
 const coverageRow = z.object({

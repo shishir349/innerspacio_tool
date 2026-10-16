@@ -122,3 +122,35 @@ describe("quantify", () => {
     expect(warnings.join(" ")).toMatch(/doesn't fit/);
   });
 });
+
+describe("quantity provenance", () => {
+  const assumed: PlanRoom = { ...master, id: "r3", source: "assumed" };
+  const src = (items: BriefItem[], rooms: PlanRoom[]) => quantify(items, rooms, opts).lines.find((l) => l.trade !== "Site Protection, Deep Cleaning & Handover")!.qtySource;
+
+  it("an area read off a labelled or scaled plan room is measured", () => {
+    expect(src([item({ rateId: "fc:FC02", basis: "ceiling_area" })], [master])).toBe("measured");
+    expect(src([item({ rateId: "fc:FC02", basis: "ceiling_area" })], [{ ...master, source: "scaled" }])).toBe("measured");
+  });
+  it("an area from an assumed plan room is an estimate", () => {
+    expect(src([item({ rateId: "fc:FC02", basis: "ceiling_area" })], [assumed])).toBe("estimated");
+  });
+  it("a size the designer wrote is entered; an assumed class default is an estimate", () => {
+    const written = item({ rateId: "wp:WP53", basis: "elevation", width: 8, height: 7, requirement: "wallpaper 8 ft x 7 ft" });
+    expect(src([written], [master])).toBe("entered");
+    const guessed = { ...written, requirement: "wallpaper feature", note: "Assumed size (class default) — confirm on site." };
+    expect(src([guessed], [master])).toBe("estimated");
+  });
+  it("a stated count is entered, a defaulted count is an estimate", () => {
+    expect(src([item({ rateId: "el:EL30", count: 4 })], [master])).toBe("entered");
+    expect(src([item({ rateId: "el:EL30" })], [master])).toBe("estimated");
+  });
+  it("every quantified line carries a source", () => {
+    const { lines } = quantify([item({ rateId: "fc:FC02", basis: "ceiling_area" }), item({ rateId: "pt:PT03", basis: "wall_area" })], [master, utility], opts);
+    expect(lines.every((l) => l.qtySource)).toBe(true);
+  });
+  it("an unknown rate id is skipped with a warning, never priced", () => {
+    const r = quantify([item({ rateId: "zz:NOPE", count: 1 })], [master], opts);
+    expect(r.lines.filter((l) => l.rateId === "zz:NOPE")).toHaveLength(0);
+    expect(r.warnings.some((w) => /unknown rate item/.test(w))).toBe(true);
+  });
+});

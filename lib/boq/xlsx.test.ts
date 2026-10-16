@@ -171,3 +171,29 @@ describe("professional-BOQ parity in the workbook", () => {
     expect(wb.getWorksheet("Scope Coverage")).toBeUndefined();
   });
 });
+
+describe("save, reload and export round trip", () => {
+  it("provenance and rate notes survive the save and export schemas", async () => {
+    const { saveRequestSchema, exportRequestSchema } = await import("@/lib/boq/schema");
+    const ls = buildBoq({ bhk: "2", city: "Delhi", tier: "premium", sheet: "livspace", rooms: [{ roomType: "living_room" }] });
+    const body = { projectId: "p1", title: "t", tier: "premium" as const, city: "Delhi", sheet: "livspace" as const, lines: ls };
+    const saved = saveRequestSchema.parse(JSON.parse(JSON.stringify(body)));
+    expect(saved.lines.every((l) => l.qtySource === "estimated")).toBe(true);
+    expect(saved.lines.some((l) => l.rateNote)).toBe(true);
+    const total = (ls: { qty: number; rate: number }[]) => Math.round(ls.reduce((n, l) => n + l.qty * l.rate, 0) * 100) / 100;
+    expect(total(saved.lines)).toBe(total(ls));
+    expect(exportRequestSchema.parse({ lines: saved.lines }).lines).toHaveLength(ls.length);
+  });
+
+  it("lines with an unverified Livspace rate are listed on the Scope Coverage sheet; clean BOQs add no such sheet", async () => {
+    const ls = buildBoq({ bhk: "2", city: "Delhi", tier: "premium", sheet: "livspace", rooms: [{ roomType: "living_room" }] });
+    const wb = await load(await buildBoqWorkbook({ lines: ls, sheet: "livspace" }));
+    const sc = wb.getWorksheet("Scope Coverage")!;
+    expect(sc).toBeDefined();
+    let text = "";
+    sc.eachRow((r) => r.eachCell((c) => (text += `${c.value} `)));
+    expect(text).toMatch(/no verified rate on the selected sheet/);
+    const clean = await load(await buildBoqWorkbook({ lines }));
+    expect(clean.getWorksheet("Scope Coverage")).toBeUndefined();
+  });
+});

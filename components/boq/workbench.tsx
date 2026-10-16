@@ -24,6 +24,8 @@ import {
 } from "@/lib/quote/constants";
 import { formatInr } from "@/lib/format";
 import { autoQty } from "@/lib/boq/measure";
+import { sanityChecks, validateBoq } from "@/lib/boq/validate";
+import { carpetArea } from "@/lib/boq/standards";
 import { BriefNotes, BriefPanel, PlanRoomsEditor, type BriefResult } from "@/components/boq/brief-panel";
 import type { BriefItem, PlanRoom } from "@/lib/boq/brief";
 import { RATE_SHEETS, RATE_SHEET_LABEL, type RateSheet } from "@/lib/rates/sheets";
@@ -66,6 +68,8 @@ interface Row {
   provisional?: boolean;
   /** A rate to review (no verified rate on the chosen sheet). */
   rateNote?: string;
+  /** Where the quantity came from; editing it makes it "entered". */
+  qtySource?: "measured" | "entered" | "estimated";
   /** Rate-card id when the rate came from the sheet; empty = custom rate. */
   rateId: string;
   room: string;
@@ -120,6 +124,7 @@ function toRows(lines: LineLike[]): Row[] {
     altRate: l.altRate ?? null,
     provisional: l.provisional,
     rateNote: l.rateNote,
+    qtySource: l.qtySource,
     description: l.description,
     uom: l.uom,
     l: l.l ?? null,
@@ -180,6 +185,19 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
     return { all, trade: rank(trade), room: rank(room) };
   }, [rows]);
 
+  // Live checks on whatever is in the table, so every edit is re-validated. Warnings only: nothing here changes a number.
+  const issues = useMemo(() => {
+    const area = planRooms.length
+      ? planRooms.reduce((n, p) => n + p.l * p.b, 0)
+      : carpetArea(bhk, SIZED_BHKS.includes(bhk) ? homeSize : undefined);
+    return [...validateBoq(rows), ...sanityChecks({ total: totals.all, area, bhk, tier })];
+  }, [rows, totals.all, planRooms, bhk, homeSize, tier]);
+  const qtyCounts = useMemo(() => {
+    const c = { measured: 0, entered: 0, estimated: 0 };
+    for (const r of rows) if (r.qtySource) c[r.qtySource]++;
+    return c;
+  }, [rows]);
+
   async function generate() {
     if (roomList.length === 0) {
       toast.error("Pick at least one room.");
@@ -199,7 +217,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
       setRows(toRows(j.lines));
       setPlanRooms([]);
       setBriefItems([]);
-      setNotes(null);
+      setNotes({ warnings: j.warnings ?? [], assumptions: j.assumptions ?? [], unpriced: [], questions: [] });
       setCoverage([]);
       toast.success(`${j.lines.length} lines generated.`);
     } catch (e) {
@@ -288,6 +306,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
             altRate: r.altRate ?? undefined,
             provisional: r.provisional || undefined,
             rateNote: r.rateNote || undefined,
+            qtySource: r.qtySource,
             description: r.description,
             uom: r.uom,
             l: r.l,
@@ -396,6 +415,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
         h: null,
         qty: 0,
         rate: 0,
+        qtySource: "entered",
       },
     ]);
   }
@@ -419,6 +439,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
         h: null,
         qty: 1,
         rate: c.rate,
+        qtySource: "entered",
       },
     ]);
     setPick("");
@@ -561,6 +582,23 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
       )}
       {notes && <BriefNotes result={notes} />}
 
+      {rows.length > 0 && issues.length > 0 && (
+        <details className="rounded-3xl border border-border bg-card p-5 text-[0.9rem]" open={issues.some((i) => i.severity === "error")}>
+          <summary className="cursor-pointer font-medium">
+            Checks · {issues.filter((i) => i.severity === "error").length} errors · {issues.filter((i) => i.severity === "warn").length} warnings
+          </summary>
+          <ul className="mt-3 space-y-1.5 text-muted-foreground">
+            {issues.slice(0, 80).map((i, n) => (
+              <li key={n} className={i.severity === "error" ? "text-destructive" : undefined}>
+                {i.severity === "error" ? "Error: " : ""}
+                {i.message}
+              </li>
+            ))}
+            {issues.length > 80 && <li>…and {issues.length - 80} more.</li>}
+          </ul>
+        </details>
+      )}
+
       {rows.length > 0 && (
         <>
           <section className="rounded-3xl border border-border bg-card">
@@ -568,7 +606,8 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
               <div>
                 <h2 className="text-[0.95rem] font-medium">Master BOQ · {rows.length} lines</h2>
                 <p className="text-[0.85rem] text-muted-foreground">
-                  Quantities use standard room sizes — replace with site measurements before issuing.
+                  Quantities: {qtyCounts.measured} measured · {qtyCounts.entered} entered · {qtyCounts.estimated} estimated.
+                  {qtyCounts.estimated > 0 ? " Replace estimates with site measurements before issuing." : ""}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -665,7 +704,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                             className={numCls}
                             inputMode="decimal"
                             value={r[k] ?? ""}
-                            onChange={(e) => patchMeasure(r.key, { [k]: numOrNull(e.target.value) })}
+                            onChange={(e) => patchMeasure(r.key, { [k]: numOrNull(e.target.value), qtySource: "entered" })}
                           />
                         </td>
                       ))}
@@ -674,8 +713,15 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                           className={numCls}
                           inputMode="decimal"
                           value={r.qty}
-                          onChange={(e) => patch(r.key, { qty: Math.max(0, Number(e.target.value) || 0) })}
+                          onChange={(e) => patch(r.key, { qty: Math.max(0, Number(e.target.value) || 0), qtySource: "entered" })}
                         />
+                        {r.qtySource && (
+                          <span
+                            className={"mt-0.5 block text-right text-[0.78rem] " + (r.qtySource === "estimated" ? "font-medium text-amber-600" : "text-muted-foreground")}
+                          >
+                            {r.qtySource === "estimated" ? "Estimate" : r.qtySource === "measured" ? "Measured" : "Entered"}
+                          </span>
+                        )}
                       </td>
                       <td className="w-24 p-1">
                         <input

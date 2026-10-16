@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { cityNote, makeLine, modularLines, type BoqLine } from "@/lib/boq/build";
+import { WALL_NET } from "@/lib/boq/standards";
+import { cityNote, makeLine, modularLines, type BoqLine, type QtySource } from "@/lib/boq/build";
 import { BOQ_ITEMS, BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
 import { findRate } from "@/lib/rates/catalog";
 import { normalizeUnit, ordinalOf, resolveUnit, UNIT_CLASSES } from "@/lib/boq/classes";
@@ -75,7 +76,6 @@ export const quantifyRequestSchema = z.object({
   items: z.array(briefItemSchema).max(200),
 });
 
-const WALL_NET = 0.85;
 const COUNT_UOMS = ["Nos", "Point", "Set", "L.S."];
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -180,6 +180,11 @@ export function quantify(
     const room = group[0];
     const label = `${it.room}: “${it.requirement.slice(0, 60)}”`;
     const title = it.title?.trim() || undefined;
+    // Provenance: a size taken off a labelled / scaled plan room is measured; one the designer wrote is entered;
+    // a class default, an assumed plan room or a guessed count is an estimate.
+    const assumedSize = /Assumed size/.test(it.note ?? "");
+    const planSrc: QtySource = group.length > 0 && group.every((g) => g.source !== "assumed") ? "measured" : "estimated";
+    let src: QtySource = planSrc;
 
     const track = () => {
       const key = `${it.room}|${it.requirement}`;
@@ -204,6 +209,7 @@ export function quantify(
       const made = modularLines(opts.tier, opts.city, it.room, it.item ?? "Wardrobe", w, h, it.note ?? "", sheet);
       for (const l of made) {
         l.title = title ?? it.requirement.slice(0, 90);
+        l.qtySource = assumedSize ? "estimated" : "entered";
       }
       lines.push(...made);
       track();
@@ -224,6 +230,7 @@ export function quantify(
 
     if (COUNT_UOMS.includes(rate.uom)) {
       qty = it.count && it.count > 0 ? it.count : 1;
+      src = it.count && it.count > 0 && !assumedSize ? "entered" : "estimated";
     } else if (rate.uom === "Rft" || rate.uom === "Rmt") {
       const perimeter = group.reduce((n, g) => n + 2 * (g.l + g.b), 0);
       if (it.basis === "perimeter" && room) {
@@ -232,6 +239,7 @@ export function quantify(
       } else if (it.width && it.width > 0) {
         qty = it.width;
         dims = { l: it.width };
+        src = assumedSize ? "estimated" : "entered";
       } else if (room) {
         warnings.push(`${label} — running-feet item had no length; used the room perimeter. Check it.`);
         qty = perimeter;
@@ -244,6 +252,7 @@ export function quantify(
         if (h) {
           qty = it.width * h;
           dims = { l: it.width, h };
+          src = assumedSize ? "estimated" : "entered";
         }
       } else if (room) {
         if (!AREA_BASES.includes(it.basis)) {
@@ -283,6 +292,7 @@ export function quantify(
       const floor = rooms.reduce((n, r) => (r.l > 0 && r.b > 0 && !seen.has(r.id) && seen.add(r.id) ? n + r.l * r.b : n), 0);
       if (floor > 0) {
         qty = floor * 2.45;
+        src = "estimated";
         dims = {};
         note = `${note ? `${note} ` : ""}Assumed size (2.45 x plan floor area) — confirm on site.`.trim();
       }
@@ -300,6 +310,7 @@ export function quantify(
         line.rate = Math.round(line.rate * scale);
         line.amount = r2(line.qty * line.rate);
       }
+      line.qtySource = src;
       lines.push(line);
       // Wallpaper needs its oil-primer base coat; the designer rarely writes it out.
       if (it.rateId === WALLPAPER && !primerRooms.has(it.room)) {
@@ -308,7 +319,7 @@ export function quantify(
           PRIMER, it.room, "Paint", r2(qty), dims, "Prior to wallpaper installation.", opts.city, sheet,
           "Oil-primer base coat for wallpaper"
         );
-        if (pr) lines.push(pr);
+        if (pr) lines.push({ ...pr, qtySource: src });
       }
     }
     track();
@@ -335,7 +346,7 @@ export function quantify(
       }
       for (const [id, note, title] of extras) {
         const l = makeLine(id, home, "Cleaning / Protection", r2(floor), {}, note, opts.city, sheet, title);
-        if (l) lines.push({ ...l, area: "Whole Home" });
+        if (l) lines.push({ ...l, area: "Whole Home", qtySource: rooms.every((r) => r.source !== "assumed") ? "measured" : "estimated" });
       }
     }
   }
