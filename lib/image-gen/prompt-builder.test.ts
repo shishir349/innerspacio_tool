@@ -38,4 +38,33 @@ describe("buildConceptEditInstruction", () => {
     const p = buildConceptEditInstruction({ ...base, userBrief: "Walnut wardrobe, brass handles" });
     expect(p).toContain("Walnut wardrobe, brass handles");
   });
+
+  it("leads with the structure lock and forbids door/window conversion", () => {
+    const p = buildConceptEditInstruction(base);
+    expect(p.startsWith("Edit the supplied room photograph")).toBe(true);
+    expect(p).toMatch(/A door stays a door/);
+    expect(p).toMatch(/Never turn a door, window or opening into a wardrobe/);
+    expect(p).toMatch(/must not look taller, shorter/);
+    expect(p.indexOf("SAME camera")).toBeLessThan(p.indexOf("Soft greens"));
+  });
+
+  it("customer wishes are subordinate to the structure rules", () => {
+    expect(buildConceptEditInstruction(base)).toMatch(/wishes \(apply them wherever they do not break the structure rules/);
+  });
+
+  it("includes room-specific house look and detected fixed elements", () => {
+    const p = buildConceptEditInstruction({ ...base, structureNotes: "door on left wall; window on right" });
+    expect(p).toContain("Fixed elements seen in this photo, to keep exactly as they are: door on left wall; window on right");
+    expect(p).toMatch(/Bedroom: a headboard wall/);
+    expect(p).toMatch(/signature look/);
+  });
+
+  it("every room type has a look and no text is requested", () => {
+    for (const t of ["living_room", "kitchen", "bathroom", "dining_room", "other"] as const) {
+      const p = buildConceptEditInstruction({ ...base, roomType: t });
+      expect(p.length).toBeGreaterThan(1200);
+      expect(p.length).toBeLessThan(6000);
+      expect(p).toMatch(/Do not render any text/);
+    }
+  });
 });

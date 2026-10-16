@@ -4,6 +4,7 @@ import { getRepository } from "@/lib/data";
 import { getCurrentUser } from "@/lib/auth";
 import { getImageGenerationProvider } from "@/lib/image-gen/provider";
 import { MAX_VARIANTS_PER_REQUEST } from "@/lib/image-gen/types";
+import { describeStructure } from "@/lib/ai/structure";
 import { buildConceptEditInstruction } from "@/lib/image-gen/prompt-builder";
 import { uploadConceptImage, ConceptImageUploadError } from "@/lib/storage";
 import { getFloorPlanUrl } from "@/lib/floor-plan";
@@ -110,7 +111,16 @@ export async function POST(
     .filter((x): x is string => !!x && x.trim().length > 0)
     .join(" ");
 
+  // The analysis (if run) already lists fixed elements; otherwise take a quick look at the primary photo.
+  const structureNotes = room.analysis
+    ? undefined
+    : await fetch(referencePhoto.url)
+        .then((r) => (r.ok ? r.arrayBuffer() : null))
+        .then((b) => (b ? describeStructure(Buffer.from(b)) : undefined))
+        .catch(() => undefined);
+
   const instruction = buildConceptEditInstruction({
+    structureNotes,
     clientDescription: clientDescription || undefined,
     dimensions,
     extraPhotoCount: extraPhotos.length,

@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { generateToken, hashToken } from "@/lib/presentation-links/crypto";
 import { ensureLeadProject } from "@/lib/leads/project";
 import { getImageGenerationProvider } from "@/lib/image-gen/provider";
+import { describeStructure } from "@/lib/ai/structure";
 import { buildConceptEditInstruction } from "@/lib/image-gen/prompt-builder";
 import { refreshSignedPhotoUrl, validatePhotoFile, PhotoUploadError } from "@/lib/storage";
 import {
@@ -310,6 +311,7 @@ async function processRoomOnce(lead: LeadRow, roomId: string, files: File[]) {
   if (!referenceUrl) throw new Error("Could not read your photo back. Please try again.");
 
   const instruction = buildConceptEditInstruction({
+    structureNotes: await describeStructure(Buffer.from(await files[0].arrayBuffer())),
     roomType: room.room_type as RoomType,
     style: TIER_INFO[lead.package_tier].style,
     userBrief: room.ideas_text ?? "",

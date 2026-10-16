@@ -5,6 +5,7 @@ import type {
   ImageGenerationProvider,
 } from "@/lib/image-gen/types";
 import { MAX_VARIANTS_PER_REQUEST } from "@/lib/image-gen/types";
+import sharp from "sharp";
 
 const OPENAI_EDITS_ENDPOINT = "https://api.openai.com/v1/images/edits";
 const REQUEST_TIMEOUT_MS = 120_000;
@@ -16,7 +17,32 @@ const REQUEST_TIMEOUT_MS = 120_000;
  * https://developers.openai.com/cookbook/examples/generate_images_with_gpt_image
  */
 type OpenAIImageSize = "1024x1024" | "1536x1024" | "1024x1536" | "auto";
-const DEFAULT_SIZE: OpenAIImageSize = "1536x1024"; // landscape — a better default fit for room photos than square
+const DEFAULT_SIZE: OpenAIImageSize = "1536x1024"; // landscape fallback when the photo's shape is unknown
+
+/**
+ * Output canvas that matches the photo's shape. Forcing landscape on a portrait
+ * or square photo made the model re-frame the room (taller/shorter ceilings,
+ * moved doors); matching the aspect keeps the framing intact.
+ */
+export function sizeForAspect(width: number, height: number): OpenAIImageSize {
+  if (!width || !height) return DEFAULT_SIZE;
+  const r = width / height;
+  if (r >= 1.15) return "1536x1024";
+  if (r <= 0.87) return "1024x1536";
+  return "1024x1024";
+}
+
+async function photoSize(bytes: ArrayBuffer): Promise<OpenAIImageSize> {
+  try {
+    const m = await sharp(Buffer.from(bytes)).metadata();
+    const swap = (m.orientation ?? 1) >= 5; // EXIF-rotated photos report swapped sides
+    return sizeForAspect(swap ? (m.height ?? 0) : (m.width ?? 0), swap ? (m.width ?? 0) : (m.height ?? 0));
+  } catch {
+    return DEFAULT_SIZE;
+  }
+}
+
+const QUALITIES = ["low", "medium", "high", "auto"];
 
 /**
  * Real image-generation provider using OpenAI's image-edit endpoint, which
@@ -74,8 +100,13 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
       );
     });
     form.append("prompt", request.brief);
-    form.append("size", DEFAULT_SIZE);
+    form.append("size", await photoSize(images[0].bytes));
     form.append("n", String(n));
+    const quality = (process.env.OPENAI_IMAGE_QUALITY || "medium").toLowerCase();
+    form.append("quality", QUALITIES.includes(quality) ? quality : "medium");
+    // High input fidelity = the edit keeps the photo's geometry and details (doors, windows, ceiling). gpt-image-1-mini rejects it.
+    const fidelity = !/mini/.test(model) && process.env.OPENAI_INPUT_FIDELITY !== "low";
+    if (fidelity) form.append("input_fidelity", "high");
     // Deliberately no `response_format` — gpt-image-1 rejects it and always
     // returns b64_json; see the class doc comment above.
 
@@ -84,12 +115,17 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
 
     let response: Response;
     try {
-      response = await fetch(OPENAI_EDITS_ENDPOINT, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}` },
-        body: form,
-        signal: controller.signal,
-      });
+      const send = (body: FormData) =>
+        fetch(OPENAI_EDITS_ENDPOINT, { method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body, signal: controller.signal });
+      response = await send(form);
+      if (response.status === 400 && fidelity) {
+        // Older/other models may not know input_fidelity: retry once without it rather than failing the render.
+        const text = await response.clone().text().catch(() => "");
+        if (/input_fidelity/i.test(text)) {
+          form.delete("input_fidelity");
+          response = await send(form);
+        }
+      }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         throw new Error("OpenAI image request timed out. Please try again.");

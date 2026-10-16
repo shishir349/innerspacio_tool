@@ -186,3 +186,62 @@ describe("OpenAIImageGenerationProvider", () => {
     expect(form.get("model")).toBe("gpt-image-1-mini");
   });
 });
+
+describe("sizeForAspect", () => {
+  it("matches the output canvas to the photo shape", async () => {
+    const { sizeForAspect } = await import("@/lib/image-gen/providers/openai-provider");
+    expect(sizeForAspect(4000, 3000)).toBe("1536x1024");
+    expect(sizeForAspect(3000, 4000)).toBe("1024x1536");
+    expect(sizeForAspect(1000, 1000)).toBe("1024x1024");
+    expect(sizeForAspect(0, 0)).toBe("1536x1024");
+  });
+});
+
+describe("edit request fidelity", () => {
+  beforeEach(() => {
+    process.env.OPENAI_API_KEY = "sk-test-key";
+    delete process.env.OPENAI_IMAGE_MODEL;
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  async function portraitPng() {
+    const sharp = (await import("sharp")).default;
+    const buf = await sharp({ create: { width: 300, height: 500, channels: 3, background: "#888" } }).png().toBuffer();
+    return `data:image/png;base64,${buf.toString("base64")}`;
+  }
+
+  it("matches the canvas to a portrait photo, asks for high input fidelity and medium quality", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { data: [{ b64_json: "aGVsbG8=" }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    await new OpenAIImageGenerationProvider().generateConcepts({ ...baseRequest, referencePhotoUrl: await portraitPng(), variantCount: 1 });
+    const form = fetchMock.mock.calls[0][1].body as FormData;
+    expect(form.get("size")).toBe("1024x1536");
+    expect(form.get("input_fidelity")).toBe("high");
+    expect(form.get("quality")).toBe("medium");
+  });
+
+  it("retries once without input_fidelity when the model rejects it", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(400, { error: { message: "Unknown parameter: 'input_fidelity'." } }))
+      .mockResolvedValueOnce(jsonResponse(200, { data: [{ b64_json: "aGVsbG8=" }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await new OpenAIImageGenerationProvider().generateConcepts({ ...baseRequest, variantCount: 1 });
+    expect(out).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect((fetchMock.mock.calls[1][1].body as FormData).get("input_fidelity")).toBeNull();
+  });
+
+  it("skips input_fidelity for mini models and bad quality values fall back to medium", async () => {
+    process.env.OPENAI_IMAGE_MODEL = "gpt-image-1-mini";
+    process.env.OPENAI_IMAGE_QUALITY = "ultra";
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { data: [{ b64_json: "aGVsbG8=" }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    await new OpenAIImageGenerationProvider().generateConcepts({ ...baseRequest, variantCount: 1 });
+    const form = fetchMock.mock.calls[0][1].body as FormData;
+    expect(form.get("input_fidelity")).toBeNull();
+    expect(form.get("quality")).toBe("medium");
+    delete process.env.OPENAI_IMAGE_QUALITY;
+    delete process.env.OPENAI_IMAGE_MODEL;
+  });
+});
