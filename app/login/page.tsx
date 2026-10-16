@@ -30,7 +30,7 @@ export default async function LoginPage() {
                 <LoginForm />
               </Suspense>
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-[0.95rem] text-muted-foreground">
                 Sign-in is unavailable: Supabase is not configured on this server, so there is no account system to
                 check credentials against. Configure Supabase to enable sign-in.
               </p>

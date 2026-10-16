@@ -41,13 +41,13 @@ export default async function BoqPage({
         <div>
           <p className="eyebrow">Bill of quantities</p>
           <h1 className="display display-md mt-4 text-foreground">BOQ Builder</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          <p className="mt-1 max-w-2xl text-[0.95rem] text-muted-foreground">
             Every BOQ is saved under a project. Choose the project this BOQ is for.
             {lead && leadSpec && !leadSpec.projectId && " This lead has no project yet — open it from Leads first."}
           </p>
         </div>
         {projects.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-xl border border-dashed border-border p-8 text-center text-[0.95rem] text-muted-foreground">
             No projects yet.{" "}
             <Link href="/projects" className="font-medium text-primary underline">
               Create a project
@@ -63,7 +63,7 @@ export default async function BoqPage({
                   className="flex flex-wrap items-center justify-between gap-2 p-4 hover:bg-muted/50"
                 >
                   <span className="font-medium">{p.title}</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-[0.85rem] text-muted-foreground">
                     {p.clientName} · {p.location}
                   </span>
                 </Link>

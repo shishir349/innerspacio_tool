@@ -1,123 +1,116 @@
-import { Reveal } from "@/components/motion/reveal";
-import { CountUp } from "@/components/motion/count-up";
 import Link from "next/link";
+import { ArrowRight, Plus } from "lucide-react";
 import { getRepository } from "@/lib/data";
 import { requirePageUser } from "@/lib/auth";
-import { formatDate, formatInr } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Reveal } from "@/components/motion/reveal";
 import { StatusBadge } from "@/components/projects/status-badge";
-import { Plus, ArrowRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * One job: get back into the work. The latest project is the hero; everything else is a quiet list.
+ * Zero-value stats are not shown; they only add noise.
+ */
 export default async function DashboardPage() {
   await requirePageUser();
   const repo = await getRepository();
   const projects = await repo.listProjects();
 
-  const totalProjects = projects.length;
+  const sorted = [...projects].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  const [latest, ...others] = sorted;
   const inProgress = projects.filter((p) => p.status === "in_progress").length;
-  const conceptsAwaitingSelection = projects.reduce(
+  const awaiting = projects.reduce(
     (sum, p) => sum + p.rooms.filter((r) => r.concepts.length > 0 && !r.selectedConceptId).length,
     0
   );
-  const estimatesPrepared = projects.reduce(
-    (sum, p) => sum + p.rooms.filter((r) => r.estimate).length,
-    0
-  );
-  const recentProjects = [...projects]
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 5);
-
-  const stats = [
-    { label: "Total Projects", value: totalProjects },
-    { label: "Projects In Progress", value: inProgress },
-    { label: "Concepts Awaiting Selection", value: conceptsAwaitingSelection },
-    { label: "Estimates Prepared", value: estimatesPrepared },
-  ];
+  const summary = [
+    `${projects.length} project${projects.length === 1 ? "" : "s"}`,
+    inProgress > 0 && `${inProgress} in progress`,
+    awaiting > 0 && `${awaiting} concept${awaiting === 1 ? "" : "s"} awaiting a pick`,
+  ].filter(Boolean);
 
   return (
-    <div className="space-y-12">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="mx-auto max-w-5xl space-y-14">
+      <header className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="eyebrow">Welcome back</p>
-          <h1 className="display display-lg mt-4 text-foreground">Studio <em>dashboard</em></h1>
+          <h1 className="display display-lg">
+            Welcome <em>back.</em>
+          </h1>
+          {projects.length > 0 && <p className="mt-4 text-[1.05rem] text-muted-foreground">{summary.join(" · ")}</p>}
         </div>
-        <Button render={<Link href="/projects?new=1" />} className="gap-2">
-          <Plus className="size-4" /> New Project
+        <Button render={<Link href="/projects?new=1" />} size="lg" className="gap-2">
+          <Plus className="size-4" /> New project
         </Button>
-      </div>
+      </header>
 
-      <Reveal className="grid grid-cols-2 border-y border-border lg:grid-cols-4" stagger={0.07} immediate delay={0.1}>
-        {stats.map((stat) => (
-          <div key={stat.label} className="border-b border-border px-1 py-8 last:border-b-0 sm:px-6 lg:border-r lg:border-b-0 lg:first:pl-0 lg:last:border-r-0">
-            <p className="display text-[clamp(3rem,5vw,4.5rem)] leading-none text-foreground">
-              <CountUp value={stat.value} format="int" duration={0.9} />
-            </p>
-            <p className="eyebrow mt-5">{stat.label}</p>
-          </div>
-        ))}
-      </Reveal>
-
-      <Card className="border-border/80">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="display text-[1.6rem]">Recent Projects</CardTitle>
-          <Button
-            variant="ghost"
-            render={<Link href="/projects" />}
-            size="sm"
-            className="gap-1 text-muted-foreground"
-          >
-            View all <ArrowRight className="size-3.5" />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {recentProjects.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border py-12 text-center">
-              <p className="text-sm text-muted-foreground">
-                No projects yet. Create your first project to get started.
-              </p>
-              <Button render={<Link href="/projects?new=1" />} className="mt-4 gap-2">
-                <Plus className="size-4" /> New Project
-              </Button>
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {recentProjects.map((project) => (
-                <Link
-                  key={project.id}
-                  href={`/projects/${project.id}`}
-                  className="flex flex-wrap items-center justify-between gap-3 py-4 transition-colors hover:bg-accent/40 -mx-2 px-2 rounded-md"
-                >
-                  <div>
-                    <p className="font-medium text-foreground">{project.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {project.clientName} · {project.location}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="text-xs text-muted-foreground">
-                      {project.rooms.length} room{project.rooms.length === 1 ? "" : "s"}
-                    </Badge>
-                    <StatusBadge status={project.status} />
-                    <span className="text-xs text-muted-foreground">
-                      Updated {formatDate(project.updatedAt)}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {totalProjects > 0 && (
-        <p className="text-xs text-muted-foreground">
-          Combined client budgets across all projects:{" "}
-          {formatInr(projects.reduce((sum, p) => sum + (p.budgetRangeMax ?? 0), 0))} (upper range).
+      {!latest ? (
+        <p className="rounded-3xl border border-dashed border-border p-14 text-center text-[1.05rem] text-muted-foreground">
+          No projects yet. Create your first project to get started.
         </p>
+      ) : (
+        <Reveal immediate className="space-y-14">
+          <section aria-labelledby="continue">
+            <h2 id="continue" className="eyebrow">
+              Continue where you left off
+            </h2>
+            <div className="mt-5 rounded-3xl border border-border bg-card p-7 sm:p-9">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="display text-[clamp(1.8rem,3.4vw,2.6rem)] leading-tight">{latest.title}</p>
+                  <p className="mt-2 text-[1.05rem] text-muted-foreground">
+                    {latest.clientName} · {latest.location}
+                  </p>
+                </div>
+                <StatusBadge status={latest.status} />
+              </div>
+              <p className="mt-6 text-muted-foreground">
+                {latest.rooms.length} room{latest.rooms.length === 1 ? "" : "s"} · updated {formatDate(latest.updatedAt)}
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Button render={<Link href={`/projects/${latest.id}`} />} className="gap-2">
+                  Open project <ArrowRight className="size-4" />
+                </Button>
+                <Button render={<Link href={`/boq?project=${latest.id}`} />} variant="outline">
+                  BOQ
+                </Button>
+                <Button render={<Link href="/design-studio" />} variant="outline">
+                  Design Studio
+                </Button>
+              </div>
+            </div>
+          </section>
+
+          {others.length > 0 && (
+            <section aria-labelledby="others">
+              <div className="flex items-baseline justify-between">
+                <h2 id="others" className="eyebrow">
+                  Other projects
+                </h2>
+                <Link href="/projects" className="link-draw text-[0.95rem] text-muted-foreground hover:text-foreground">
+                  View all
+                </Link>
+              </div>
+              <ul className="mt-3 divide-y divide-border border-y border-border">
+                {others.slice(0, 5).map((p) => (
+                  <li key={p.id}>
+                    <Link href={`/projects/${p.id}`} className="group flex items-center justify-between gap-4 py-5">
+                      <span>
+                        <span className="block text-[1.1rem]">{p.title}</span>
+                        <span className="block text-muted-foreground">{p.clientName}</span>
+                      </span>
+                      <span className="flex items-center gap-4">
+                        <StatusBadge status={p.status} />
+                        <ArrowRight className="size-4 text-muted-foreground transition-transform duration-300 group-hover:translate-x-1" />
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </Reveal>
       )}
     </div>
   );

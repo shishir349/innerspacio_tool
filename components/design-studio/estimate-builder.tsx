@@ -171,7 +171,7 @@ export function EstimateBuilder({
                   if (items.length === 0) return null;
                   return (
                     <div key={cat.value}>
-                      <p className="px-2 py-1 text-xs font-medium text-muted-foreground">{cat.label}</p>
+                      <p className="px-2 py-1 text-[0.85rem] font-medium text-muted-foreground">{cat.label}</p>
                       {items.map((item) => (
                         <SelectItem key={item.id} value={item.id}>
                           {item.name} — {formatInr(item.baseCostPerUnit)}/{item.unit}
@@ -188,7 +188,7 @@ export function EstimateBuilder({
           </div>
 
           {lineItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-[0.95rem] text-muted-foreground">
               No items yet. Add catalogue items to build this room&apos;s estimate.
             </p>
           ) : (
@@ -320,7 +320,7 @@ export function EstimateBuilder({
           <CardHeader>
             <CardTitle className="display text-[1.4rem]">Internal Estimate Summary</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="space-y-2 text-[0.95rem]">
             <Row label="Direct cost" value={formatInr(result.directCost)} />
             <Row
               label={`Contingency (${formatPercent(result.contingencyPercent)})`}
@@ -336,7 +336,7 @@ export function EstimateBuilder({
             <Row label={`GST (${formatPercent(result.gstPercent)})`} value={formatInr(result.gstAmount)} />
             <Separator className="my-2" />
             <Row label="Total client estimate" value={formatInr(result.totalClientEstimate)} emphasis large />
-            <p className="pt-2 text-xs text-muted-foreground">
+            <p className="pt-2 text-[0.85rem] text-muted-foreground">
               Gross profit excludes overheads not included in the cost basis, and is distinct from
               net profit. GST treatment shown here must be confirmed by your tax adviser for the
               actual contract and supply structure before issuing a final invoice.

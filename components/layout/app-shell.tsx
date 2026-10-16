@@ -38,11 +38,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <PageFade>{children}</PageFade>
         </div>
       </main>
-      <footer className="border-t border-border/70 px-4 py-6 md:px-8">
-        <p className="font-caps mx-auto max-w-[96rem] text-[0.72rem] tracking-[0.16em] text-muted-foreground uppercase">
-          InnerSpacio · Your space, your story · innerspacio.com
-        </p>
-      </footer>
     </div>
   );
 }

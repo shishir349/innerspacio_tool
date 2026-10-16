@@ -4,12 +4,15 @@ import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Develop } from "@/components/motion/develop";
+import { BeforeAfterSlider } from "@/components/present/before-after-slider";
 
 export interface SlideItem {
   key: string;
   label: string;
   state: "queued" | "run" | "done" | "fail";
   url?: string;
+  /** The visitor's own photo; when present the finished render is a before/after slider. */
+  beforeUrl?: string;
   isDemo?: boolean;
   msg?: string;
 }
@@ -53,15 +56,21 @@ export function ConceptSlider({ items }: { items: SlideItem[] }) {
             aria-roledescription="slide"
             aria-label={`${i + 1} of ${items.length}: ${it.label}`}
           >
-            {it.state === "done" && it.url ? (
+            {it.state === "done" && it.url && it.beforeUrl ? (
+              <BeforeAfterSlider
+                beforeSrc={it.beforeUrl}
+                afterSrc={it.url}
+                afterLabel={it.isDemo ? "Illustrative placeholder" : "AI concept"}
+              />
+            ) : it.state === "done" && it.url ? (
               <Develop src={it.url} alt={`${it.label} concept`} className="size-full object-cover" />
             ) : (
               <div className="flex size-full flex-col items-center justify-center gap-3 bg-sand/60 px-6 text-center">
                 {it.state === "fail" ? (
                   <>
                     <X className="size-6 text-destructive" />
-                    <p className="text-sm text-destructive">{it.msg ?? "We couldn't generate this image."}</p>
-                    <p className="text-xs text-muted-foreground">Your estimate is still saved.</p>
+                    <p className="text-[0.95rem] text-destructive">{it.msg ?? "We couldn't generate this image."}</p>
+                    <p className="text-[0.85rem] text-muted-foreground">Your estimate is still saved.</p>
                   </>
                 ) : (
                   <>
@@ -76,16 +85,16 @@ export function ConceptSlider({ items }: { items: SlideItem[] }) {
                     <span className="h-px w-32 overflow-hidden bg-foreground/15" aria-hidden>
                       <span className={cn("block h-0.5 w-1/3 bg-saffron", it.state === "run" && "animate-[slide_1.4s_ease-in-out_infinite]")} />
                     </span>
-                    <p className="text-xs text-muted-foreground">Usually under a minute.</p>
+                    <p className="text-[0.85rem] text-muted-foreground">Usually under a minute.</p>
                   </>
                 )}
               </div>
             )}
-            <span className="font-caps absolute top-4 left-4 rounded-full bg-background/90 px-3.5 py-1.5 text-[0.7rem] tracking-[0.12em] uppercase">
+            <span className="font-caps absolute top-4 left-4 rounded-full bg-background/90 px-3.5 py-1.5 text-[0.82rem] tracking-[0.12em] uppercase">
               {it.label}
             </span>
             {it.state === "done" && (
-              <span className="font-caps absolute right-4 bottom-4 rounded-full bg-background/90 px-3 py-1 text-[0.65rem] tracking-[0.12em] text-muted-foreground uppercase">
+              <span className="font-caps absolute right-4 bottom-4 rounded-full bg-background/90 px-3 py-1 text-[0.82rem] tracking-[0.12em] text-muted-foreground uppercase">
                 {it.isDemo ? "Illustrative placeholder" : "AI concept"}
               </span>
             )}

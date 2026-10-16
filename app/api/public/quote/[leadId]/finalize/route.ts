@@ -39,7 +39,7 @@ export async function POST(
 
   // Honeypot: pretend success, store nothing.
   if (typeof (body as { website?: unknown })?.website === "string" && (body as { website: string }).website) {
-    return NextResponse.json({ ok: true, estimate: null });
+    return NextResponse.json({ ok: true, estimate: null, tiers: [], breakdown: null });
   }
 
   const parsed = finalizeLeadSchema.safeParse(body);
@@ -51,8 +51,8 @@ export async function POST(
   }
 
   try {
-    const estimate = await finalizeLead(lead, parsed.data);
-    return NextResponse.json({ ok: true, estimate });
+    const quote = await finalizeLead(lead, parsed.data);
+    return NextResponse.json({ ok: true, ...quote });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Something went wrong.", code: "server_error" },

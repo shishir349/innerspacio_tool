@@ -60,7 +60,7 @@ export function ProjectHeader({ project }: { project: Project }) {
         <div className="space-y-1.5">
           <h1 className="display display-md text-foreground">{project.title}</h1>
           <p className="text-muted-foreground">{project.clientName}</p>
-          <div className="flex flex-wrap items-center gap-4 pt-1 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-4 pt-1 text-[0.95rem] text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <MapPin className="size-3.5" /> {project.location}
             </span>
@@ -76,7 +76,7 @@ export function ProjectHeader({ project }: { project: Project }) {
             )}
           </div>
           {(project.budgetRangeMin || project.budgetRangeMax) && (
-            <p className="pt-1 text-sm text-muted-foreground">
+            <p className="pt-1 text-[0.95rem] text-muted-foreground">
               Budget range: {formatInr(project.budgetRangeMin)} – {formatInr(project.budgetRangeMax)}
             </p>
           )}

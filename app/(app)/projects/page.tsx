@@ -27,7 +27,7 @@ export default async function ProjectsPage({
 
       {projects.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-16 text-center">
-          <p className="text-sm text-muted-foreground">No projects yet.</p>
+          <p className="text-[0.95rem] text-muted-foreground">No projects yet.</p>
         </div>
       ) : (
         <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" stagger={0.06} immediate>

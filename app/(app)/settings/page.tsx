@@ -25,8 +25,8 @@ function StatusRow({
   return (
     <div className="flex items-center justify-between border-b border-border/60 py-3 last:border-0">
       <div>
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        {detail && <p className="text-xs text-muted-foreground">{detail}</p>}
+        <p className="text-[0.95rem] font-medium text-foreground">{label}</p>
+        {detail && <p className="text-[0.85rem] text-muted-foreground">{detail}</p>}
       </div>
       <Badge
         variant="outline"
@@ -50,7 +50,7 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-[0.95rem] text-muted-foreground">
           Studio configuration · Signed in as {user.email}
         </p>
         <h1 className="display display-md text-foreground">Settings</h1>

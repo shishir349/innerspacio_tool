@@ -190,21 +190,21 @@ export function ConceptStudio({
         <CardContent className="space-y-4 pt-6">
           <div className="flex items-center justify-between">
             <h3 className="display text-[1.4rem] text-foreground">Generate Concepts</h3>
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-[0.85rem]">
               Provider: {providerName}
               {providerIsDemo ? " (demo)" : ""}
             </Badge>
           </div>
           {providerIsDemo && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[0.85rem] text-muted-foreground">
               No image-generation provider is configured — concepts below are clearly labeled
               illustrative placeholders, not renderings of the client&rsquo;s room. Configure
-              <code className="mx-1 text-xs">IMAGE_GENERATION_PROVIDER</code> and its API key to
+              <code className="mx-1 text-[0.85rem]">IMAGE_GENERATION_PROVIDER</code> and its API key to
               generate real visuals from the uploaded photo.
             </p>
           )}
           {!hasPhoto && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-[0.95rem] text-muted-foreground">
               Upload a room photo first — it&rsquo;s used as the reference for concept generation.
             </p>
           )}
@@ -248,9 +248,9 @@ export function ConceptStudio({
               </Select>
             </div>
           </div>
-          <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
+          <div className="rounded-lg border border-border bg-muted/40 p-3 text-[0.95rem]">
             <p className="font-medium">What the AI will use</p>
-            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-muted-foreground">
+            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[0.85rem] text-muted-foreground">
               <li>
                 {room_.photos.length === 0
                   ? "No room photos yet"
@@ -261,7 +261,7 @@ export function ConceptStudio({
               <li>{floorPlanUrl && useFloorPlan ? "The project floor plan" : "No floor plan attached"}</li>
             </ul>
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-xs hover:bg-accent">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-[0.85rem] hover:bg-accent">
                 {planBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
                 {floorPlanUrl ? "Replace floor plan" : "Upload floor plan / blueprint"}
                 <input
@@ -281,11 +281,11 @@ export function ConceptStudio({
                     href={floorPlanUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                    className="inline-flex items-center gap-1.5 text-[0.85rem] text-primary hover:underline"
                   >
                     <FileImage className="size-3.5" /> View plan
                   </a>
-                  <label className="inline-flex items-center gap-1.5 text-xs">
+                  <label className="inline-flex items-center gap-1.5 text-[0.85rem]">
                     <input
                       type="checkbox"
                       checked={useFloorPlan}
@@ -293,7 +293,7 @@ export function ConceptStudio({
                     />
                     Use for this generation
                   </label>
-                  <button type="button" onClick={removePlan} className="text-xs text-muted-foreground hover:text-destructive">
+                  <button type="button" onClick={removePlan} className="text-[0.85rem] text-muted-foreground hover:text-destructive">
                     Remove
                   </button>
                 </>
@@ -339,7 +339,7 @@ export function ConceptStudio({
                   />
                   <Badge
                     className={cn(
-                      "absolute left-2 top-2 text-[10px]",
+                      "absolute left-2 top-2 text-[0.82rem]",
                       concept.status === "demo"
                         ? "bg-muted text-muted-foreground"
                         : "bg-primary text-primary-foreground"
@@ -350,7 +350,7 @@ export function ConceptStudio({
                   {hasActiveLink && (
                     <Badge
                       className={cn(
-                        "absolute right-2 top-2 text-[10px]",
+                        "absolute right-2 top-2 text-[0.82rem]",
                         isVisible ? "bg-emerald-600 text-white" : "bg-background/90 text-foreground"
                       )}
                     >
@@ -360,9 +360,9 @@ export function ConceptStudio({
                 </div>
                 <CardContent className="space-y-2 pt-4">
                   <p className="font-medium text-foreground">{concept.title}</p>
-                  <p className="text-xs text-muted-foreground">{concept.style}</p>
-                  <p className="text-sm text-muted-foreground line-clamp-3">{concept.description}</p>
-                  <ul className="list-disc space-y-0.5 pl-4 text-xs text-foreground/80">
+                  <p className="text-[0.85rem] text-muted-foreground">{concept.style}</p>
+                  <p className="text-[0.95rem] text-muted-foreground line-clamp-3">{concept.description}</p>
+                  <ul className="list-disc space-y-0.5 pl-4 text-[0.85rem] text-foreground/80">
                     {concept.keyChanges.map((c, i) => (
                       <li key={i}>{c}</li>
                     ))}

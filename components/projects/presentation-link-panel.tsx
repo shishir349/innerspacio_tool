@@ -160,7 +160,7 @@ export function PresentationLinkPanel({ project }: { project: Project }) {
   if (link === undefined) {
     return (
       <Card className="border-border/80">
-        <CardContent className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+        <CardContent className="flex items-center gap-2 py-6 text-[0.95rem] text-muted-foreground">
           <Loader2 className="size-4 animate-spin" /> Loading presentation link…
         </CardContent>
       </Card>
@@ -175,7 +175,7 @@ export function PresentationLinkPanel({ project }: { project: Project }) {
       <CardContent className="space-y-5">
         {!link ? (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-[0.95rem] text-muted-foreground">
               No active link. Create one to share this project&apos;s rooms, concepts and estimate
               with your client — they won&apos;t need an account.
             </p>
@@ -197,11 +197,11 @@ export function PresentationLinkPanel({ project }: { project: Project }) {
           <div className="space-y-4">
             {justIssuedUrl && (
               <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
-                <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                <p className="flex items-center gap-1.5 text-[0.85rem] font-medium text-primary">
                   <ShieldAlert className="size-3.5" /> Copy this now — it won&apos;t be shown again
                 </p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 overflow-x-auto whitespace-nowrap rounded bg-background px-2 py-1.5 text-xs">
+                  <code className="flex-1 overflow-x-auto whitespace-nowrap rounded bg-background px-2 py-1.5 text-[0.85rem]">
                     {justIssuedUrl}
                   </code>
                   <Button size="sm" variant="outline" onClick={() => copyLink(justIssuedUrl)} className="gap-1.5">
@@ -212,7 +212,7 @@ export function PresentationLinkPanel({ project }: { project: Project }) {
               </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2 text-[0.95rem]">
               <Badge className="bg-primary/15 text-primary border-primary/20">Active</Badge>
               <span className="text-muted-foreground">Expires {formatDate(link.expiresAt)}</span>
               {link.lastAccessedAt && (
@@ -259,18 +259,18 @@ export function PresentationLinkPanel({ project }: { project: Project }) {
             <Separator />
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="show-location" className="text-sm font-normal">
+              <Label htmlFor="show-location" className="text-[0.95rem] font-normal">
                 Show project location to client
               </Label>
               <Switch id="show-location" checked={link.showLocation} onCheckedChange={toggleShowLocation} />
             </div>
 
             <div>
-              <p className="mb-2 text-sm font-medium text-foreground">Rooms visible to client</p>
+              <p className="mb-2 text-[0.95rem] font-medium text-foreground">Rooms visible to client</p>
               <div className="space-y-2">
                 {project.rooms.map((room) => (
                   <div key={room.id} className="flex items-center justify-between gap-2">
-                    <label className="flex items-center gap-2 text-sm text-foreground">
+                    <label className="flex items-center gap-2 text-[0.95rem] text-foreground">
                       <Checkbox
                         checked={visibleRoomIds.has(room.id)}
                         onCheckedChange={() => toggleRoomVisible(room.id)}
@@ -298,13 +298,13 @@ export function PresentationLinkPanel({ project }: { project: Project }) {
           <>
             <Separator />
             <div>
-              <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-foreground">
+              <p className="mb-2 flex items-center gap-1.5 text-[0.95rem] font-medium text-foreground">
                 <MessageSquare className="size-3.5" /> Client activity
               </p>
               <div className="max-h-64 space-y-2 overflow-y-auto">
                 {activity.feedback.map((f) => (
-                  <div key={f.id} className="rounded-lg border border-border/60 p-2.5 text-sm">
-                    <p className="text-xs text-muted-foreground">
+                  <div key={f.id} className="rounded-lg border border-border/60 p-2.5 text-[0.95rem]">
+                    <p className="text-[0.85rem] text-muted-foreground">
                       {f.feedbackType === "change_request" ? "Change request" : "Feedback"} ·{" "}
                       {formatDate(f.createdAt)}
                     </p>
@@ -312,7 +312,7 @@ export function PresentationLinkPanel({ project }: { project: Project }) {
                   </div>
                 ))}
                 {activity.decisions.map((d) => (
-                  <div key={d.id} className="rounded-lg border border-border/60 p-2.5 text-xs text-muted-foreground">
+                  <div key={d.id} className="rounded-lg border border-border/60 p-2.5 text-[0.85rem] text-muted-foreground">
                     {decisionLabel(d.decisionType)} · {formatDate(d.createdAt)}
                   </div>
                 ))}

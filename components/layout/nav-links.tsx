@@ -63,7 +63,7 @@ export function NavLinks({ orientation = "row", onNavigate }: { orientation?: "r
             aria-current={active ? "page" : undefined}
             onClick={onNavigate}
             className={cn(
-              "font-caps rounded-full text-[0.82rem] font-medium uppercase tracking-[0.12em] transition-colors duration-300",
+              "font-caps rounded-full text-[0.88rem] font-medium uppercase tracking-[0.08em] transition-colors duration-300",
               orientation === "row" ? "px-3.5 py-2" : "px-4 py-3 text-base",
               active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             )}

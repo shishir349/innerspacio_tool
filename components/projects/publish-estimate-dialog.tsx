@@ -95,7 +95,7 @@ export function PublishEstimateDialog({
             </DialogDescription>
           </DialogHeader>
           {!hasLiveEstimate ? (
-            <p className="py-4 text-sm text-muted-foreground">
+            <p className="py-4 text-[0.95rem] text-muted-foreground">
               Save an estimate for this room in the Design Studio first.
             </p>
           ) : (

@@ -77,7 +77,7 @@ export function BrandReveal({ name }: { name?: string }) {
           ))}
         </div>
         {name && (
-          <p data-for className="font-caps mt-8 text-[0.8rem] tracking-[0.24em] uppercase">
+          <p data-for className="font-caps mt-8 text-[0.8rem] tracking-[0.1em] uppercase">
             A design presentation for {name}
           </p>
         )}

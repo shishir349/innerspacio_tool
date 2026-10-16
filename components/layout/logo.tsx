@@ -16,8 +16,8 @@ export function Logo({
         <path d="M10 25 L82 3 L154 25" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M118 20 v-6 h7 v6 M118 17 h7" fill="none" stroke="currentColor" strokeWidth="1" />
       </svg>
-      <span className={`font-caps ${text} font-medium uppercase tracking-[0.34em] whitespace-nowrap`}>
-        Innerspacio{studio && <span className="ml-3 tracking-[0.24em] text-muted-foreground">Studio</span>}
+      <span className={`font-wordmark ${text} font-medium uppercase tracking-[0.34em] whitespace-nowrap`}>
+        Innerspacio{studio && <span className="ml-3 tracking-[0.1em] text-muted-foreground">Studio</span>}
       </span>
     </span>
   );

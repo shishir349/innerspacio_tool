@@ -29,7 +29,7 @@ proxy.ts                    request gate → lib/supabase/middleware.ts (auth, p
 app/(app)/                  signed-in shell: dashboard, projects, design-studio, cost-catalogue, settings
 app/login/                  sign-in (outside shell)
 app/present/[token]/        CLIENT link: no login, token is the only credential
-app/get-quote/              PUBLIC self-serve wizard (photos+ideas → AI image per room → tiered estimate); result at /get-quote/result/[token]
+app/get-quote/              PUBLIC self-serve form, one page, 7 tabs (Home·Rooms·Package·Photos[optional]·Details·Estimate·Reimagined): renders start in the background for rooms WITH a photo when leaving Photos; /finalize returns the estimate+breakdown (no result page/endpoint)
 app/api/public/quote/…      public, token-gated lead APIs (create lead, per-room upload+generate, consult)
 app/(app)/boq, /leads       staff BOQ builder (editable lines → .xlsx) and submitted-quote list; app/api/boq/{build,from-brief,quantify,export}
 app/presentation/…          designer's own full-screen view (login required)

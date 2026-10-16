@@ -27,9 +27,9 @@ const POLL_DEADLINE_MS = 12 * 60 * 1000;
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const selectCls =
-  "h-8 w-full rounded-md border border-input bg-background px-1.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-8 w-full rounded-md border border-input bg-background px-1.5 text-[0.85rem] outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const numCls =
-  "h-8 w-20 rounded-md border border-input bg-background px-1.5 text-right text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-8 w-20 rounded-md border border-input bg-background px-1.5 text-right text-[0.85rem] tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 function Thumb({ file, onRemove }: { file: File; onRemove: () => void }) {
   const url = useMemo(() => URL.createObjectURL(file), [file]);
@@ -130,10 +130,10 @@ export function BriefPanel({
     <div className="mt-4 space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <p className="text-xs font-medium">
+          <p className="text-[0.85rem] font-medium">
             Layout plan / blueprint <span className="text-destructive">*</span>
           </p>
-          <label className="flex min-h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-center text-xs text-muted-foreground hover:bg-muted/60">
+          <label className="flex min-h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-center text-[0.85rem] text-muted-foreground hover:bg-muted/60">
             {planUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={planUrl} alt="Layout plan" className="max-h-52 rounded object-contain" />
@@ -150,14 +150,14 @@ export function BriefPanel({
               onChange={(e) => setPlan(e.target.files?.[0] ?? null)}
             />
           </label>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[0.82rem] text-muted-foreground">
             Room sizes are read from the plan&apos;s written dimensions or scale. Anything it can&apos;t read is marked
             “assumed” — check those.
           </p>
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-medium">Photos of the space (optional)</p>
+          <p className="text-[0.85rem] font-medium">Photos of the space (optional)</p>
           <div className="flex flex-wrap gap-2">
             {photos.map((f, i) => (
               <Thumb key={`${f.name}-${i}`} file={f} onRemove={() => setPhotos((p) => p.filter((_, j) => j !== i))} />
@@ -166,7 +166,7 @@ export function BriefPanel({
               <button
                 type="button"
                 onClick={() => photoInput.current?.click()}
-                className="flex size-16 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border text-[10px] text-muted-foreground hover:bg-muted/60"
+                className="flex size-16 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border text-[0.82rem] text-muted-foreground hover:bg-muted/60"
               >
                 <ImagePlus className="size-4" /> Add
               </button>
@@ -184,13 +184,13 @@ export function BriefPanel({
               }}
             />
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[0.82rem] text-muted-foreground">
             Up to {MAX_PHOTOS}. They show what exists today — what must be removed, kept or repaired.
           </p>
         </div>
       </div>
 
-      <label className="block space-y-1 text-xs">
+      <label className="block space-y-1 text-[0.85rem]">
         <span className="font-medium">
           Designer requirements <span className="text-destructive">*</span>
         </span>
@@ -199,7 +199,7 @@ export function BriefPanel({
           value={requirements}
           onChange={(e) => setRequirements(e.target.value)}
           placeholder={"1. Entrance\n- Main door to be painted.\n\n2. Master Bedroom — complete renovation\n- Dresser area with full-length mirror\n- Remove the existing study unit\n\n3. Painting work…\n4. Electrical modifications…"}
-          className="w-full resize-y rounded-md border border-input bg-background p-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full resize-y rounded-md border border-input bg-background p-2 text-[0.95rem] outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </label>
 
@@ -208,7 +208,7 @@ export function BriefPanel({
         {busy ? "Reading the plan…" : "Generate BOQ from plan + requirements"}
       </Button>
       {busy && (
-        <p role="status" className="text-xs text-muted-foreground">
+        <p role="status" className="text-[0.85rem] text-muted-foreground">
           The AI agent is reading the plan and requirements — this usually takes a few minutes
           {elapsed > 0 ? ` (${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")})` : ""}. Keep this tab open.
         </p>
@@ -235,15 +235,15 @@ export function PlanRoomsEditor({
     <section className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-sm font-medium">Rooms read from the plan</h3>
-          <p className="text-xs text-muted-foreground">Feet. Correct a size, then recalculate — quantities follow.</p>
+          <h3 className="text-[0.95rem] font-medium">Rooms read from the plan</h3>
+          <p className="text-[0.85rem] text-muted-foreground">Feet. Correct a size, then recalculate — quantities follow.</p>
         </div>
         <Button size="sm" variant="outline" onClick={onRecalc} disabled={busy}>
           Recalculate quantities
         </Button>
       </div>
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[640px] text-xs">
+        <table className="w-full min-w-[640px] text-[0.85rem]">
           <thead>
             <tr className="text-left text-muted-foreground">
               <th className="py-1 pr-2 font-medium">On the plan</th>
@@ -311,8 +311,8 @@ export function BriefNotes({ result }: { result: Pick<BriefResult, "warnings" | 
     <section className="grid gap-4 md:grid-cols-2">
       {shown.map(([title, list]) => (
         <div key={title} className="rounded-xl border border-border bg-card p-4">
-          <h3 className="text-sm font-medium">{title}</h3>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+          <h3 className="text-[0.95rem] font-medium">{title}</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-[0.85rem] text-muted-foreground">
             {list.map((t, i) => (
               <li key={i}>{t}</li>
             ))}

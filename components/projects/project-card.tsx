@@ -13,11 +13,11 @@ export function ProjectCard({ project }: { project: Project }) {
             <p className="display text-[1.4rem] leading-snug text-foreground">
               {project.title}
             </p>
-            <p className="text-sm text-muted-foreground">{project.clientName}</p>
+            <p className="text-[0.95rem] text-muted-foreground">{project.clientName}</p>
           </div>
           <StatusBadge status={project.status} />
         </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
+        <CardContent className="space-y-2 text-[0.95rem] text-muted-foreground">
           <p>{project.location}</p>
           <p>
             {project.rooms.length} room{project.rooms.length === 1 ? "" : "s"}
@@ -25,7 +25,7 @@ export function ProjectCard({ project }: { project: Project }) {
               ? ` · up to ${formatInr(project.budgetRangeMax)}`
               : ""}
           </p>
-          <p className="text-xs">Updated {formatDate(project.updatedAt)}</p>
+          <p className="text-[0.85rem]">Updated {formatDate(project.updatedAt)}</p>
         </CardContent>
       </Card>
     </Link>

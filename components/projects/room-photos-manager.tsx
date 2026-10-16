@@ -128,7 +128,7 @@ export function RoomPhotosManager({
               className={cn("object-cover", removingId === photo.id && "opacity-40")}
             />
             {photo.isPrimary && (
-              <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
+              <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-[0.82rem] font-medium text-primary-foreground">
                 <Star className="size-2.5 fill-current" /> Primary
               </span>
             )}
@@ -159,7 +159,7 @@ export function RoomPhotosManager({
               unoptimized
               className={cn("object-cover", upload.progress !== "done" && "opacity-50")}
             />
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-background/40 text-center text-xs">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-background/40 text-center text-[0.85rem]">
               {upload.progress === "uploading" && (
                 <>
                   <Loader2 className="size-5 animate-spin text-foreground" />
@@ -177,7 +177,7 @@ export function RoomPhotosManager({
           className="flex aspect-[4/3] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
         >
           <ImagePlus className="size-5" />
-          <span className="text-xs">Upload photo</span>
+          <span className="text-[0.85rem]">Upload photo</span>
         </button>
       </div>
       <input
@@ -188,7 +188,7 @@ export function RoomPhotosManager({
         className="hidden"
         onChange={(e) => onFilesSelected(e.target.files)}
       />
-      <p className="text-xs text-muted-foreground">
+      <p className="text-[0.85rem] text-muted-foreground">
         JPEG, PNG, WEBP or HEIC, up to 8MB each, at least {MIN_PHOTO_DIMENSION}&times;{MIN_PHOTO_DIMENSION}px. The
         first photo is used as the primary reference for AI analysis and concept generation.
       </p>

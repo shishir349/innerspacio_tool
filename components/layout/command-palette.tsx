@@ -52,11 +52,11 @@ export function CommandPalette({ trigger }: { trigger?: boolean }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="font-caps hidden items-center gap-2 rounded-full border border-foreground/20 px-4 py-2 text-[0.78rem] tracking-[0.12em] text-muted-foreground uppercase transition-colors hover:border-foreground hover:text-foreground lg:inline-flex"
+          className="font-caps hidden items-center gap-2 rounded-full border border-foreground/20 px-4 py-2 text-[0.82rem] tracking-[0.12em] text-muted-foreground uppercase transition-colors hover:border-foreground hover:text-foreground lg:inline-flex"
           aria-label="Open command menu"
         >
           <Search className="size-3.5" /> Search
-          <kbd className="rounded bg-secondary px-1.5 py-0.5 text-[0.65rem] tracking-normal">Ctrl K</kbd>
+          <kbd className="rounded bg-secondary px-1.5 py-0.5 text-[0.82rem] tracking-normal">Ctrl K</kbd>
         </button>
       )}
       <Dialog
@@ -96,7 +96,7 @@ export function CommandPalette({ trigger }: { trigger?: boolean }) {
             />
           </div>
           <ul className="max-h-72 overflow-y-auto p-2" role="listbox">
-            {items.length === 0 && <li className="px-4 py-6 text-center text-sm text-muted-foreground">Nothing matches.</li>}
+            {items.length === 0 && <li className="px-4 py-6 text-center text-[0.95rem] text-muted-foreground">Nothing matches.</li>}
             {items.map((i, idx) => (
               <li key={i.label + i.href} role="option" aria-selected={idx === cursor}>
                 <button
@@ -111,7 +111,7 @@ export function CommandPalette({ trigger }: { trigger?: boolean }) {
                     <ArrowRight className="size-3.5 text-muted-foreground" />
                     {i.label}
                   </span>
-                  <span className="font-caps flex items-center gap-2 text-[0.7rem] tracking-[0.12em] text-muted-foreground uppercase">
+                  <span className="font-caps flex items-center gap-2 text-[0.82rem] tracking-[0.12em] text-muted-foreground uppercase">
                     {i.hint}
                     {idx === cursor && <CornerDownLeft className="size-3" />}
                   </span>

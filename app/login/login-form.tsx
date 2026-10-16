@@ -47,7 +47,7 @@ export function LoginForm() {
           required
         />
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-[0.95rem] text-destructive">{error}</p>}
       <Button type="submit" size="lg" disabled={isPending} className="w-full gap-2">
         {isPending && <Loader2 className="size-4 animate-spin" />}
         Sign in

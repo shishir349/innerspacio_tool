@@ -92,7 +92,7 @@ export function PresentationExperience({
   if (!activeRoom) {
     return (
       <div className="flex min-h-screen items-center justify-center px-6 text-center">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-[0.95rem] text-muted-foreground">
           There&apos;s nothing to show here yet — check back once your designer has added rooms.
         </p>
       </div>
@@ -108,7 +108,7 @@ export function PresentationExperience({
     <div className="dark min-h-screen bg-background pb-28 text-foreground print:pb-0">
       {!readOnly && <BrandReveal name={data.clientFirstName} />}
       {readOnly && (
-        <div className="bg-accent px-4 py-2 text-center text-xs font-medium text-accent-foreground print:hidden">
+        <div className="bg-accent px-4 py-2 text-center text-[0.85rem] font-medium text-accent-foreground print:hidden">
           Designer preview — this is exactly what your client sees, but selections and feedback
           here are not saved.
         </div>
@@ -138,7 +138,7 @@ export function PresentationExperience({
           {rooms.length > 1 && (
             <div className="mt-4 flex items-center gap-3">
               <Progress value={progress} className="h-px w-48 bg-foreground/20" />
-              <span className="font-caps text-[0.72rem] tracking-[0.14em] text-muted-foreground uppercase">{progress}% of rooms decided</span>
+              <span className="font-caps text-[0.82rem] tracking-[0.1em] text-muted-foreground uppercase">{progress}% of rooms decided</span>
             </div>
           )}
         </div>
@@ -176,7 +176,7 @@ export function PresentationExperience({
           <button
             onClick={() => setActiveConceptId("original")}
             className={cn(
-              "font-caps shrink-0 rounded-full border px-4 py-2 text-[0.75rem] tracking-[0.12em] uppercase transition-colors duration-300",
+              "font-caps shrink-0 rounded-full border px-4 py-2 text-[0.82rem] tracking-[0.12em] uppercase transition-colors duration-300",
               activeConceptId === "original"
                 ? "border-saffron bg-saffron text-[#211812]"
                 : "border-foreground/25 text-muted-foreground hover:border-foreground hover:text-foreground"
@@ -189,7 +189,7 @@ export function PresentationExperience({
               key={concept.id}
               onClick={() => setActiveConceptId(concept.id)}
               className={cn(
-                "font-caps shrink-0 rounded-full border px-4 py-2 text-[0.75rem] tracking-[0.12em] uppercase transition-colors duration-300",
+                "font-caps shrink-0 rounded-full border px-4 py-2 text-[0.82rem] tracking-[0.12em] uppercase transition-colors duration-300",
                 activeConceptId === concept.id
                   ? "border-saffron bg-saffron text-[#211812]"
                   : "border-foreground/25 text-muted-foreground hover:border-foreground hover:text-foreground"
@@ -218,7 +218,7 @@ export function PresentationExperience({
                 />
               </button>
             ) : (
-              <div className="flex aspect-[4/3] w-full items-center justify-center rounded-2xl border border-dashed border-border text-sm text-muted-foreground sm:aspect-[16/10]">
+              <div className="flex aspect-[4/3] w-full items-center justify-center rounded-2xl border border-dashed border-border text-[0.95rem] text-muted-foreground sm:aspect-[16/10]">
                 No photo uploaded for this room yet.
               </div>
             )
@@ -248,7 +248,7 @@ export function PresentationExperience({
                     />
                   </div>
                 )}
-                <div className="pointer-events-none absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full bg-background/90 px-3 py-1.5 text-xs text-foreground opacity-0 transition-opacity group-hover:opacity-100 print:hidden">
+                <div className="pointer-events-none absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full bg-background/90 px-3 py-1.5 text-[0.85rem] text-foreground opacity-0 transition-opacity group-hover:opacity-100 print:hidden">
                   <Expand className="size-3.5" /> Full screen
                 </div>
                 <Badge
@@ -265,14 +265,14 @@ export function PresentationExperience({
 
               <div>
                 <h2 className="display display-md text-foreground">{activeConcept.title}</h2>
-                <p className="text-sm text-muted-foreground">{activeConcept.style}</p>
-                <p className="mt-3 text-sm leading-relaxed text-foreground/90">{activeConcept.description}</p>
+                <p className="text-[0.95rem] text-muted-foreground">{activeConcept.style}</p>
+                <p className="mt-3 text-[0.95rem] leading-relaxed text-foreground/90">{activeConcept.description}</p>
                 {activeConcept.keyChanges.length > 0 && (
                   <div className="mt-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <p className="text-[0.85rem] font-medium uppercase tracking-wide text-muted-foreground">
                       Key proposed changes
                     </p>
-                    <ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-foreground/90">
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-[0.95rem] text-foreground/90">
                       {activeConcept.keyChanges.map((c, i) => (
                         <li key={i}>{c}</li>
                       ))}
@@ -308,12 +308,12 @@ export function PresentationExperience({
         </div>
 
         {activeRoom.concepts.length === 0 && activeConceptId === "original" && (
-          <p className="mt-4 text-sm text-muted-foreground">
+          <p className="mt-4 text-[0.95rem] text-muted-foreground">
             Design concepts for this room are still being prepared.
           </p>
         )}
 
-        <p className="mt-8 border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-8 border-t border-border pt-4 text-[0.85rem] leading-relaxed text-muted-foreground">
           Generated visuals are illustrative design concepts, subject to site measurements, material
           selection and technical validation — they are not construction drawings or a guarantee of
           exact final appearance.

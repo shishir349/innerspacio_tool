@@ -162,13 +162,20 @@ export async function createDraft(input: DraftLeadInput, ip: string) {
  * The estimate is always computed here from the stored answers, never trusted
  * from the client. Safe to call twice (last write wins).
  */
-export async function finalizeLead(lead: LeadRow, input: FinalizeLeadInput): Promise<TierEstimate> {
+export interface FinalizedQuote {
+  estimate: TierEstimate;
+  tiers: TierEstimate[];
+  breakdown: QuoteBreakdown;
+}
+
+export async function finalizeLead(lead: LeadRow, input: FinalizeLeadInput): Promise<FinalizedQuote> {
   const client = db();
   const { data: rooms } = await client.from("lead_rooms").select("room_type").eq("lead_id", lead.id);
-  const estimate = estimateForTier(
-    toEstimateInput({ bhk: lead.bhk, home_size: lead.home_size, city: input.city }, (rooms ?? []) as LeadRoomRow[]),
-    lead.package_tier
+  const estimateInput = toEstimateInput(
+    { bhk: lead.bhk, home_size: lead.home_size, city: input.city },
+    (rooms ?? []) as LeadRoomRow[]
   );
+  const estimate = estimateForTier(estimateInput, lead.package_tier);
   const { error } = await client
     .from("leads")
     .update({
@@ -185,7 +192,11 @@ export async function finalizeLead(lead: LeadRow, input: FinalizeLeadInput): Pro
   if (error) throw new Error("Could not save your details. Please try again.");
   // Every lead lives under a project (rooms included) so staff land in one place.
   await ensureLeadProject(client, lead.id).catch(() => null);
-  return estimate;
+  return {
+    estimate,
+    tiers: estimateAllTiers(estimateInput),
+    breakdown: explainEstimate(estimateInput, lead.package_tier),
+  };
 }
 
 /** The ONLY way to get a lead from a token. Same generic miss for every failure. */
@@ -368,65 +379,6 @@ async function readConcept(leadId: string, roomId: string): Promise<ConceptView 
     return url ? { url, isDemo: false } : null;
   }
   return row.image_data_url ? { url: row.image_data_url as string, isDemo: Boolean(row.is_demo) } : null;
-}
-
-export interface QuoteResult {
-  name: string;
-  city: string;
-  selectedTier: PackageTier;
-  estimate: { lowLakh: number; highLakh: number };
-  tiers: TierEstimate[];
-  breakdown: QuoteBreakdown;
-  status: LeadRow["status"];
-  rooms: {
-    id: string;
-    label: string;
-    roomType: string;
-    ideas: string | null;
-    beforeUrl: string | null;
-    concept: ConceptView | null;
-  }[];
-}
-
-export async function getQuoteResult(lead: LeadRow): Promise<QuoteResult> {
-  const client = db();
-  const { data: rooms } = await client
-    .from("lead_rooms")
-    .select("id, room_type, label, ideas_text")
-    .eq("lead_id", lead.id)
-    .order("created_at", { ascending: true });
-  const roomRows = (rooms ?? []) as LeadRoomRow[];
-
-  const out: QuoteResult["rooms"] = [];
-  for (const r of roomRows) {
-    const { data: photos } = await client
-      .from("lead_room_photos")
-      .select("storage_path")
-      .eq("lead_room_id", r.id)
-      .order("created_at", { ascending: true })
-      .limit(1);
-    const path = photos?.[0]?.storage_path as string | undefined;
-    out.push({
-      id: r.id,
-      label: r.label,
-      roomType: r.room_type,
-      ideas: r.ideas_text,
-      beforeUrl: path ? await refreshSignedPhotoUrl(client, path) : null,
-      concept: await readConcept(lead.id, r.id),
-    });
-  }
-
-  const input = toEstimateInput(lead, roomRows);
-  return {
-    name: lead.name,
-    city: lead.city,
-    selectedTier: lead.package_tier,
-    estimate: { lowLakh: Number(lead.estimate_low), highLakh: Number(lead.estimate_high) },
-    tiers: estimateAllTiers(input),
-    breakdown: explainEstimate(input, lead.package_tier),
-    status: lead.status,
-    rooms: out,
-  };
 }
 
 export async function requestConsult(lead: LeadRow): Promise<void> {

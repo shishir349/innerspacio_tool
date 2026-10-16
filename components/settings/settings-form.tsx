@@ -75,7 +75,7 @@ export function SettingsForm({ settings }: { settings: AppSettings }) {
             />
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-[0.85rem] text-muted-foreground">
           These are defaults for new estimates — a 40% gross margin is not a 40% markup, and margin
           is always calculated exclusive of GST. GST treatment must be confirmed by your tax
           adviser for the actual contract and supply structure.

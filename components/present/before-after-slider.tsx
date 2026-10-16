@@ -54,7 +54,7 @@ export function BeforeAfterSlider({
       onPointerUp={onPointerUp}
     >
       <Image src={beforeSrc} alt={beforeLabel} fill unoptimized className="object-cover" draggable={false} />
-      <span className="absolute left-3 top-3 rounded-full bg-background/85 px-3 py-1 text-xs font-medium text-foreground">
+      <span className="absolute left-3 top-3 rounded-full bg-background/85 px-3 py-1 text-[0.85rem] font-medium text-foreground">
         {beforeLabel}
       </span>
 
@@ -63,7 +63,7 @@ export function BeforeAfterSlider({
         style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
       >
         <Image src={afterSrc} alt={afterLabel} fill unoptimized className="object-cover" draggable={false} />
-        <span className="absolute right-3 top-3 rounded-full bg-primary/90 px-3 py-1 text-xs font-medium text-primary-foreground">
+        <span className="absolute right-3 top-3 rounded-full bg-primary/90 px-3 py-1 text-[0.85rem] font-medium text-primary-foreground">
           {afterLabel}
         </span>
       </div>

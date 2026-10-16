@@ -33,10 +33,10 @@ export default async function DesignStudioIndexPage() {
 
       {rooms.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-16 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[0.95rem] text-muted-foreground">
             Add a room to a project to start analyzing photos and generating concepts.
           </p>
-          <Link href="/projects" className="mt-3 inline-block text-sm font-medium text-primary underline">
+          <Link href="/projects" className="mt-3 inline-block text-[0.95rem] font-medium text-primary underline">
             Go to Projects
           </Link>
         </div>
@@ -48,22 +48,22 @@ export default async function DesignStudioIndexPage() {
               <Link key={room.id} href={`/design-studio/${project.id}/${room.id}`}>
                 <Card className="h-full border-border/80 transition-shadow hover:shadow-md">
                   <CardContent className="space-y-2 pt-6">
-                    <p className="text-xs text-muted-foreground">{project.title}</p>
+                    <p className="text-[0.85rem] text-muted-foreground">{project.title}</p>
                     <p className="font-medium text-foreground">{room.name}</p>
-                    <p className="text-sm text-muted-foreground">{roomTypeLabel}</p>
+                    <p className="text-[0.95rem] text-muted-foreground">{roomTypeLabel}</p>
                     <div className="flex flex-wrap gap-2 pt-1">
-                      <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                      <Badge variant="outline" className="flex items-center gap-1 text-[0.85rem]">
                         <Camera className="size-3" /> {room.photos.length} photo
                         {room.photos.length === 1 ? "" : "s"}
                       </Badge>
                       {room.concepts.length > 0 && (
-                        <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                        <Badge variant="outline" className="flex items-center gap-1 text-[0.85rem]">
                           <Sparkles className="size-3" /> {room.concepts.length} concept
                           {room.concepts.length === 1 ? "" : "s"}
                         </Badge>
                       )}
                       {room.analysis && (
-                        <Badge className="bg-primary/15 text-primary border-primary/20 text-xs">
+                        <Badge className="bg-primary/15 text-primary border-primary/20 text-[0.85rem]">
                           Analyzed
                         </Badge>
                       )}

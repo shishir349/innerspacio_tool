@@ -92,7 +92,7 @@ export function ConceptFullscreenViewer({
 
       <div className="px-4 pb-6 text-center sm:px-6">
         <p className="display text-[1.6rem] text-foreground">{concept.title}</p>
-        <p className="text-sm text-muted-foreground">{concept.style}</p>
+        <p className="text-[0.95rem] text-muted-foreground">{concept.style}</p>
       </div>
     </div>
   );

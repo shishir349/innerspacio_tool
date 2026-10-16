@@ -74,11 +74,11 @@ export function CatalogueTable({ items }: { items: CatalogueItem[] }) {
       </div>
 
       {grouped.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No catalogue items match your search.</p>
+        <p className="text-[0.95rem] text-muted-foreground">No catalogue items match your search.</p>
       ) : (
         grouped.map((group) => (
           <div key={group.value} className="space-y-2">
-            <h3 className="text-sm font-medium text-foreground">{group.label}</h3>
+            <h3 className="text-[0.95rem] font-medium text-foreground">{group.label}</h3>
             <div className="overflow-x-auto rounded-lg border border-border">
               <Table>
                 <TableHeader>
@@ -97,7 +97,7 @@ export function CatalogueTable({ items }: { items: CatalogueItem[] }) {
                       <TableCell>
                         <p className="font-medium text-foreground">{item.name}</p>
                         {item.sellingDescription && (
-                          <p className="text-xs text-muted-foreground">{item.sellingDescription}</p>
+                          <p className="text-[0.85rem] text-muted-foreground">{item.sellingDescription}</p>
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground">{item.unit}</TableCell>

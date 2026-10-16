@@ -80,7 +80,7 @@ export function DesignBriefForm({
       <CardContent className="space-y-5 pt-6">
         <div>
           <h3 className="display text-[1.4rem] text-foreground">Design Brief</h3>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[0.95rem] text-muted-foreground">
             Capture what the client wants before generating concepts — style, palette, must-keeps
             and budget all shape the AI prompt.
           </p>
@@ -175,7 +175,7 @@ export function DesignBriefForm({
 
         {roomSpecificFields.length > 0 && (
           <div className="space-y-3 rounded-lg border border-border/80 bg-muted/30 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-[0.85rem] font-semibold uppercase tracking-wide text-muted-foreground">
               Specific to this room type
             </p>
             {roomSpecificFields.map((field) => (

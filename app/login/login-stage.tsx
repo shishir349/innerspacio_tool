@@ -44,7 +44,7 @@ export function LoginStage() {
         <h2 data-stage-title className="display display-lg max-w-[12ch]">
           Your space, <em>your story.</em>
         </h2>
-        <p data-stage-fade className="font-caps mt-8 text-[0.78rem] tracking-[0.24em] text-[#d9b48a] uppercase">
+        <p data-stage-fade className="font-caps mt-8 text-[0.82rem] tracking-[0.1em] text-[#d9b48a] uppercase">
           InnerSpacio · Interior design studio
         </p>
       </div>

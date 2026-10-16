@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import { PresentationExperience } from "@/components/present/presentation-experience";
-import { QuoteResultView } from "@/components/quote/result-view";
+import { EstimateView, type QuoteEstimate } from "@/components/quote/estimate-view";
 import { SmoothScroll } from "@/components/motion/smooth-scroll";
 import type { ClientLinkProject } from "@/lib/presentation/client-dto";
-import type { QuoteResult } from "@/lib/leads/service";
 
 export const dynamic = "force-dynamic";
 
@@ -37,17 +36,16 @@ const presentation: ClientLinkProject = {
   ],
 };
 
-const result: QuoteResult = {
-  name: "Smriti Agarwal",
-  city: "Noida",
-  selectedTier: "premium",
-  estimate: { lowLakh: 38.5, highLakh: 46.2 },
+const quote: QuoteEstimate = {
+  estimate: { tier: "premium", lowLakh: 38.5, highLakh: 46.2 },
   tiers: [
     { tier: "essential", lowLakh: 18, highLakh: 21.5 },
     { tier: "premium", lowLakh: 38.5, highLakh: 46.2 },
     { tier: "luxury", lowLakh: 62, highLakh: 76 },
-  ] as QuoteResult["tiers"],
+  ],
   breakdown: {
+    carpetSqFt: 1800,
+    specification: "HDHMR carcass, Hettich hardware, premium emulsion.",
     totalLakh: 41.2,
     byTrade: [
       { label: "Modular woodwork", lakh: 16.4, pct: 40 },
@@ -57,28 +55,25 @@ const result: QuoteResult = {
       { label: "Loose furniture", lakh: 8.4, pct: 20 },
     ],
     byRoom: [
-      { label: "Living", lakh: 9.2 },
-      { label: "Kitchen", lakh: 14.1 },
-      { label: "Master Bedroom", lakh: 11.6 },
+      { label: "Living", lakh: 9.2, pct: 22 },
+      { label: "Kitchen", lakh: 14.1, pct: 34 },
+      { label: "Master Bedroom", lakh: 11.6, pct: 28 },
     ],
-    highlights: [{ room: "Kitchen", text: "U-shaped modular kitchen with island" }],
+    highlights: [{ room: "Kitchen", text: "U-shaped modular kitchen with island", lakh: 8 }],
     assumptions: ["Quantities use standard room sizes until a site visit.", "Rates are InnerSpacio published rates."],
-  } as unknown as QuoteResult["breakdown"],
-  status: "generated",
-  rooms: [
-    { id: "q1", label: "Living Room", roomType: "living_room", ideas: "Warm wood, more storage, a reading corner by the window", beforeUrl: before, concept: { url: after1, isDemo: true } as never },
-    { id: "q2", label: "Master Bedroom", roomType: "bedroom", ideas: null, beforeUrl: before, concept: { url: after2, isDemo: true } as never },
-  ],
+  },
 };
 
 /** Development-only harness: renders the client-facing views with sample data. 404 in production. */
 export default async function ShowroomHarness({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
   if (process.env.NODE_ENV === "production") notFound();
   const { v } = await searchParams;
-  if (v === "result") {
+  if (v === "estimate") {
     return (
       <SmoothScroll>
-        <QuoteResultView result={result} token="dev" />
+        <div className="mx-auto max-w-3xl px-5 py-14">
+          <EstimateView quote={quote} tier="premium" progress={{ ready: 1, total: 3 }} />
+        </div>
       </SmoothScroll>
     );
   }

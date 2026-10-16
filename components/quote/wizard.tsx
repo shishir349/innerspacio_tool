@@ -2,7 +2,6 @@
 
 import { shrinkImage } from "@/lib/client-image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Camera, Check, Loader2, Minus, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { cn } from "@/lib/utils";
 import { Pop } from "@/components/motion/pop";
 import { ConceptSlider, type SlideItem } from "@/components/quote/concept-slider";
+import { EstimateView, type QuoteEstimate } from "@/components/quote/estimate-view";
 import { EASE, MOTION_OK, gsap, useGSAP } from "@/lib/motion";
 import {
   BHK_OPTIONS,
@@ -29,10 +29,13 @@ import {
   type QuoteRoomType,
 } from "@/lib/quote/constants";
 
-// Package comes BEFORE photos so image generation (style depends on the
-// tier) can start the moment the visitor leaves the photos step.
-const STEPS = ["Home", "Rooms", "Package", "Photos", "Details"] as const;
+// One form, seven tabs. Photos are optional and every render costs money, so generation starts only
+// for rooms that have a photo, the moment the visitor leaves the Photos tab. Details is just the form;
+// the Estimate tab keeps them busy while the renders finish in the background; Reimagined shows them.
+const STEPS = ["Home", "Rooms", "Package", "Photos", "Details", "Estimate", "Reimagined"] as const;
 const PHOTOS_STEP = 3;
+const DETAILS_STEP = 4;
+const ESTIMATE_STEP = 5;
 const LAST_STEP = STEPS.length - 1;
 
 interface RoomDraft {
@@ -86,7 +89,6 @@ function expandRooms(counts: Draft["counts"], ideas: Draft["ideas"]): RoomDraft[
 }
 
 export function QuoteWizard() {
-  const router = useRouter();
   const [d, setD] = useState<Draft>(EMPTY);
   // Photos can't live in sessionStorage; they stay in memory for this visit.
   const [photos, setPhotos] = useState<Record<string, File[]>>({});
@@ -94,10 +96,11 @@ export function QuoteWizard() {
   const [cityOpen, setCityOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [quote, setQuote] = useState<QuoteEstimate | null>(null);
+  const [consult, setConsult] = useState<"idle" | "sending" | "sent">("idle");
   // Per-room generation state, filled in the background after the photos step.
   const [gen, setGen] = useState<Record<string, Omit<SlideItem, "key" | "label">>>({});
   const leadRef = useRef<{ leadId: string; token: string; sig: string } | null>(null);
-  const allDone = useRef<Promise<void>>(Promise.resolve());
   const honeypot = useRef<HTMLInputElement>(null);
 
   // Shake the error line so a failed step is noticed (not just announced).
@@ -115,6 +118,7 @@ export function QuoteWizard() {
 
   const rooms = useMemo(() => expandRooms(d.counts, d.ideas), [d.counts, d.ideas]);
   const totalRooms = rooms.length;
+  const withPhotos = rooms.filter((r) => (photos[r.key]?.length ?? 0) > 0);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((p) => ({ ...p, [k]: v }));
   // Functional so fast taps never overwrite each other with a stale count.
   const bump = (t: QuoteRoomType, delta: number) =>
@@ -131,11 +135,7 @@ export function QuoteWizard() {
     if (step === 0 && !d.bhk) return "Please choose your home type.";
     if (step === 1 && totalRooms === 0) return "Select at least one room.";
     if (step === 2 && !d.tier) return "Please pick a package.";
-    if (step === PHOTOS_STEP) {
-      const missing = rooms.find((r) => (photos[r.key]?.length ?? 0) === 0);
-      if (missing) return `Add a photo of your ${missing.label.toLowerCase()}.`;
-    }
-    if (step === LAST_STEP) {
+    if (step === DETAILS_STEP) {
       if (d.name.trim().length < 2) return "Please enter your name.";
       if (!/^\S+@\S+\.\S+$/.test(d.email)) return "Enter a valid email address.";
       if (!/^\+?[0-9][0-9\s-]{7,16}$/.test(d.phone.trim())) return "Enter a valid phone number.";
@@ -149,13 +149,12 @@ export function QuoteWizard() {
     const problem = validate(d.step);
     setError(problem);
     if (problem) return;
-    if (d.step === LAST_STEP) {
-      void submit();
+    if (d.step === DETAILS_STEP) {
+      await submit();
       return;
     }
     if (d.step === PHOTOS_STEP) {
-      // Leaving the photos step: create a draft and start generating now, so
-      // images are (partly) ready by the time the visitor reaches the end.
+      // Leaving the photos step: create the draft and start rendering the rooms that have a photo.
       const failure = await startGeneration();
       if (failure) {
         setError(failure);
@@ -174,7 +173,7 @@ export function QuoteWizard() {
     });
   }
 
-  /** Returns an error message, or null when generation is running/started. */
+  /** Returns an error message, or null when the draft exists (and rendering is running or not needed). */
   async function startGeneration(): Promise<string | null> {
     const sig = signature();
     if (leadRef.current?.sig === sig) return null; // nothing changed since last time
@@ -194,8 +193,11 @@ export function QuoteWizard() {
       if (!res.ok) return lead.error ?? "Could not start. Please try again.";
 
       leadRef.current = { leadId: lead.leadId, token: lead.token, sig };
-      setGen(Object.fromEntries(rooms.map((r) => [r.key, { state: "queued" as const }])));
-      allDone.current = runQueue(lead.leadId, lead.token, lead.rooms, rooms, photos);
+      const todo = rooms
+        .map((r, i) => ({ r, id: lead.rooms[i].id as string }))
+        .filter(({ r }) => (photos[r.key]?.length ?? 0) > 0);
+      setGen(Object.fromEntries(todo.map(({ r }) => [r.key, { state: "queued" as const }])));
+      void runQueue(lead.leadId, lead.token, todo, photos);
       return null;
     } catch {
       return "Network problem. Please check your connection and try again.";
@@ -207,8 +209,7 @@ export function QuoteWizard() {
   async function runQueue(
     leadId: string,
     token: string,
-    serverRooms: { id: string }[],
-    rs: RoomDraft[],
+    todo: { r: RoomDraft; id: string }[],
     ph: Record<string, File[]>
   ) {
     const live = () => leadRef.current?.leadId === leadId; // ignore results of a superseded draft
@@ -217,41 +218,41 @@ export function QuoteWizard() {
     };
 
     async function one(i: number) {
-      const key = rs[i].key;
-      patch(key, { state: "run" });
+      const { r, id } = todo[i];
+      patch(r.key, { state: "run" });
       const form = new FormData();
-      for (const f of ph[key] ?? []) form.append("photos", await shrinkImage(f));
+      for (const f of ph[r.key] ?? []) form.append("photos", await shrinkImage(f));
       let msg: string | undefined;
       // Generation can run ~60s+; a proxy may cut the connection while the server
       // finishes. The server is idempotent + de-duplicates, so retrying is safe.
       for (let attempt = 0; attempt < 3; attempt++) {
         msg = undefined;
         try {
-          const r = await fetch(`/api/public/quote/${leadId}/rooms/${serverRooms[i].id}`, {
+          const res = await fetch(`/api/public/quote/${leadId}/rooms/${id}`, {
             method: "POST",
             headers: { "x-quote-token": token },
             body: form,
           });
-          if (r.ok) {
-            const out = await r.json();
-            patch(key, { state: "done", url: out.concept?.url, isDemo: out.concept?.isDemo });
+          if (res.ok) {
+            const out = await res.json();
+            patch(r.key, { state: "done", url: out.concept?.url, isDemo: out.concept?.isDemo });
             return;
           }
-          const body = await r.json().catch(() => null);
+          const body = await res.json().catch(() => null);
           msg = body?.error ?? "Could not generate this image.";
-          if (![502, 503, 504].includes(r.status)) break; // 4xx: retrying won't help
+          if (![502, 503, 504].includes(res.status)) break; // 4xx: retrying won't help
         } catch {
           msg = "Network problem.";
         }
         await new Promise((res) => setTimeout(res, 4000));
       }
-      patch(key, { state: "fail", msg });
+      patch(r.key, { state: "fail", msg });
     }
 
     // Two at a time: faster than serial, gentle on the host and the image API.
     let nextIndex = 0;
     const worker = async () => {
-      while (nextIndex < rs.length) await one(nextIndex++);
+      while (nextIndex < todo.length) await one(nextIndex++);
     };
     await Promise.all([worker(), worker()]);
   }
@@ -261,7 +262,7 @@ export function QuoteWizard() {
     setError(null);
     try {
       const lead = leadRef.current;
-      if (!lead) throw new Error("Please go back and add your room photos first.");
+      if (!lead) throw new Error("Please go back and continue from the Photos step first.");
       const res = await fetch(`/api/public/quote/${lead.leadId}/finalize`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-quote-token": lead.token },
@@ -276,37 +277,46 @@ export function QuoteWizard() {
         }),
       });
       const out = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(out.error ?? "Could not submit. Please try again.");
-      await allDone.current; // contact is saved; now wait for any images still rendering
-      router.push(`/get-quote/result/${lead.token}`);
+      if (!res.ok || !out.estimate) throw new Error(out.error ?? "Could not submit. Please try again.");
+      setQuote({ estimate: out.estimate, tiers: out.tiers, breakdown: out.breakdown });
+      set("step", ESTIMATE_STEP);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
       setSubmitting(false);
     }
   }
 
-  const slides: SlideItem[] = rooms.map((r) => ({
+  async function requestConsult() {
+    const lead = leadRef.current;
+    if (!lead) return;
+    setConsult("sending");
+    try {
+      const res = await fetch("/api/public/quote/consult", { method: "POST", headers: { "x-quote-token": lead.token } });
+      if (!res.ok) throw new Error();
+      setConsult("sent");
+    } catch {
+      setConsult("idle");
+      setError("Could not send your request. Please try again.");
+    }
+  }
+
+  // The visitor's own photo is the "before" of each finished render.
+  const befores = useMemo(
+    () => Object.fromEntries(withPhotos.map((r) => [r.key, URL.createObjectURL(photos[r.key][0])])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [photos, d.counts]
+  );
+  useEffect(() => () => Object.values(befores).forEach((u) => URL.revokeObjectURL(u)), [befores]);
+
+  const slides: SlideItem[] = withPhotos.map((r) => ({
     key: r.key,
     label: r.label,
+    beforeUrl: befores[r.key],
     ...(gen[r.key] ?? { state: "queued" as const }),
   }));
-
-  if (submitting) {
-    const pending = slides.filter((x) => x.state === "queued" || x.state === "run").length;
-    return (
-      <Shell step={LAST_STEP}>
-        <h1 className="display display-md">Submitting your details…</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {pending > 0
-            ? `${pending} room${pending === 1 ? "" : "s"} still rendering. Please keep this page open.`
-            : "Almost there."}
-        </p>
-        <div className="mt-6">
-          <ConceptSlider items={slides} />
-        </div>
-      </Shell>
-    );
-  }
+  const ready = slides.filter((x) => x.state === "done" || x.state === "fail").length;
+  const finished = d.step >= ESTIMATE_STEP;
 
   return (
     <Shell step={d.step}>
@@ -324,7 +334,7 @@ export function QuoteWizard() {
                     {(["small", "large"] as const).map((s) => (
                       <ChoiceCard key={s} selected={d.homeSize === s} onClick={() => set("homeSize", s)}>
                         <span className="block capitalize">{s}</span>
-                        <span className="block text-xs font-normal text-muted-foreground">
+                        <span className="block text-[0.95rem] text-muted-foreground">
                           {s === "small" ? "Below 1200 sq ft" : "Above 1200 sq ft"}
                         </span>
                       </ChoiceCard>
@@ -341,7 +351,7 @@ export function QuoteWizard() {
         <section>
           <Heading
             title="Which rooms should we design?"
-            sub={`Pick up to ${MAX_QUOTE_ROOMS}. You'll add a photo of each next.`}
+            sub={`Pick up to ${MAX_QUOTE_ROOMS}. You can add a photo of each next, or skip it.`}
           />
           <div className="mt-6 grid gap-3">
             {QUOTE_ROOM_TYPES.map((t) => {
@@ -354,47 +364,19 @@ export function QuoteWizard() {
                 >
                   <span className="display text-[1.5rem]">{t.label}</span>
                   <div className="flex items-center gap-3">
-                    <Stepper
-                      label={`Remove ${t.label}`}
-                      disabled={n === 0}
-                      onClick={() => bump(t.value, -1)}
-                    >
+                    <Stepper label={`Remove ${t.label}`} disabled={n === 0} onClick={() => bump(t.value, -1)}>
                       <Minus className="size-4" />
                     </Stepper>
                     <span className="num w-6 text-center text-lg">
                       <Pop key={n} from={0.6}>{n}</Pop>
                     </span>
-                    <Stepper
-                      label={`Add ${t.label}`}
-                      disabled={!canAdd}
-                      onClick={() => bump(t.value, 1)}
-                    >
+                    <Stepper label={`Add ${t.label}`} disabled={!canAdd} onClick={() => bump(t.value, 1)}>
                       <Plus className="size-4" />
                     </Stepper>
                   </div>
                 </div>
               );
             })}
-          </div>
-        </section>
-      )}
-
-      {d.step === PHOTOS_STEP && (
-        <section>
-          <Heading
-            title="Show us the space"
-            sub="Add a clear photo of each room and tell us what you have in mind."
-          />
-          <div className="mt-6 space-y-5">
-            {rooms.map((r) => (
-              <RoomPhotoCard
-                key={r.key}
-                room={r}
-                files={photos[r.key] ?? []}
-                onFiles={(f) => setPhotos((p) => ({ ...p, [r.key]: f }))}
-                onIdeas={(v) => setD((p) => ({ ...p, ideas: { ...p.ideas, [r.key]: v } }))}
-              />
-            ))}
           </div>
         </section>
       )}
@@ -435,11 +417,11 @@ export function QuoteWizard() {
                       {on && <Check className="size-4" />}
                     </span>
                   </span>
-                  <span className="mt-2 block max-w-md opacity-85">{info.blurb}</span>
+                  <span className="mt-2 block max-w-md opacity-90">{info.blurb}</span>
                   <span className="mt-5 grid gap-2 sm:grid-cols-2">
                     {info.bullets.map((b) => (
-                      <span key={b} className="flex items-center gap-2 text-[0.95rem]">
-                        <Check className="size-3.5 shrink-0 opacity-70" />
+                      <span key={b} className="flex items-center gap-2">
+                        <Check className="size-4 shrink-0 opacity-70" />
                         {b}
                       </span>
                     ))}
@@ -451,27 +433,35 @@ export function QuoteWizard() {
         </section>
       )}
 
-      {d.step === LAST_STEP && (
+      {d.step === PHOTOS_STEP && (
         <section>
           <Heading
-            title="Your designs are on the way"
-            sub="Swipe through your rooms, then tell us where to send your estimate."
+            title="Show us the space"
+            sub="Optional. Add a photo of a room and we'll render a design concept for it while you finish. Skip any room you like."
           />
-          <div className="mt-5">
-            <ConceptSlider items={slides} />
+          <div className="mt-6 space-y-5">
+            {rooms.map((r) => (
+              <RoomPhotoCard
+                key={r.key}
+                room={r}
+                files={photos[r.key] ?? []}
+                onFiles={(f) => setPhotos((p) => ({ ...p, [r.key]: f }))}
+                onIdeas={(v) => setD((p) => ({ ...p, ideas: { ...p.ideas, [r.key]: v } }))}
+              />
+            ))}
           </div>
-          <div className="mt-8 space-y-4">
+        </section>
+      )}
+
+      {d.step === DETAILS_STEP && (
+        <section>
+          <Heading title="Where should we send your estimate?" sub="Just a few details and your estimate is on the next screen." />
+          <div className="mt-8 space-y-5">
             <Field id="q-name" label="Name">
               <Input id="q-name" autoComplete="name" value={d.name} onChange={(e) => set("name", e.target.value)} />
             </Field>
             <Field id="q-email" label="Email">
-              <Input
-                id="q-email"
-                type="email"
-                autoComplete="email"
-                value={d.email}
-                onChange={(e) => set("email", e.target.value)}
-              />
+              <Input id="q-email" type="email" autoComplete="email" value={d.email} onChange={(e) => set("email", e.target.value)} />
             </Field>
             <Field id="q-phone" label="Phone">
               <Input
@@ -484,23 +474,17 @@ export function QuoteWizard() {
                 onChange={(e) => set("phone", e.target.value)}
               />
             </Field>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-3">
               <input
                 type="checkbox"
                 checked={d.whatsapp}
                 onChange={(e) => set("whatsapp", e.target.checked)}
-                className="size-4 accent-[var(--primary)]"
+                className="size-5 accent-[var(--primary)]"
               />
               Send me updates on WhatsApp
             </label>
             <Field id="q-city" label="City">
-              <Button
-                id="q-city"
-                type="button"
-                variant="outline"
-                className="h-11 w-full justify-between"
-                onClick={() => setCityOpen(true)}
-              >
+              <Button id="q-city" type="button" variant="outline" className="h-12 w-full justify-between" onClick={() => setCityOpen(true)}>
                 {d.city || "Select city"}
               </Button>
             </Field>
@@ -511,44 +495,111 @@ export function QuoteWizard() {
                 <input ref={honeypot} name="website" tabIndex={-1} autoComplete="off" />
               </label>
             </div>
-            <label className="flex items-start gap-2 text-sm text-muted-foreground">
+            <label className="flex items-start gap-3 text-muted-foreground">
               <input
                 type="checkbox"
                 checked={d.consent}
                 onChange={(e) => set("consent", e.target.checked)}
-                className="mt-0.5 size-4 accent-[var(--primary)]"
+                className="mt-1 size-5 accent-[var(--primary)]"
               />
               <span>
-                I agree to InnerSpacio storing my details and room photos to prepare this estimate and contact me
-                about it.
+                I agree to InnerSpacio storing my details and room photos to prepare this estimate and contact me about it.
               </span>
             </label>
           </div>
         </section>
       )}
 
+      {d.step === ESTIMATE_STEP && quote && d.tier && (
+        <section>
+          <Heading title="Your estimate" sub={`${d.name.trim().split(" ")[0]}, here's what your home could cost.`} />
+          <div className="mt-8">
+            <EstimateView
+              quote={quote}
+              tier={d.tier}
+              progress={slides.length ? { ready, total: slides.length } : undefined}
+            />
+          </div>
+        </section>
+      )}
+
+      {d.step === LAST_STEP && (
+        <section>
+          <Heading
+            title="Your rooms, reimagined"
+            sub={
+              slides.length
+                ? "Drag the handle to compare your room with its concept. AI concepts are inspiration, not a final design."
+                : "You skipped photos, so there are no concepts to show. Your designer can create them with you."
+            }
+          />
+          {slides.length > 0 && (
+            <div className="mt-8">
+              <ConceptSlider items={slides} />
+              {ready < slides.length && (
+                <p className="mt-4 text-center text-muted-foreground">
+                  {slides.length - ready} room{slides.length - ready === 1 ? " is" : "s are"} still rendering. They appear here as they finish.
+                </p>
+              )}
+            </div>
+          )}
+          <div className="surface-night mt-14 rounded-3xl p-8 text-center sm:p-12">
+            <h2 className="display display-md">
+              Want an <em>accurate</em> quote?
+            </h2>
+            <p className="mx-auto mt-4 max-w-md opacity-85">Book a free consultation with an InnerSpacio designer for a detailed quote.</p>
+            {consult === "sent" ? (
+              <p className="mt-8 flex items-center justify-center gap-2 text-saffron">
+                <Check className="size-5" /> Request received. We&apos;ll be in touch soon.
+              </p>
+            ) : (
+              <Button
+                size="lg"
+                className="mt-8 bg-saffron text-foreground hover:bg-[#ffe066]"
+                onClick={() => void requestConsult()}
+                disabled={consult === "sending"}
+              >
+                {consult === "sending" && <Loader2 className="size-4 animate-spin" />}
+                Book free consultation
+              </Button>
+            )}
+          </div>
+        </section>
+      )}
+
       {error && (
-        <p role="alert" data-error className="mt-5 text-sm text-destructive">
+        <p role="alert" data-error className="mt-5 text-destructive">
           {error}
         </p>
       )}
 
-      <div data-no-anim className="sticky bottom-0 -mx-5 mt-10 flex items-center justify-between border-t border-border/70 bg-background/90 px-5 py-4 backdrop-blur-md">
-        <Button
-          variant="ghost"
-          onClick={() => {
-            setError(null);
-            set("step", Math.max(0, d.step - 1));
-          }}
-          disabled={d.step === 0 || starting}
+      {d.step !== LAST_STEP && (
+        <div
+          data-no-anim
+          className="sticky bottom-0 -mx-5 mt-10 flex items-center justify-between border-t border-border/70 bg-background/90 px-5 py-4 backdrop-blur-md"
         >
-          Back
-        </Button>
-        <Button size="lg" className="min-w-40 gap-2" onClick={() => void next()} disabled={starting}>
-          {starting && <Loader2 className="size-4 animate-spin" />}
-          {d.step === LAST_STEP ? "Submit" : "Next"}
-        </Button>
-      </div>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setError(null);
+              set("step", Math.max(0, d.step - 1));
+            }}
+            disabled={d.step === 0 || starting || submitting || finished}
+          >
+            Back
+          </Button>
+          <Button size="lg" className="min-w-44 gap-2" onClick={() => void next()} disabled={starting || submitting}>
+            {(starting || submitting) && <Loader2 className="size-4 animate-spin" />}
+            {d.step === DETAILS_STEP
+              ? "See my estimate"
+              : d.step === ESTIMATE_STEP
+                ? "See reimagined rooms"
+                : d.step === PHOTOS_STEP && withPhotos.length === 0
+                  ? "Skip photos"
+                  : "Next"}
+          </Button>
+        </div>
+      )}
 
       <CityDialog
         open={cityOpen}
@@ -593,24 +644,20 @@ function Shell({ step, children }: { step: number; children: React.ReactNode }) 
   return (
     <div ref={root} className="min-h-screen bg-background">
       <div className="sticky top-[72px] z-30 border-b border-border/60 bg-background/90 backdrop-blur-md">
-        <ol className="mx-auto flex max-w-3xl gap-3 px-5 py-4" aria-label="Progress">
+        <ol className="mx-auto flex max-w-3xl gap-2 px-5 py-4" aria-label="Progress">
           {STEPS.map((s, i) => (
             <li key={s} className="flex-1" aria-current={i === step ? "step" : undefined}>
               <div className="h-px overflow-hidden bg-foreground/15">
-                <div
-                  data-seg
-                  className="h-0.5 origin-left bg-saffron"
-                  style={{ transform: `scaleX(${i <= step ? 1 : 0})` }}
-                />
+                <div data-seg className="h-0.5 origin-left bg-saffron" style={{ transform: `scaleX(${i <= step ? 1 : 0})` }} />
               </div>
               <span
                 className={cn(
-                  "font-caps mt-2 flex items-center gap-1.5 text-[0.7rem] tracking-[0.14em] uppercase transition-colors",
+                  "mt-2 flex items-center gap-1.5 text-[0.85rem] font-medium transition-colors",
                   i === step ? "text-foreground" : "text-muted-foreground"
                 )}
               >
-                <span className="tabular-nums">{String(i + 1).padStart(2, "0")}</span>
-                <span className="hidden sm:inline">{s}</span>
+                <span className="num">{i + 1}</span>
+                <span className="hidden md:inline">{s}</span>
               </span>
             </li>
           ))}
@@ -632,8 +679,10 @@ function Heading({ title, sub }: { title: string; sub: string }) {
 
 function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
-    <div className="grid gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+    <div className="grid gap-2">
+      <Label htmlFor={id} className="text-[0.95rem]">
+        {label}
+      </Label>
       {children}
     </div>
   );
@@ -643,12 +692,10 @@ function ChoiceCard({
   selected,
   onClick,
   children,
-  block,
 }: {
   selected: boolean;
   onClick: () => void;
   children: React.ReactNode;
-  block?: boolean;
 }) {
   return (
     <button
@@ -660,8 +707,7 @@ function ChoiceCard({
       aria-pressed={selected}
       className={cn(
         "relative w-full rounded-2xl border bg-card px-5 py-4 text-left text-[1.05rem] transition-[border-color,background-color,transform] duration-300 ease-(--ease-out-expo)",
-        selected ? "border-foreground bg-secondary/70" : "border-border hover:-translate-y-0.5 hover:border-foreground/50",
-        block && "py-5"
+        selected ? "border-foreground bg-secondary/70" : "border-border hover:-translate-y-0.5 hover:border-foreground/50"
       )}
     >
       {selected && <span aria-hidden className="absolute top-4 right-4 size-2.5 rounded-full bg-saffron" />}
@@ -712,7 +758,7 @@ function RoomPhotoCard({
   return (
     <div className="rounded-3xl border border-border bg-card p-6">
       <h2 className="display text-[1.7rem]">{room.label}</h2>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         {urls.map((u, i) => (
           <div key={u} className="relative size-28 overflow-hidden rounded-2xl border border-border">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -721,9 +767,9 @@ function RoomPhotoCard({
               type="button"
               aria-label="Remove photo"
               onClick={() => onFiles(files.filter((_, j) => j !== i))}
-              className="absolute top-1 right-1 grid size-6 place-items-center rounded-full bg-background/90"
+              className="absolute top-1 right-1 grid size-7 place-items-center rounded-full bg-background/90"
             >
-              <X className="size-3.5" />
+              <X className="size-4" />
             </button>
           </div>
         ))}
@@ -733,7 +779,7 @@ function RoomPhotoCard({
             onClick={() => inputRef.current?.click()}
             className="grid size-28 place-items-center rounded-2xl border border-dashed border-foreground/30 text-muted-foreground transition-colors duration-300 hover:border-foreground hover:bg-secondary hover:text-foreground"
           >
-            <span className="flex flex-col items-center gap-1 text-xs">
+            <span className="flex flex-col items-center gap-1 text-[0.95rem]">
               <Camera className="size-5" />
               Add photo
             </span>
@@ -752,12 +798,12 @@ function RoomPhotoCard({
           e.target.value = "";
         }}
       />
-      <Label htmlFor={`ideas-${room.key}`} className="font-caps mt-5 block text-[0.72rem] tracking-[0.12em] text-muted-foreground uppercase">
+      <Label htmlFor={`ideas-${room.key}`} className="mt-5 block text-[0.95rem] text-muted-foreground">
         What do you have in mind? (optional)
       </Label>
       <Textarea
         id={`ideas-${room.key}`}
-        className="mt-1.5"
+        className="mt-2"
         rows={3}
         maxLength={MAX_IDEAS_LENGTH}
         placeholder="e.g. warm wooden tones, more storage, a reading corner by the window"
@@ -781,34 +827,27 @@ function CityDialog({
   const list = CITIES.filter((c) => c.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[80vh] overflow-hidden p-0 sm:max-w-sm">
-        <DialogHeader className="px-4 pt-4">
+      <DialogContent className="max-h-[80vh] gap-0 overflow-hidden p-0 sm:max-w-sm">
+        <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>Select city</DialogTitle>
         </DialogHeader>
-        <div className="relative px-4">
-          <Search className="absolute top-2.5 left-7 size-4 text-muted-foreground" />
-          <Input
-            autoFocus
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search city"
-            className="pl-8"
-            aria-label="Search city"
-          />
+        <div className="relative px-6 pb-4">
+          <Search className="absolute top-3 left-9 size-4 text-muted-foreground" />
+          <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search city" className="pl-10" aria-label="Search city" />
         </div>
-        <ul className="max-h-[50vh] overflow-y-auto border-t border-border">
+        <ul data-lenis-prevent className="max-h-[50vh] overflow-y-auto border-t border-border">
           {list.map((c) => (
             <li key={c}>
               <button
                 type="button"
                 onClick={() => onPick(c)}
-                className="w-full border-b border-border px-4 py-3 text-left text-sm hover:bg-muted"
+                className="w-full border-b border-border px-6 py-3.5 text-left hover:bg-secondary"
               >
                 {c}
               </button>
             </li>
           ))}
-          {list.length === 0 && <li className="px-4 py-6 text-sm text-muted-foreground">No match.</li>}
+          {list.length === 0 && <li className="px-6 py-6 text-muted-foreground">No match.</li>}
         </ul>
       </DialogContent>
     </Dialog>

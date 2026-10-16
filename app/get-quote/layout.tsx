@@ -12,7 +12,7 @@ export default function GetQuoteLayout({ children }: { children: React.ReactNode
           </a>
           <a
             href="https://innerspacio.com"
-            className="font-caps link-draw text-[0.78rem] tracking-[0.14em] text-muted-foreground uppercase hover:text-foreground"
+            className="font-caps link-draw text-[0.82rem] tracking-[0.1em] text-muted-foreground uppercase hover:text-foreground"
           >
             innerspacio.com
           </a>

@@ -21,7 +21,7 @@ export function ProjectBoqs({ project, boqs }: { project: Project; boqs: BoqReco
         </div>
       </div>
       {boqs.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-[0.95rem] text-muted-foreground">
           No BOQ saved for this project yet.
         </p>
       ) : (
@@ -35,7 +35,7 @@ export function ProjectBoqs({ project, boqs }: { project: Project; boqs: BoqReco
                 <span className="flex items-center gap-2 font-medium">
                   <FileSpreadsheet className="size-4 text-muted-foreground" /> {b.title}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-[0.85rem] text-muted-foreground">
                   {b.tier} · {formatInr(b.total)} · updated {formatDate(b.updatedAt)}
                 </span>
               </Link>

@@ -50,7 +50,7 @@ export function PresentationView({
       <header className="flex items-center justify-between border-b border-border px-6 py-4 print:hidden">
         <div>
           <p className="display text-[1.6rem] italic text-foreground">InnerSpacio</p>
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="text-[0.85rem] uppercase tracking-[0.1em] text-muted-foreground">
             Your space, your story
           </p>
         </div>
@@ -71,7 +71,7 @@ export function PresentationView({
       <div className="mx-auto max-w-6xl px-6 py-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">{presentation.clientName} · {presentation.location}</p>
+            <p className="text-[0.95rem] text-muted-foreground">{presentation.clientName} · {presentation.location}</p>
             <h1 className="editorial-heading text-4xl text-foreground">{presentation.projectTitle}</h1>
             <p className="mt-1 text-lg text-muted-foreground">{room_.roomName} — {roomTypeLabel}</p>
           </div>
@@ -82,7 +82,7 @@ export function PresentationView({
                   key={r.roomId}
                   href={`/presentation/${presentation.projectId}/${r.roomId}`}
                   className={cn(
-                    "rounded-full border px-3 py-1.5 text-sm transition-colors",
+                    "rounded-full border px-3 py-1.5 text-[0.95rem] transition-colors",
                     r.roomId === room_.roomId
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border text-muted-foreground hover:bg-accent/50"
@@ -99,7 +99,7 @@ export function PresentationView({
           <button
             onClick={() => setView("original")}
             className={cn(
-              "shrink-0 rounded-full border px-4 py-1.5 text-sm transition-colors",
+              "shrink-0 rounded-full border px-4 py-1.5 text-[0.95rem] transition-colors",
               view === "original"
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border text-muted-foreground hover:bg-accent/50"
@@ -112,7 +112,7 @@ export function PresentationView({
               key={c.id}
               onClick={() => setView(c.id)}
               className={cn(
-                "shrink-0 rounded-full border px-4 py-1.5 text-sm transition-colors",
+                "shrink-0 rounded-full border px-4 py-1.5 text-[0.95rem] transition-colors",
                 view === c.id
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border text-muted-foreground hover:bg-accent/50"
@@ -130,7 +130,7 @@ export function PresentationView({
               room_.primaryPhotoUrl ? (
                 <Image src={room_.primaryPhotoUrl} alt={room_.roomName} fill unoptimized className="object-cover" />
               ) : (
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                <div className="flex h-full items-center justify-center text-[0.95rem] text-muted-foreground">
                   No photo uploaded yet.
                 </div>
               )
@@ -161,7 +161,7 @@ export function PresentationView({
             {view === "original" ? (
               <div>
                 <h2 className="display text-[2rem] text-foreground">The Room Today</h2>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                <p className="mt-2 text-[0.95rem] leading-relaxed text-muted-foreground">
                   Dimensions: {room_.dimensions.length ?? "—"} × {room_.dimensions.width ?? "—"}{" "}
                   {room_.dimensions.unit} (ceiling {room_.dimensions.ceilingHeight ?? "—"} {room_.dimensions.unit})
                 </p>
@@ -169,14 +169,14 @@ export function PresentationView({
             ) : activeConcept ? (
               <div>
                 <h2 className="display text-[2rem] text-foreground">{activeConcept.title}</h2>
-                <p className="text-sm text-muted-foreground">{activeConcept.style}</p>
-                <p className="mt-3 text-sm leading-relaxed text-foreground/90">{activeConcept.description}</p>
+                <p className="text-[0.95rem] text-muted-foreground">{activeConcept.style}</p>
+                <p className="mt-3 text-[0.95rem] leading-relaxed text-foreground/90">{activeConcept.description}</p>
                 {activeConcept.keyChanges.length > 0 && (
                   <div className="mt-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <p className="text-[0.85rem] font-medium uppercase tracking-wide text-muted-foreground">
                       Key proposed changes
                     </p>
-                    <ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-foreground/90">
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-[0.95rem] text-foreground/90">
                       {activeConcept.keyChanges.map((c, i) => (
                         <li key={i}>{c}</li>
                       ))}
@@ -203,7 +203,7 @@ export function PresentationView({
             {room_.estimateSummary && (
               <div className="rounded-xl border border-border bg-secondary/40 p-5">
                 <p className="display text-[1.4rem] text-foreground">Preliminary Estimate</p>
-                <ul className="mt-3 space-y-1.5 text-sm text-foreground/90">
+                <ul className="mt-3 space-y-1.5 text-[0.95rem] text-foreground/90">
                   {room_.estimateSummary.lineItems.map((li) => (
                     <li key={li.id} className="flex justify-between gap-3">
                       <span>
@@ -212,7 +212,7 @@ export function PresentationView({
                     </li>
                   ))}
                 </ul>
-                <div className="mt-3 space-y-1 border-t border-border pt-3 text-sm">
+                <div className="mt-3 space-y-1 border-t border-border pt-3 text-[0.95rem]">
                   <div className="flex justify-between text-muted-foreground">
                     <span>Subtotal (incl. contingency & studio margin)</span>
                     <span>{formatInr(room_.estimateSummary.subtotalBeforeGst)}</span>
@@ -231,7 +231,7 @@ export function PresentationView({
           </div>
         </div>
 
-        <p className="mt-10 border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-10 border-t border-border pt-4 text-[0.85rem] leading-relaxed text-muted-foreground">
           Generated visuals are illustrative design concepts, subject to site measurements,
           material selection and technical validation. This is a preliminary estimate, not a final
           quotation — final scope, specifications and pricing will be confirmed after a site visit.

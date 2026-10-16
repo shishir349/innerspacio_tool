@@ -62,7 +62,7 @@ export default async function LeadsPage() {
       </div>
 
       {leads.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-xl border border-dashed border-border p-8 text-center text-[0.95rem] text-muted-foreground">
           {isSupabaseConfigured() ? "No submitted quotes yet." : "Leads need the database configured."}
         </p>
       ) : (
@@ -71,10 +71,10 @@ export default async function LeadsPage() {
             <li key={l.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
               <div className="min-w-0">
                 <p className="truncate font-medium">{l.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="truncate text-[0.85rem] text-muted-foreground">
                   {l.phone} · {l.email} · {l.city}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-[0.85rem] text-muted-foreground">
                   {l.bhk} BHK · {TIER_INFO[l.package_tier]?.label ?? l.package_tier} ·{" "}
                   {formatRange({ lowLakh: Number(l.estimate_low), highLakh: Number(l.estimate_high) })} ·{" "}
                   {STATUS[l.status] ?? l.status} · {formatDate(l.created_at)}

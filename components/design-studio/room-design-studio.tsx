@@ -48,11 +48,11 @@ export function RoomDesignStudio({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href={`/projects/${project.id}`} className="text-sm text-muted-foreground hover:underline">
+          <Link href={`/projects/${project.id}`} className="text-[0.95rem] text-muted-foreground hover:underline">
             {project.title}
           </Link>
           <h1 className="display display-md text-foreground">{room.name}</h1>
-          <p className="text-sm text-muted-foreground">{roomTypeLabel}</p>
+          <p className="text-[0.95rem] text-muted-foreground">{roomTypeLabel}</p>
         </div>
         <Button
           variant="outline"
@@ -72,7 +72,7 @@ export function RoomDesignStudio({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2 text-[0.95rem]">
         {steps.map((step, i) => (
           <button
             key={step.key}

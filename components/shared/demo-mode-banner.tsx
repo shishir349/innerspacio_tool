@@ -14,7 +14,7 @@ export function DemoModeBanner() {
   if (!imageGen) missing.push("real concept image generation");
 
   return (
-    <div className="flex items-start gap-2.5 border-b border-border bg-secondary/60 px-4 py-2.5 text-xs text-secondary-foreground md:px-8">
+    <div className="flex items-start gap-2.5 border-b border-border bg-secondary/60 px-4 py-2.5 text-[0.85rem] text-secondary-foreground md:px-8">
       <Info className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
       <p>
         <span className="font-medium">Demo mode.</span> Running with sample data — {missing.join(", ")}{" "}

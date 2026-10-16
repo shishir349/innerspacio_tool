@@ -47,13 +47,13 @@ export function EstimateCard({
     <div className="rounded-2xl border border-border bg-secondary/40 p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="display text-[1.6rem] text-foreground">{estimate.title}</p>
-        <Badge variant="outline" className="text-xs">
+        <Badge variant="outline" className="text-[0.85rem]">
           {estimate.displayStatus === "final" ? "Final estimate" : "Preliminary estimate"} · v
           {estimate.versionNumber}
         </Badge>
       </div>
 
-      <ul className="mt-4 space-y-1.5 text-sm text-foreground/90">
+      <ul className="mt-4 space-y-1.5 text-[0.95rem] text-foreground/90">
         {estimate.lineItems.map((li, i) => (
           <li key={i} className="flex justify-between gap-3">
             <span>{li.name}</span>
@@ -66,7 +66,7 @@ export function EstimateCard({
 
       <Separator className="my-4" />
 
-      <div className="space-y-1 text-sm">
+      <div className="space-y-1 text-[0.95rem]">
         <div className="flex justify-between text-muted-foreground">
           <span>Subtotal</span>
           <span>{formatInr(estimate.subtotalBeforeGst)}</span>
@@ -82,7 +82,7 @@ export function EstimateCard({
       </div>
 
       {(estimate.inclusions || estimate.exclusions || estimate.assumptions) && (
-        <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+        <div className="mt-4 space-y-2 text-[0.85rem] text-muted-foreground">
           {estimate.inclusions && (
             <p>
               <span className="font-medium text-foreground">Inclusions: </span>
@@ -104,7 +104,7 @@ export function EstimateCard({
         </div>
       )}
 
-      <p className="mt-4 text-xs text-muted-foreground">
+      <p className="mt-4 text-[0.85rem] text-muted-foreground">
         Valid for {estimate.validityDays} days from publication (
         {new Date(estimate.publishedAt).toLocaleDateString("en-IN")}).{" "}
         {estimate.displayStatus === "final"

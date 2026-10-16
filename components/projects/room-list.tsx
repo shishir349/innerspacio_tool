@@ -23,7 +23,7 @@ export function RoomList({ project }: { project: Project }) {
 
       {project.rooms.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-10 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[0.95rem] text-muted-foreground">
             No rooms yet. Add the first room for this project.
           </p>
         </div>

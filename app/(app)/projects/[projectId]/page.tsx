@@ -39,7 +39,7 @@ export default async function ProjectDetailPage({
     <div className="space-y-8">
       <ProjectHeader project={project} />
       {leads.length > 0 && (
-        <p className="rounded-xl border border-border bg-card p-4 text-sm">
+        <p className="rounded-xl border border-border bg-card p-4 text-[0.95rem]">
           Came from a self-serve quote:{" "}
           {leads.map((l, i) => (
             <span key={l.id}>
