@@ -2,9 +2,9 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/projects/status-badge";
 import { formatDate, formatInr } from "@/lib/format";
-import type { Project } from "@/lib/types";
+import type { ProjectSummary } from "@/lib/types";
 
-export function ProjectCard({ project }: { project: Project }) {
+export function ProjectCard({ project }: { project: ProjectSummary }) {
   return (
     <Link href={`/projects/${project.id}`}>
       <Card className="h-full transition-[transform,box-shadow] duration-500 ease-(--ease-out-expo) hover:-translate-y-1 hover:shadow-[0_28px_48px_-28px_rgba(33,24,18,0.35)]">

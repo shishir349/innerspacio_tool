@@ -8,6 +8,7 @@ import type {
   DesignConcept,
   Estimate,
   Project,
+  ProjectSummary,
   Room,
   RoomAnalysisRecord,
   RoomDesignBrief,
@@ -279,6 +280,51 @@ export class SupabaseRepository implements Repository {
       .order("created_at", { ascending: false });
     throwIfError(error, "Listing projects");
     return Promise.all((data ?? []).map((p) => this.hydrateProject(p)));
+  }
+
+  async listProjectSummaries(): Promise<ProjectSummary[]> {
+    const q = this.client;
+    const [projects, rooms, photos, concepts, analyses] = await Promise.all([
+      q
+        .from("projects")
+        .select("id, title, client_name, location, status, budget_range_max, created_at, updated_at")
+        .order("created_at", { ascending: false }),
+      q.from("rooms").select("id, project_id, name, type, selected_concept_id").order("created_at"),
+      q.from("room_photos").select("room_id"),
+      q.from("design_concepts").select("room_id"),
+      q.from("room_analyses").select("room_id"),
+    ]);
+    throwIfError(projects.error, "Listing projects");
+    throwIfError(rooms.error, "Listing rooms");
+    const count = (rows: { room_id: unknown }[] | null) => {
+      const m = new Map<string, number>();
+      for (const r of rows ?? []) m.set(r.room_id as string, (m.get(r.room_id as string) ?? 0) + 1);
+      return m;
+    };
+    const nPhotos = count(photos.data);
+    const nConcepts = count(concepts.data);
+    const analyzed = count(analyses.data);
+    return (projects.data ?? []).map((p) => ({
+      id: p.id as string,
+      title: p.title as string,
+      clientName: p.client_name as string,
+      location: p.location as string,
+      status: p.status as Project["status"],
+      budgetRangeMax: (p.budget_range_max as number) ?? undefined,
+      createdAt: p.created_at as string,
+      updatedAt: p.updated_at as string,
+      rooms: (rooms.data ?? [])
+        .filter((r) => r.project_id === p.id)
+        .map((r) => ({
+          id: r.id as string,
+          name: r.name as string,
+          type: r.type as Room["type"],
+          photoCount: nPhotos.get(r.id as string) ?? 0,
+          conceptCount: nConcepts.get(r.id as string) ?? 0,
+          hasSelectedConcept: Boolean(r.selected_concept_id),
+          analyzed: (analyzed.get(r.id as string) ?? 0) > 0,
+        })),
+    }));
   }
 
   async getProject(projectId: string): Promise<Project | null> {

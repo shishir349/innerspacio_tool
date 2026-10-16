@@ -180,6 +180,19 @@
 }
 
 @layer components {
+  .page-in {
+    animation: page-in 0.38s var(--ease-out-expo) both;
+  }
+  .reveal > * {
+    animation: rise 0.6s var(--ease-out-expo) both;
+  }
+  .reveal > :nth-child(2) { animation-delay: 60ms; }
+  .reveal > :nth-child(3) { animation-delay: 120ms; }
+  .reveal > :nth-child(4) { animation-delay: 180ms; }
+  .reveal > :nth-child(5) { animation-delay: 240ms; }
+  .reveal > :nth-child(6) { animation-delay: 300ms; }
+  .reveal > :nth-child(n + 7) { animation-delay: 360ms; }
+
   /* Display serif: the brand headline voice. <em> inside is the italic accent word. */
   .editorial-heading,
   .display {
@@ -271,6 +284,28 @@
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* Page and list entrances: CSS only, so server-rendered content is never hidden while JS loads. */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 

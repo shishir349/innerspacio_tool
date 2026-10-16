@@ -5,7 +5,7 @@ import { NavLinks } from "@/components/layout/nav-links";
 import { UserMenu } from "@/components/layout/user-menu";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { CommandPalette } from "@/components/layout/command-palette";
-import { PageFade } from "@/components/motion/page-fade";
+import { RouteProgress } from "@/components/layout/route-progress";
 import { DemoModeBanner } from "@/components/shared/demo-mode-banner";
 import { Button } from "@/components/ui/button";
 
@@ -13,11 +13,12 @@ import { Button } from "@/components/ui/button";
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
+      <RouteProgress />
       <DemoModeBanner />
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-[72px] w-full max-w-[96rem] items-center gap-6 px-4 md:px-8">
           <Link href="/dashboard" className="shrink-0" aria-label="InnerSpacio Studio home">
-            <Logo size="sm" />
+            <Logo size="sm" priority />
           </Link>
           <div className="mx-auto hidden lg:block">
             <NavLinks />
@@ -35,7 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <main className="flex-1 px-4 py-8 md:px-8 md:py-12">
         <div className="mx-auto w-full max-w-[96rem]">
-          <PageFade>{children}</PageFade>
+          {children}
         </div>
       </main>
     </div>

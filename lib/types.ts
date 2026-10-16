@@ -492,3 +492,24 @@ export interface BoqRecord {
   createdAt: string;
   updatedAt: string;
 }
+
+/** What list pages need, in a handful of cheap queries (no photo URLs, no estimates). */
+export interface ProjectSummary {
+  id: Id;
+  title: string;
+  clientName: string;
+  location: string;
+  status: ProjectStatus;
+  budgetRangeMax?: number;
+  createdAt: string;
+  updatedAt: string;
+  rooms: {
+    id: Id;
+    name: string;
+    type: RoomType;
+    photoCount: number;
+    conceptCount: number;
+    hasSelectedConcept: boolean;
+    analyzed: boolean;
+  }[];
+}

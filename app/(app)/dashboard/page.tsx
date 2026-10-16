@@ -16,13 +16,13 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   await requirePageUser();
   const repo = await getRepository();
-  const projects = await repo.listProjects();
+  const projects = await repo.listProjectSummaries();
 
   const sorted = [...projects].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   const [latest, ...others] = sorted;
   const inProgress = projects.filter((p) => p.status === "in_progress").length;
   const awaiting = projects.reduce(
-    (sum, p) => sum + p.rooms.filter((r) => r.concepts.length > 0 && !r.selectedConceptId).length,
+    (sum, p) => sum + p.rooms.filter((r) => r.conceptCount > 0 && !r.hasSelectedConcept).length,
     0
   );
   const summary = [

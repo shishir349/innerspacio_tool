@@ -5,6 +5,7 @@ import type {
   DesignConcept,
   Estimate,
   Project,
+  ProjectSummary,
   Room,
   RoomAnalysisRecord,
   RoomDesignBrief,
@@ -75,6 +76,8 @@ export interface Repository {
   readonly mode: "demo" | "supabase";
 
   listProjects(): Promise<Project[]>;
+  /** Cheap list for dashboards and indexes. Use listProjects only when photos, concepts or estimates are needed. */
+  listProjectSummaries(): Promise<ProjectSummary[]>;
   getProject(projectId: string): Promise<Project | null>;
   createProject(input: NewProjectInput): Promise<Project>;
   updateProject(projectId: string, patch: UpdateProjectInput): Promise<Project>;

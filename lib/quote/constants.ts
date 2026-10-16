@@ -18,7 +18,18 @@ export const QUOTE_ROOM_TYPES = [
 export type QuoteRoomType = (typeof QUOTE_ROOM_TYPES)[number]["value"];
 
 /** Hard cap on rooms per lead — each room costs one AI image. */
-export const MAX_QUOTE_ROOMS = 6;
+export const MAX_QUOTE_ROOMS = 12;
+/** Every render costs money: at most this many rooms per lead get a photo + AI image, whatever the home size. */
+export const MAX_PHOTO_ROOMS = 6;
+
+/** A typical home for each BHK, used to pre-fill the Rooms step (the visitor edits it). Fits MAX_QUOTE_ROOMS. */
+export const BHK_ROOM_DEFAULTS: Record<Bhk, Partial<Record<QuoteRoomType, number>>> = {
+  "1": { living_room: 1, kitchen: 1, bedroom: 1, bathroom: 1 },
+  "2": { living_room: 1, dining_room: 1, kitchen: 1, bedroom: 2, bathroom: 2 },
+  "3": { living_room: 1, dining_room: 1, kitchen: 1, bedroom: 3, bathroom: 3 },
+  "4": { living_room: 1, dining_room: 1, kitchen: 1, bedroom: 4, bathroom: 4 },
+  "5+": { living_room: 1, dining_room: 1, kitchen: 1, bedroom: 5, bathroom: 4 },
+};
 export const MAX_PHOTOS_PER_ROOM = 2;
 export const MAX_IDEAS_LENGTH = 800;
 

@@ -10,6 +10,7 @@ import type {
   DesignConcept,
   Estimate,
   Project,
+  ProjectSummary,
   Room,
   RoomAnalysisRecord,
   RoomPhoto,
@@ -203,6 +204,29 @@ export class DemoRepository implements Repository {
   async listProjects(): Promise<Project[]> {
     const db = await getDb();
     return db.projects;
+  }
+
+  async listProjectSummaries(): Promise<ProjectSummary[]> {
+    const db = await getDb();
+    return db.projects.map((p) => ({
+      id: p.id,
+      title: p.title,
+      clientName: p.clientName,
+      location: p.location,
+      status: p.status,
+      budgetRangeMax: p.budgetRangeMax,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      rooms: p.rooms.map((r) => ({
+        id: r.id,
+        name: r.name,
+        type: r.type,
+        photoCount: r.photos.length,
+        conceptCount: r.concepts.length,
+        hasSelectedConcept: Boolean(r.selectedConceptId),
+        analyzed: Boolean(r.analysis),
+      })),
+    }));
   }
 
   async getProject(projectId: string): Promise<Project | null> {

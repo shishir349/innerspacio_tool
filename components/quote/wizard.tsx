@@ -17,7 +17,9 @@ import {
   BHK_OPTIONS,
   CITIES,
   MAX_IDEAS_LENGTH,
+  BHK_ROOM_DEFAULTS,
   MAX_PHOTOS_PER_ROOM,
+  MAX_PHOTO_ROOMS,
   MAX_QUOTE_ROOMS,
   PACKAGE_TIERS,
   QUOTE_ROOM_TYPES,
@@ -50,6 +52,8 @@ interface Draft {
   bhk: Bhk | null;
   homeSize: HomeSize;
   counts: Partial<Record<QuoteRoomType, number>>;
+  /** The visitor edited the rooms by hand: a later BHK change must not overwrite that. */
+  roomsEdited: boolean;
   ideas: Record<string, string>;
   tier: PackageTier | null;
   name: string;
@@ -65,6 +69,7 @@ const EMPTY: Draft = {
   bhk: null,
   homeSize: "small",
   counts: {},
+  roomsEdited: false,
   ideas: {},
   tier: null,
   name: "",
@@ -128,8 +133,11 @@ export function QuoteWizard() {
       const n = p.counts[t] ?? 0;
       const nextN = Math.max(0, n + delta);
       if (nextN > max || (delta > 0 && total >= MAX_QUOTE_ROOMS)) return p;
-      return { ...p, counts: { ...p.counts, [t]: nextN } };
+      return { ...p, roomsEdited: true, counts: { ...p.counts, [t]: nextN } };
     });
+  // Picking a home type pre-fills a typical set of rooms (unless the visitor already tuned them).
+  const pickBhk = (b: Bhk) =>
+    setD((p) => ({ ...p, bhk: b, counts: p.roomsEdited ? p.counts : { ...BHK_ROOM_DEFAULTS[b] } }));
 
   function validate(step: number): string | null {
     if (step === 0 && !d.bhk) return "Please choose your home type.";
@@ -326,7 +334,7 @@ export function QuoteWizard() {
           <div className="mt-6 grid gap-3">
             {BHK_OPTIONS.map((b) => (
               <div key={b}>
-                <ChoiceCard selected={d.bhk === b} onClick={() => set("bhk", b)}>
+                <ChoiceCard selected={d.bhk === b} onClick={() => pickBhk(b)}>
                   {b === "5+" ? "5 BHK+" : `${b} BHK`}
                 </ChoiceCard>
                 {d.bhk === b && SIZED_BHKS.includes(b) && (
@@ -351,7 +359,7 @@ export function QuoteWizard() {
         <section>
           <Heading
             title="Which rooms should we design?"
-            sub={`Pick up to ${MAX_QUOTE_ROOMS}. You can add a photo of each next, or skip it.`}
+            sub={`We filled in a typical ${d.bhk === "5+" ? "5 BHK+" : `${d.bhk} BHK`}. Add or remove anything (up to ${MAX_QUOTE_ROOMS} rooms).`}
           />
           <div className="mt-6 grid gap-3">
             {QUOTE_ROOM_TYPES.map((t) => {
@@ -437,7 +445,7 @@ export function QuoteWizard() {
         <section>
           <Heading
             title="Show us the space"
-            sub="Optional. Add a photo of a room and we'll render a design concept for it while you finish. Skip any room you like."
+            sub={`Optional. Add a photo of a room and we'll render a design concept for it while you finish (up to ${MAX_PHOTO_ROOMS} rooms). Skip any room you like.`}
           />
           <div className="mt-6 space-y-5">
             {rooms.map((r) => (
@@ -445,6 +453,7 @@ export function QuoteWizard() {
                 key={r.key}
                 room={r}
                 files={photos[r.key] ?? []}
+                canAdd={(photos[r.key]?.length ?? 0) > 0 || withPhotos.length < MAX_PHOTO_ROOMS}
                 onFiles={(f) => setPhotos((p) => ({ ...p, [r.key]: f }))}
                 onIdeas={(v) => setD((p) => ({ ...p, ideas: { ...p.ideas, [r.key]: v } }))}
               />
@@ -568,7 +577,7 @@ export function QuoteWizard() {
       )}
 
       {error && (
-        <p role="alert" data-error className="mt-5 text-destructive">
+        <p role="alert" data-error className="mt-5 text-destructive animate-in fade-in slide-in-from-bottom-1 duration-300">
           {error}
         </p>
       )}
@@ -743,11 +752,13 @@ function Stepper({
 function RoomPhotoCard({
   room,
   files,
+  canAdd,
   onFiles,
   onIdeas,
 }: {
   room: RoomDraft;
   files: File[];
+  canAdd: boolean;
   onFiles: (f: File[]) => void;
   onIdeas: (v: string) => void;
 }) {
@@ -773,7 +784,7 @@ function RoomPhotoCard({
             </button>
           </div>
         ))}
-        {files.length < MAX_PHOTOS_PER_ROOM && (
+        {files.length < MAX_PHOTOS_PER_ROOM && canAdd && (
           <button
             type="button"
             onClick={() => inputRef.current?.click()}

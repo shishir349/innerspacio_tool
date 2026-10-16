@@ -8,6 +8,7 @@ import { buildConceptEditInstruction } from "@/lib/image-gen/prompt-builder";
 import { refreshSignedPhotoUrl, validatePhotoFile, PhotoUploadError } from "@/lib/storage";
 import {
   MAX_PHOTOS_PER_ROOM,
+  MAX_PHOTO_ROOMS,
   QUOTE_ROOM_TYPES,
   TIER_INFO,
   type Bhk,
@@ -267,6 +268,16 @@ async function processRoomOnce(lead: LeadRow, roomId: string, files: File[]) {
   if (files.length === 0) throw new LeadError("Please add at least one photo of this room.", "invalid");
   if (files.length > MAX_PHOTOS_PER_ROOM) {
     throw new LeadError(`Please upload at most ${MAX_PHOTOS_PER_ROOM} photos per room.`, "invalid");
+  }
+
+  // Per-lead render budget: a big home may list many rooms, but only a few get an AI image.
+  const { data: mine } = await client.from("lead_rooms").select("id").eq("lead_id", lead.id);
+  const { count: rendered } = await client
+    .from("lead_concepts")
+    .select("id", { count: "exact", head: true })
+    .in("lead_room_id", (mine ?? []).map((r) => r.id as string));
+  if ((rendered ?? 0) >= MAX_PHOTO_ROOMS) {
+    throw new LeadError(`Concepts are limited to ${MAX_PHOTO_ROOMS} rooms per request. A designer will cover the rest.`, "invalid");
   }
 
   const cap = Number(process.env.QUOTE_DAILY_IMAGE_CAP) || DEFAULT_DAILY_IMAGE_CAP;

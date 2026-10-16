@@ -11,7 +11,7 @@ export default async function ProjectsPage({
 }: PageProps<"/projects">) {
   await requirePageUser();
   const repo = await getRepository();
-  const projects = await repo.listProjects();
+  const projects = await repo.listProjectSummaries();
   const params = await searchParams;
   const shouldOpen = params?.new === "1";
 

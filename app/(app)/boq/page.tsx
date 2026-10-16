@@ -35,7 +35,7 @@ export default async function BoqPage({
 
   // A BOQ always belongs to a project: pick (or create) one first.
   if (!projectId) {
-    const projects = await repo.listProjects();
+    const projects = await repo.listProjectSummaries();
     return (
       <div className="space-y-6">
         <div>

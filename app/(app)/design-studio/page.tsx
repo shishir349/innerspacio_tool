@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function DesignStudioIndexPage() {
   await requirePageUser();
   const repo = await getRepository();
-  const projects = await repo.listProjects();
+  const projects = await repo.listProjectSummaries();
   const rooms = projects.flatMap((project) =>
     project.rooms.map((room) => ({ project, room }))
   );
@@ -53,16 +53,16 @@ export default async function DesignStudioIndexPage() {
                     <p className="text-[0.95rem] text-muted-foreground">{roomTypeLabel}</p>
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Badge variant="outline" className="flex items-center gap-1 text-[0.85rem]">
-                        <Camera className="size-3" /> {room.photos.length} photo
-                        {room.photos.length === 1 ? "" : "s"}
+                        <Camera className="size-3" /> {room.photoCount} photo
+                        {room.photoCount === 1 ? "" : "s"}
                       </Badge>
-                      {room.concepts.length > 0 && (
+                      {room.conceptCount > 0 && (
                         <Badge variant="outline" className="flex items-center gap-1 text-[0.85rem]">
-                          <Sparkles className="size-3" /> {room.concepts.length} concept
-                          {room.concepts.length === 1 ? "" : "s"}
+                          <Sparkles className="size-3" /> {room.conceptCount} concept
+                          {room.conceptCount === 1 ? "" : "s"}
                         </Badge>
                       )}
-                      {room.analysis && (
+                      {room.analyzed && (
                         <Badge className="bg-primary/15 text-primary border-primary/20 text-[0.85rem]">
                           Analyzed
                         </Badge>

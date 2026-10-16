@@ -1,24 +1,34 @@
-/** InnerSpacio wordmark: wide-tracked condensed caps under the roof line, as on innerspacio.com. */
+import Image from "next/image";
+
+const HEIGHT = { sm: "h-9", md: "h-11", lg: "h-16" } as const;
+
+/** The InnerSpacio logo (public/logo.webp, 890x260). `studio` adds the quiet "Studio" tag for the signed-in tool. */
 export function Logo({
   className,
   studio = true,
   size = "md",
+  priority = false,
 }: {
   className?: string;
-  /** Show the "AI Studio" suffix (the signed-in tool). Client-facing pages omit it. */
   studio?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: keyof typeof HEIGHT;
+  priority?: boolean;
 }) {
-  const text = size === "lg" ? "text-[1.6rem]" : size === "sm" ? "text-[0.9rem]" : "text-[1.1rem]";
   return (
-    <span className={`inline-flex flex-col leading-none ${className ?? ""}`} aria-label="InnerSpacio">
-      <svg viewBox="0 0 160 26" className="-mb-0.5 h-[0.95em] w-full text-current" style={{ fontSize: "1.4rem" }} aria-hidden>
-        <path d="M10 25 L82 3 L154 25" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M118 20 v-6 h7 v6 M118 17 h7" fill="none" stroke="currentColor" strokeWidth="1" />
-      </svg>
-      <span className={`font-wordmark ${text} font-medium uppercase tracking-[0.34em] whitespace-nowrap`}>
-        Innerspacio{studio && <span className="ml-3 tracking-[0.1em] text-muted-foreground">Studio</span>}
-      </span>
+    <span className={`inline-flex items-center gap-3 ${className ?? ""}`}>
+      <Image
+        src="/logo.webp"
+        alt="InnerSpacio"
+        width={890}
+        height={260}
+        priority={priority}
+        className={`${HEIGHT[size]} w-auto`}
+      />
+      {studio && (
+        <span className="font-caps hidden border-l border-border pl-3 text-[0.82rem] tracking-[0.12em] text-muted-foreground uppercase sm:inline">
+          Studio
+        </span>
+      )}
     </span>
   );
 }

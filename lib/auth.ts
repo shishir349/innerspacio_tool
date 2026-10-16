@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { isSupabaseConfigured } from "@/lib/config";
@@ -21,7 +22,7 @@ export class AuthError extends Error {
  * outside development it stays null, and demo mode's own production guard lives
  * in `proxy.ts`.
  */
-export async function getCurrentUser(): Promise<User | null> {
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<User | null> {
   if (!isSupabaseConfigured()) {
     // Local demo mode (no Supabase env): one fixed demo user so every page renders for development.
     // Never in production: proxy.ts already answers 503 there, and this stays null.
@@ -32,7 +33,7 @@ export async function getCurrentUser(): Promise<User | null> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
   return data.user;
-}
+});
 
 /** For Server Actions / API routes: returns the user or throws AuthError. Never redirects. */
 export async function requireUser(): Promise<User> {

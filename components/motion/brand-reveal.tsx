@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { DUR, EASE, MOTION_OK, gsap, useGSAP } from "@/lib/motion";
 
 /**
@@ -36,8 +37,7 @@ export function BrandReveal({ name }: { name?: string }) {
         gsap
           .timeline({ onComplete: done, defaults: { ease: EASE.expo } })
           .from("[data-glow]", { scale: 0.4, autoAlpha: 0, duration: 1.4 })
-          .fromTo("[data-roof]", { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 1.3, ease: "power2.inOut" }, 0.2)
-          .from("[data-word]", { yPercent: 110, duration: DUR.reveal, stagger: 0.04 }, 0.9)
+          .fromTo("[data-logo]", { clipPath: "inset(0 100% 0 0)", y: 16 }, { clipPath: "inset(0 0% 0 0)", y: 0, duration: 1.5, ease: "power2.inOut" }, 0.2)
           .from("[data-for]", { autoAlpha: 0, y: 10, duration: DUR.reveal }, 1.4)
           .to({}, { duration: 0.5 })
           .to(root.current, { yPercent: -100, duration: 1.1, ease: "expo.inOut" });
@@ -51,33 +51,15 @@ export function BrandReveal({ name }: { name?: string }) {
   );
 
   if (gone) return null;
-  const word = "INNERSPACIO".split("");
   return (
     <div ref={root} aria-hidden className="fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-night text-[#f3efe6] print:hidden">
       <div data-glow className="stage-gold absolute size-[120vmax] opacity-60" />
-      <div className="relative flex flex-col items-center text-[#211812]">
-        <svg viewBox="0 0 220 60" className="mb-4 w-56">
-          <path
-            data-roof
-            d="M10 56 L110 8 L210 56"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            pathLength={1}
-            strokeDasharray="1"
-          />
-        </svg>
-        <div className="flex overflow-hidden">
-          {word.map((c, i) => (
-            <span key={i} data-word className="font-caps inline-block text-[clamp(1.6rem,5vw,3.2rem)] tracking-[0.34em]">
-              {c}
-            </span>
-          ))}
+      <div className="relative flex flex-col items-center">
+        <div data-logo className="w-[min(30rem,80vw)]">
+          <Image src="/logo.webp" alt="" width={890} height={260} priority className="h-auto w-full" />
         </div>
         {name && (
-          <p data-for className="font-caps mt-8 text-[0.8rem] tracking-[0.1em] uppercase">
+          <p data-for className="font-caps mt-8 text-[0.9rem] tracking-[0.18em] text-[#211812] uppercase">
             A design presentation for {name}
           </p>
         )}

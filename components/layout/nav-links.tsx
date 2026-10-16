@@ -1,10 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { EASE, MOTION_OK, gsap, useGSAP } from "@/lib/motion";
 
 export const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -18,34 +17,18 @@ export const NAV_ITEMS = [
 
 const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + "/");
 
-/** Top-bar navigation. The saffron dot glides under whichever item is active. */
+/** Top-bar navigation. The saffron dot glides (CSS transition, no JS animation) under whichever item is active. */
 export function NavLinks({ orientation = "row", onNavigate }: { orientation?: "row" | "col"; onNavigate?: () => void }) {
   const pathname = usePathname();
   const root = useRef<HTMLElement>(null);
-  const dot = useRef<HTMLSpanElement>(null);
+  const [dotX, setDotX] = useState<number | null>(null);
 
-  useGSAP(
-    () => {
-      const el = root.current;
-      const d = dot.current;
-      if (!el || !d || orientation !== "row") return;
-      const target = el.querySelector<HTMLElement>("[data-active='true']");
-      if (!target) {
-        gsap.set(d, { autoAlpha: 0 });
-        return;
-      }
-      const x = target.offsetLeft + target.offsetWidth / 2 - 3;
-      const mm = gsap.matchMedia();
-      mm.add(MOTION_OK, () => {
-        gsap.to(d, { x, autoAlpha: 1, duration: 0.55, ease: EASE.expo });
-      });
-      mm.add("(prefers-reduced-motion: reduce)", () => {
-        gsap.set(d, { x, autoAlpha: 1 });
-      });
-      return () => mm.revert();
-    },
-    { scope: root, dependencies: [pathname, orientation] }
-  );
+  useLayoutEffect(() => {
+    if (orientation !== "row") return;
+    const target = root.current?.querySelector<HTMLElement>("[data-active='true']");
+    // Measuring the DOM after layout is exactly what this effect is for.
+    setDotX(target ? target.offsetLeft + target.offsetWidth / 2 - 3 : null);
+  }, [pathname, orientation]);
 
   return (
     <nav
@@ -74,9 +57,9 @@ export function NavLinks({ orientation = "row", onNavigate }: { orientation?: "r
       })}
       {orientation === "row" && (
         <span
-          ref={dot}
           aria-hidden
-          className="pointer-events-none absolute -bottom-1.5 left-0 size-1.5 rounded-full bg-saffron opacity-0"
+          className="pointer-events-none absolute -bottom-1.5 left-0 size-1.5 rounded-full bg-saffron transition-[transform,opacity] duration-500 ease-(--ease-out-expo)"
+          style={{ transform: `translateX(${dotX ?? 0}px)`, opacity: dotX === null ? 0 : 1 }}
         />
       )}
     </nav>
