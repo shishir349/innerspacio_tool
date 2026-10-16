@@ -115,7 +115,7 @@ export function explainEstimate(input: QuoteEstimateInput, tier: PackageTier): Q
       `Typical ${input.bhk} BHK of about ${carpet.toLocaleString("en-IN")} sq ft carpet area, ${roomCount} room${roomCount === 1 ? "" : "s"} in scope.`,
       `${TIER_INFO[tier].label} specification: ${SPEC_TEXT[tier]}`,
       "Quantities use standard room sizes — your designer replaces them with site measurements.",
-      "Rates are InnerSpacio's published selling rates; GST as applicable.",
+      "Package pricing for a typical home of this size; final scope and rates are confirmed after a site visit. GST as applicable.",
       "Excludes structural / major civil changes, appliances, and any item you add later.",
     ],
   };

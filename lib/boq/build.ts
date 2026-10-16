@@ -2,7 +2,9 @@ import { findRate, getRate } from "@/lib/rates/catalog";
 import { livspaceModular, resolveRate, type RateSheet, type RateSource } from "@/lib/rates/sheets";
 import { BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
 import {
+  BHK_ROOM_DEFAULTS,
   METRO_CITIES,
+  PACKAGE_BANDS,
   type Bhk,
   type HomeSize,
   type PackageTier,
@@ -444,13 +446,46 @@ function wholeHome(ctx: Ctx, carpet: number) {
   if (ctx.spec.decor) push(ctx, room, ctx.spec.decor, "Furnishing", 1, {}, "Art & décor styling allowance");
 }
 
+/** Where in the tier band a home lands: smaller homes sit lower, larger ones higher, unknown size mid-band. */
+function bandPosition(size: HomeSize | undefined): number {
+  return size === "large" ? 0.75 : size === "small" ? 0.35 : 0.5;
+}
+
+const rawTotals = new Map<string, number>();
+
+/**
+ * Calibration so a full typical home of this BHK lands inside the sheet's tier band (PACKAGE_BANDS).
+ * The bottom-up build prices every item at the full Spazay card (à-la-carte, bespoke); a package
+ * is priced below that. One multiplier on every rate, found from a reference build of the standard
+ * room set, so qty × rate still equals the amount on each line and fewer/extra rooms scale naturally.
+ */
+export function packageFactor(input: Pick<BoqInput, "bhk" | "homeSize" | "tier" | "sheet">): number {
+  const band = PACKAGE_BANDS[input.bhk]?.[input.tier];
+  const defaults = BHK_ROOM_DEFAULTS[input.bhk];
+  if (!band || !defaults) return 1;
+  const key = `${input.bhk}|${input.homeSize ?? ""}|${input.tier}|${input.sheet ?? "spazay"}`;
+  let raw = rawTotals.get(key);
+  if (raw === undefined) {
+    const rooms: BoqInput["rooms"] = [];
+    for (const [roomType, n] of Object.entries(defaults)) for (let i = 0; i < (n ?? 0); i++) rooms.push({ roomType: roomType as QuoteRoomType });
+    raw = summarizeBoq(buildLines({ ...input, city: "Delhi", rooms }, 1)).total;
+    rawTotals.set(key, raw);
+  }
+  if (!(raw > 0)) return 1;
+  return (band.min + (band.max - band.min) * bandPosition(input.homeSize)) / raw;
+}
+
 export function buildBoq(input: BoqInput): BoqLine[] {
+  return buildLines(input, cityFactor(input.city) * packageFactor(input));
+}
+
+function buildLines(input: BoqInput, factor: number): BoqLine[] {
   const carpet = carpetArea(input.bhk, input.homeSize);
   const scale = Math.min(1.25, Math.max(0.8, Math.sqrt(carpet / 1250)));
   const ctx: Ctx = {
     tier: input.tier,
     spec: SPEC[input.tier],
-    factor: cityFactor(input.city),
+    factor,
     out: [],
     scale,
     sheet: input.sheet ?? "spazay",

@@ -3,7 +3,7 @@ import { buildBoq, summarizeBoq, type BoqInput } from "@/lib/boq/build";
 import { BOQ_ITEMS, BOQ_ROOMS, BOQ_TRADES, BOQ_UOMS } from "@/lib/boq/lists";
 import { RATE_CARD, getRate } from "@/lib/rates/catalog";
 import { LIVSPACE_NCR } from "@/lib/rates/livspace-benchmarks";
-import { PACKAGE_TIERS, TIER_RANGE_LAKH } from "@/lib/quote/constants";
+import { BHK_ROOM_DEFAULTS, PACKAGE_BANDS, PACKAGE_TIERS, type Bhk, type QuoteRoomType } from "@/lib/quote/constants";
 
 const threeBhk: BoqInput = {
   bhk: "3",
@@ -77,30 +77,60 @@ describe("buildBoq", () => {
     expect(bigger).toBeGreaterThanOrEqual(base);
   });
 
-  it("a typical 2 BHK essential / premium lands inside their bands", () => {
-    const twoBhk: BoqInput = {
-      ...threeBhk,
-      bhk: "2",
-      homeSize: undefined,
-      rooms: ["living_room", "dining_room", "kitchen", "bedroom", "bedroom", "bathroom", "bathroom"].map(
-        (roomType) => ({ roomType })
-      ) as BoqInput["rooms"],
-    };
-    for (const tier of ["essential", "premium"] as const) {
-      const lakh = summarizeBoq(buildBoq({ ...twoBhk, tier })).total / 1e5;
-      const { min, max } = TIER_RANGE_LAKH[tier];
-      expect(lakh, `${tier} = ${lakh.toFixed(1)}L`).toBeGreaterThanOrEqual(min);
-      expect(lakh, `${tier} = ${lakh.toFixed(1)}L`).toBeLessThanOrEqual(max);
+  const fullHome = (bhk: Bhk, tier: (typeof PACKAGE_TIERS)[number], homeSize?: "small" | "large", city = "Delhi"): BoqInput => ({
+    bhk,
+    homeSize,
+    city,
+    tier,
+    rooms: Object.entries(BHK_ROOM_DEFAULTS[bhk]).flatMap(([roomType, n]) =>
+      Array.from({ length: n ?? 0 }, () => ({ roomType: roomType as QuoteRoomType }))
+    ),
+  });
+  const total = (i: BoqInput) => summarizeBoq(buildBoq(i)).total;
+  const BHKS = ["1", "2", "3", "4", "5+"] as const;
+
+  it("a full home of every BHK lands inside the sheet's band for every tier and size", () => {
+    for (const bhk of BHKS) {
+      for (const tier of PACKAGE_TIERS) {
+        const { min, max } = PACKAGE_BANDS[bhk][tier];
+        for (const size of [undefined, "small", "large"] as const) {
+          const t = total(fullHome(bhk, tier, size));
+          expect(t, `${bhk} ${tier} ${size} = ${Math.round(t)}`).toBeGreaterThanOrEqual(min * 0.99);
+          expect(t, `${bhk} ${tier} ${size} = ${Math.round(t)}`).toBeLessThanOrEqual(max * 1.01);
+        }
+      }
     }
   });
 
-  it("a full 3 BHK premium / luxury lands inside their bands", () => {
-    for (const tier of ["premium", "luxury"] as const) {
-      const lakh = summarizeBoq(buildBoq({ ...threeBhk, tier })).total / 1e5;
-      const { min, max } = TIER_RANGE_LAKH[tier];
-      expect(lakh, `${tier} = ${lakh.toFixed(1)}L`).toBeGreaterThanOrEqual(min);
-      expect(lakh, `${tier} = ${lakh.toFixed(1)}L`).toBeLessThanOrEqual(max);
+  it("size moves the price inside the band: large > unknown > small", () => {
+    for (const tier of PACKAGE_TIERS) {
+      const [s, u, l] = [total(fullHome("3", tier, "small")), total(fullHome("3", tier)), total(fullHome("3", tier, "large"))];
+      expect(s).toBeLessThan(u);
+      expect(u).toBeLessThan(l);
     }
+  });
+
+  it("tiers and BHKs are strictly ordered", () => {
+    for (const bhk of BHKS) {
+      const [e, p, l] = PACKAGE_TIERS.map((t) => total(fullHome(bhk, t)));
+      expect(e).toBeLessThan(p);
+      expect(p).toBeLessThan(l);
+    }
+    for (const tier of PACKAGE_TIERS) {
+      const t = BHKS.map((b) => total(fullHome(b, tier)));
+      for (let i = 1; i < t.length; i++) expect(t[i]).toBeGreaterThan(t[i - 1]);
+    }
+  });
+
+  it("fewer rooms cost less, extra rooms cost more, and a non-NCR city scales", () => {
+    const full = fullHome("3", "premium");
+    expect(total({ ...full, rooms: full.rooms.slice(0, 4) })).toBeLessThan(total(full));
+    expect(total({ ...full, rooms: [...full.rooms, { roomType: "bedroom" }] })).toBeGreaterThan(total(full));
+    expect(total({ ...full, city: "Indore" })).toBeLessThan(total(full));
+  });
+
+  it("every line is still qty x rate after calibration", () => {
+    for (const l of buildBoq(fullHome("4", "luxury"))) expect(l.amount).toBeCloseTo(l.qty * l.rate, 0);
   });
 
   it("assigns rooms to the reference room list in order (master first)", () => {

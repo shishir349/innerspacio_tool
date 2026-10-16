@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { estimateAllTiers, estimateForTier, explainEstimate, formatRange } from "@/lib/quote/estimate";
-import { PACKAGE_TIERS, TIER_RANGE_LAKH } from "@/lib/quote/constants";
+import { PACKAGE_BANDS, PACKAGE_TIERS } from "@/lib/quote/constants";
 
 const base = {
   bhk: "2" as const,
@@ -42,11 +42,14 @@ describe("quote estimate (BOQ-backed)", () => {
     expect(estimateForTier({ bhk: "1", city: "", rooms: {} }, "essential").lowLakh).toBeGreaterThanOrEqual(0);
   });
 
-  it("a 2 BHK essential lands in the published essential band", () => {
-    const e = estimateForTier({ ...base, rooms: { ...base.rooms, dining_room: 1 } }, "essential");
-    const mid = (e.lowLakh + e.highLakh) / 2;
-    expect(mid).toBeGreaterThanOrEqual(TIER_RANGE_LAKH.essential.min);
-    expect(mid).toBeLessThanOrEqual(TIER_RANGE_LAKH.essential.max);
+  it("a 2 BHK full home's estimate midpoint lands in the sheet's band for every tier", () => {
+    for (const tier of PACKAGE_TIERS) {
+      const e = estimateForTier({ ...base, city: "Delhi", rooms: { ...base.rooms, dining_room: 1 } }, tier);
+      const mid = ((e.lowLakh + e.highLakh) / 2) * 1e5;
+      const { min, max } = PACKAGE_BANDS["2"][tier];
+      expect(mid, tier).toBeGreaterThanOrEqual(min * 0.95);
+      expect(mid, tier).toBeLessThanOrEqual(max * 1.05);
+    }
   });
 
   it("formats a range", () => {

@@ -36,11 +36,43 @@ export const MAX_IDEAS_LENGTH = 800;
 export const PACKAGE_TIERS = ["essential", "premium", "luxury"] as const;
 export type PackageTier = (typeof PACKAGE_TIERS)[number];
 
-/** ₹ lakh. Premium stretched to 55L so there is no dead zone (decision: plan). */
-export const TIER_RANGE_LAKH: Record<PackageTier, { min: number; max: number }> = {
-  essential: { min: 15, max: 20 },
-  premium: { min: 20, max: 55 },
-  luxury: { min: 55, max: 90 },
+/**
+ * Package price bands (₹) for a FULL typical home, per BHK and tier. Source: InnerSpacio's pricing sheet.
+ * The quote/BOQ builder is calibrated so a full default home lands inside its band (lib/boq/build.ts, packageFactor);
+ * fewer or extra rooms move the total from there. Villa / 5BHK is the "5+" option.
+ * `perSqFt` is the sheet's whole-home baseline (any tier), kept for reference and sanity checks.
+ */
+export const PACKAGE_BANDS: Record<Bhk, Record<PackageTier, { min: number; max: number }> & { perSqFt: { min: number; max: number } }> = {
+  "1": {
+    essential: { min: 550_000, max: 750_000 },
+    premium: { min: 750_000, max: 1_050_000 },
+    luxury: { min: 1_050_000, max: 1_400_000 },
+    perSqFt: { min: 1200, max: 2500 },
+  },
+  "2": {
+    essential: { min: 800_000, max: 1_100_000 },
+    premium: { min: 1_100_000, max: 1_800_000 },
+    luxury: { min: 1_800_000, max: 2_500_000 },
+    perSqFt: { min: 1400, max: 2800 },
+  },
+  "3": {
+    essential: { min: 1_100_000, max: 1_500_000 },
+    premium: { min: 1_500_000, max: 2_800_000 },
+    luxury: { min: 2_800_000, max: 4_200_000 },
+    perSqFt: { min: 1500, max: 3200 },
+  },
+  "4": {
+    essential: { min: 1_500_000, max: 2_000_000 },
+    premium: { min: 2_200_000, max: 3_500_000 },
+    luxury: { min: 3_500_000, max: 5_500_000 },
+    perSqFt: { min: 1600, max: 3800 },
+  },
+  "5+": {
+    essential: { min: 2_200_000, max: 3_200_000 },
+    premium: { min: 3_500_000, max: 5_500_000 },
+    luxury: { min: 5_500_000, max: 12_000_000 },
+    perSqFt: { min: 1800, max: 4500 },
+  },
 };
 
 export const TIER_INFO: Record<
