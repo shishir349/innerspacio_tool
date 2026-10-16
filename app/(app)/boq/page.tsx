@@ -39,8 +39,8 @@ export default async function BoqPage({
     return (
       <div className="space-y-6">
         <div>
-          <p className="text-sm text-muted-foreground">Bill of quantities</p>
-          <h1 className="editorial-heading text-3xl text-foreground">BOQ Builder</h1>
+          <p className="eyebrow">Bill of quantities</p>
+          <h1 className="display display-md mt-4 text-foreground">BOQ Builder</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Every BOQ is saved under a project. Choose the project this BOQ is for.
             {lead && leadSpec && !leadSpec.projectId && " This lead has no project yet — open it from Leads first."}
@@ -117,14 +117,14 @@ export default async function BoqPage({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm text-muted-foreground">
+        <p className="eyebrow">
           Bill of quantities ·{" "}
-          <Link href={`/projects/${project.id}`} className="font-medium text-primary underline">
+          <Link href={`/projects/${project.id}`} className="link-draw text-foreground">
             {project.title}
           </Link>
         </p>
-        <h1 className="editorial-heading text-3xl text-foreground">BOQ Builder</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+        <h1 className="display display-md mt-4 text-foreground">BOQ <em>builder</em></h1>
+        <p className="mt-3 max-w-2xl text-muted-foreground">
           Generates a room-by-room BOQ from the InnerSpacio rate card, lets you edit every line, saves it under this
           project and exports the reference-format workbook.
           {saved ? ` Reopened “${saved.title}”.` : ""}

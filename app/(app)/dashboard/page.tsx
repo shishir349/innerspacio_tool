@@ -39,33 +39,31 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">Welcome back</p>
-          <h1 className="editorial-heading text-3xl text-foreground">Studio Dashboard</h1>
+          <p className="eyebrow">Welcome back</p>
+          <h1 className="display display-lg mt-4 text-foreground">Studio <em>dashboard</em></h1>
         </div>
         <Button render={<Link href="/projects?new=1" />} className="gap-2">
           <Plus className="size-4" /> New Project
         </Button>
       </div>
 
-      <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" stagger={0.07} immediate delay={0.1}>
+      <Reveal className="grid grid-cols-2 border-y border-border lg:grid-cols-4" stagger={0.07} immediate delay={0.1}>
         {stats.map((stat) => (
-          <Card key={stat.label} className="border-border/80">
-            <CardContent className="pt-6">
-              <p className="text-3xl font-medium text-foreground">
-                <CountUp value={stat.value} format="int" duration={0.9} />
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
-            </CardContent>
-          </Card>
+          <div key={stat.label} className="border-b border-border px-1 py-8 last:border-b-0 sm:px-6 lg:border-r lg:border-b-0 lg:first:pl-0 lg:last:border-r-0">
+            <p className="display text-[clamp(3rem,5vw,4.5rem)] leading-none text-foreground">
+              <CountUp value={stat.value} format="int" duration={0.9} />
+            </p>
+            <p className="eyebrow mt-5">{stat.label}</p>
+          </div>
         ))}
       </Reveal>
 
       <Card className="border-border/80">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="editorial-heading text-xl">Recent Projects</CardTitle>
+          <CardTitle className="display text-[1.6rem]">Recent Projects</CardTitle>
           <Button
             variant="ghost"
             render={<Link href="/projects" />}

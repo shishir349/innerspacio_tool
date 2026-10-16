@@ -46,7 +46,7 @@ export function EstimateCard({
   return (
     <div className="rounded-2xl border border-border bg-secondary/40 p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="editorial-heading text-xl text-foreground">{estimate.title}</p>
+        <p className="display text-[1.6rem] text-foreground">{estimate.title}</p>
         <Badge variant="outline" className="text-xs">
           {estimate.displayStatus === "final" ? "Final estimate" : "Preliminary estimate"} · v
           {estimate.versionNumber}

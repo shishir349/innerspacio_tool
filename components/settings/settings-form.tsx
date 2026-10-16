@@ -38,7 +38,7 @@ export function SettingsForm({ settings }: { settings: AppSettings }) {
   return (
     <Card className="border-border/80">
       <CardHeader>
-        <CardTitle className="editorial-heading text-lg">Pricing Defaults</CardTitle>
+        <CardTitle className="display text-[1.4rem]">Pricing Defaults</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">

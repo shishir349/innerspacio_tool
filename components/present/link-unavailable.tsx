@@ -2,7 +2,7 @@ export function LinkUnavailable({ reason }: { reason: string }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
       <div className="max-w-sm text-center">
-        <p className="editorial-heading text-2xl italic text-foreground">InnerSpacio</p>
+        <p className="display text-[2rem] italic text-foreground">InnerSpacio</p>
         <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
           Your space, your story
         </p>

@@ -50,3 +50,6 @@ next-env.d.ts
 # client / third-party pricing sheets and BOQ reference screenshots
 /pricing/
 /reference_BOQ/
+
+# raw brand font files (licence: demo for personal use) - only the web subsets in app/fonts are used
+/fonts/

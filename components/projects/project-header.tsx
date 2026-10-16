@@ -58,7 +58,7 @@ export function ProjectHeader({ project }: { project: Project }) {
     <Card className="border-border/80">
       <CardContent className="flex flex-col gap-4 pt-6 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1.5">
-          <h1 className="editorial-heading text-3xl text-foreground">{project.title}</h1>
+          <h1 className="display display-md text-foreground">{project.title}</h1>
           <p className="text-muted-foreground">{project.clientName}</p>
           <div className="flex flex-wrap items-center gap-4 pt-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">

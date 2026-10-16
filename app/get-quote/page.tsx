@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { isSupabaseConfigured } from "@/lib/config";
 import { QuoteWizard } from "@/components/quote/wizard";
+import { QuoteHero } from "@/components/quote/quote-hero";
 
 export const metadata: Metadata = {
   title: "Design your home — InnerSpacio",
@@ -19,5 +20,12 @@ export default function GetQuotePage() {
       </main>
     );
   }
-  return <QuoteWizard />;
+  return (
+    <>
+      <QuoteHero />
+      <div id="start" className="scroll-mt-20">
+        <QuoteWizard />
+      </div>
+    </>
+  );
 }

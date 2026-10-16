@@ -57,8 +57,8 @@ export default async function LeadsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm text-muted-foreground">Self-serve quote requests</p>
-        <h1 className="editorial-heading text-3xl text-foreground">Leads</h1>
+        <p className="eyebrow">Self-serve quote requests</p>
+        <h1 className="display display-md mt-4 text-foreground">Leads</h1>
       </div>
 
       {leads.length === 0 ? (

@@ -19,8 +19,8 @@ export default async function ProjectsPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">All client work</p>
-          <h1 className="editorial-heading text-3xl text-foreground">Projects</h1>
+          <p className="eyebrow">All client work</p>
+          <h1 className="display display-md mt-4 text-foreground">Projects</h1>
         </div>
         <NewProjectDialog defaultOpen={shouldOpen} />
       </div>

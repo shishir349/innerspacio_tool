@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { isSupabaseConfigured } from "@/lib/config";
 
+const DEMO_USER = { id: "demo-user", email: "demo@innerspacio.local" } as User;
+
 export class AuthError extends Error {
   readonly code = "unauthorized" as const;
 }
@@ -15,12 +17,16 @@ export class AuthError extends Error {
  * while `getUser()` revalidates the token against Supabase Auth itself.
  * This is the one function every protected operation should route through.
  *
- * In demo mode (no Supabase configured), there is no identity provider to
- * check against, so this always resolves to null; demo mode's own
- * production guard lives in `proxy.ts`, not here.
+ * In local demo mode (no Supabase configured) it resolves to a fixed demo user;
+ * outside development it stays null, and demo mode's own production guard lives
+ * in `proxy.ts`.
  */
 export async function getCurrentUser(): Promise<User | null> {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    // Local demo mode (no Supabase env): one fixed demo user so every page renders for development.
+    // Never in production: proxy.ts already answers 503 there, and this stays null.
+    return process.env.NODE_ENV === "production" ? null : DEMO_USER;
+  }
   const { createSupabaseServerClient } = await import("@/lib/supabase/server");
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();

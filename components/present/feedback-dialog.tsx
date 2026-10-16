@@ -68,7 +68,7 @@ export function FeedbackDialog({
       </Button>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="editorial-heading text-xl">Share your thoughts</DialogTitle>
+          <DialogTitle className="display text-[1.6rem]">Share your thoughts</DialogTitle>
           <DialogDescription>
             {conceptTitle
               ? `About "${conceptTitle}" in the ${roomName}.`

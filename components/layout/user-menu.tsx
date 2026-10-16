@@ -1,22 +1,25 @@
 import { getCurrentUser } from "@/lib/auth";
 import { signOutAction } from "@/lib/actions/auth";
-import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 
-export async function UserMenu() {
+/** Initial-in-a-circle with sign-out; the email sits in the tooltip. */
+export async function UserMenu({ showEmail = false }: { showEmail?: boolean }) {
   const user = await getCurrentUser();
   if (!user) return null;
+  const initial = (user.email ?? "?").charAt(0).toUpperCase();
 
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-background/60 px-3 py-2">
-      <p className="truncate text-xs text-muted-foreground" title={user.email ?? undefined}>
-        {user.email}
-      </p>
-      <form action={signOutAction}>
-        <Button type="submit" variant="ghost" size="icon-sm" title="Sign out">
-          <LogOut className="size-3.5" />
-        </Button>
-      </form>
-    </div>
+    <form action={signOutAction} className="flex items-center gap-3">
+      {showEmail && <p className="truncate text-sm text-muted-foreground">{user.email}</p>}
+      <button
+        type="submit"
+        title={`Sign out${user.email ? ` (${user.email})` : ""}`}
+        aria-label="Sign out"
+        className="group/user relative inline-flex size-10 items-center justify-center rounded-full bg-foreground text-background transition-transform duration-300 ease-(--ease-out-expo) hover:scale-105"
+      >
+        <span className="font-caps text-sm transition-opacity group-hover/user:opacity-0">{initial}</span>
+        <LogOut className="absolute size-4 opacity-0 transition-opacity group-hover/user:opacity-100" />
+      </button>
+    </form>
   );
 }

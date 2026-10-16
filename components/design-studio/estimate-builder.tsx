@@ -154,7 +154,7 @@ export function EstimateBuilder({
     <div className="space-y-5">
       <Card className="border-border/80">
         <CardHeader>
-          <CardTitle className="editorial-heading text-lg">Line Items</CardTitle>
+          <CardTitle className="display text-[1.4rem]">Line Items</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2">
@@ -241,7 +241,7 @@ export function EstimateBuilder({
 
       <Card className="border-border/80">
         <CardHeader>
-          <CardTitle className="editorial-heading text-lg">Additional Direct Costs</CardTitle>
+          <CardTitle className="display text-[1.4rem]">Additional Direct Costs</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {additionalCosts.map((cost) => (
@@ -272,7 +272,7 @@ export function EstimateBuilder({
 
       <Card className="border-border/80">
         <CardHeader>
-          <CardTitle className="editorial-heading text-lg">Margin, Contingency & GST</CardTitle>
+          <CardTitle className="display text-[1.4rem]">Margin, Contingency & GST</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="grid gap-2">
@@ -318,7 +318,7 @@ export function EstimateBuilder({
       {result && (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader>
-            <CardTitle className="editorial-heading text-lg">Internal Estimate Summary</CardTitle>
+            <CardTitle className="display text-[1.4rem]">Internal Estimate Summary</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <Row label="Direct cost" value={formatInr(result.directCost)} />

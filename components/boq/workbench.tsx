@@ -97,8 +97,8 @@ const TRADE_ITEM: Record<string, string> = {
 };
 
 const selectCls =
-  "h-8 w-full rounded-md border border-input bg-background px-1.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring";
-const numCls = "h-8 w-full rounded-md border border-input bg-background px-1.5 text-right text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-8 w-full rounded-lg border border-transparent bg-transparent px-2 text-[0.8rem] outline-none transition-colors hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-saffron/70";
+const numCls = "h-8 w-full num rounded-lg border border-transparent bg-transparent px-2 text-right text-[0.8rem] outline-none transition-colors hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-saffron/70";
 
 let keySeq = 1;
 
@@ -422,8 +422,8 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
 
   return (
     <div className="space-y-6">
-      <section className="rounded-xl border border-border bg-card p-4">
-        <div className="mb-4 inline-flex rounded-lg border border-border p-0.5 text-xs">
+      <section className="rounded-3xl border border-border bg-card p-6">
+        <div className="mb-6 inline-flex rounded-full border border-border p-1 text-[0.8rem]">
           {(
             [
               ["brief", "From plan + requirements", FileText],
@@ -435,7 +435,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
               type="button"
               onClick={() => setMode(m)}
               className={
-                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 " +
+                "inline-flex items-center gap-1.5 rounded-full px-4 py-2 transition-colors duration-300 " +
                 (mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")
               }
             >
@@ -559,7 +559,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
 
       {rows.length > 0 && (
         <>
-          <section className="rounded-xl border border-border bg-card">
+          <section className="rounded-3xl border border-border bg-card">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
               <div>
                 <h2 className="text-sm font-medium">Master BOQ · {rows.length} lines</h2>
@@ -568,7 +568,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <p className="editorial-heading text-2xl tabular-nums">{formatInr(totals.all)}</p>
+                <p className="display text-[2.4rem] leading-none">{formatInr(totals.all)}</p>
                 <Button variant="outline" onClick={deleteAll} disabled={busy !== null} className="gap-2 text-destructive">
                   <Trash2 className="size-4" /> Delete BOQ
                 </Button>
@@ -592,7 +592,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1420px] text-xs">
                 <thead>
-                  <tr className="bg-muted/60 text-left text-muted-foreground">
+                  <tr className="font-caps bg-secondary/60 text-left text-[0.7rem] tracking-[0.12em] text-muted-foreground uppercase">
                     {["Room", "Trade", "Line / BOQ item", "Rate card item", "Description", "UOM", "L", "B", "H", "Qty", "Rate ₹", "Amount ₹", ""].map(
                       (h) => (
                         <th key={h} className="px-1.5 py-2 font-medium">
@@ -622,7 +622,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                       <td className="w-56 p-1">
                         <textarea
                           rows={2}
-                          className="w-full resize-y rounded-md border border-input bg-background px-1.5 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="w-full resize-y rounded-lg border border-transparent bg-transparent px-2 py-1 text-[0.8rem] outline-none hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring"
                           value={r.title ?? r.item}
                           aria-label="Line / BOQ item"
                           onChange={(e) => patch(r.key, { title: e.target.value })}
@@ -643,7 +643,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                       <td className="min-w-64 p-1">
                         <textarea
                           rows={2}
-                          className="w-full resize-y rounded-md border border-input bg-background px-1.5 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="w-full resize-y rounded-lg border border-transparent bg-transparent px-2 py-1 text-[0.8rem] outline-none hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring"
                           value={r.description}
                           onChange={(e) => patch(r.key, { description: e.target.value })}
                         />
@@ -738,7 +738,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                 ["Room-wise", totals.room],
               ] as const
             ).map(([title, list]) => (
-              <section key={title} className="rounded-xl border border-border bg-card p-4">
+              <section key={title} className="rounded-3xl border border-border bg-card p-6">
                 <h3 className="text-sm font-medium">{title} costing</h3>
                 <ul className="mt-3 space-y-1.5 text-sm">
                   {list.map(([k, v]) => (

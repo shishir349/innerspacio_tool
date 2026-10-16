@@ -67,7 +67,7 @@ export function CatalogueItemDialog({
       <DialogContent className="sm:max-w-lg">
         <form action={onSubmit}>
           <DialogHeader>
-            <DialogTitle className="editorial-heading text-xl">
+            <DialogTitle className="display text-[1.6rem]">
               {isEdit ? "Edit Catalogue Item" : "Add Catalogue Item"}
             </DialogTitle>
             <DialogDescription>

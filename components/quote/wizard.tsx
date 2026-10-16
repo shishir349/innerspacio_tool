@@ -295,7 +295,7 @@ export function QuoteWizard() {
     const pending = slides.filter((x) => x.state === "queued" || x.state === "run").length;
     return (
       <Shell step={LAST_STEP}>
-        <h1 className="editorial-heading text-2xl">Submitting your details…</h1>
+        <h1 className="display display-md">Submitting your details…</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {pending > 0
             ? `${pending} room${pending === 1 ? "" : "s"} still rendering. Please keep this page open.`
@@ -350,9 +350,9 @@ export function QuoteWizard() {
               return (
                 <div
                   key={t.value}
-                  className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3"
+                  className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-4"
                 >
-                  <span className="text-sm font-medium">{t.label}</span>
+                  <span className="display text-[1.5rem]">{t.label}</span>
                   <div className="flex items-center gap-3">
                     <Stepper
                       label={`Remove ${t.label}`}
@@ -361,7 +361,7 @@ export function QuoteWizard() {
                     >
                       <Minus className="size-4" />
                     </Stepper>
-                    <span className="w-4 text-center text-sm tabular-nums">
+                    <span className="num w-6 text-center text-lg">
                       <Pop key={n} from={0.6}>{n}</Pop>
                     </span>
                     <Stepper
@@ -405,21 +405,46 @@ export function QuoteWizard() {
           <div className="mt-6 grid gap-3">
             {PACKAGE_TIERS.map((t) => {
               const info = TIER_INFO[t];
+              const world =
+                t === "essential" ? "bg-sand text-foreground" : t === "premium" ? "surface-olive" : "surface-terracotta";
+              const on = d.tier === t;
               return (
-                <ChoiceCard key={t} selected={d.tier === t} onClick={() => set("tier", t)} block>
-                  <span className="block">
-                    <span className="editorial-heading text-lg">{info.label}</span>
+                <button
+                  key={t}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={(e) => {
+                    gsap.fromTo(e.currentTarget, { scale: 0.98 }, { scale: 1, duration: 0.5, ease: EASE.pop });
+                    set("tier", t);
+                  }}
+                  className={cn(
+                    "relative w-full rounded-3xl p-7 text-left transition-[box-shadow,transform] duration-500 ease-(--ease-out-expo)",
+                    world,
+                    on ? "ring-2 ring-offset-4 ring-offset-background ring-saffron" : "hover:-translate-y-1"
+                  )}
+                >
+                  <span className="flex items-start justify-between gap-4">
+                    <span className="display text-[2.2rem]">{info.label}</span>
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "grid size-8 place-items-center rounded-full transition-all duration-300",
+                        on ? "scale-100 bg-saffron text-foreground" : "scale-75 border border-current opacity-40"
+                      )}
+                    >
+                      {on && <Check className="size-4" />}
+                    </span>
                   </span>
-                  <span className="mt-1 block text-sm font-normal text-muted-foreground">{info.blurb}</span>
-                  <span className="mt-3 block space-y-1">
+                  <span className="mt-2 block max-w-md opacity-85">{info.blurb}</span>
+                  <span className="mt-5 grid gap-2 sm:grid-cols-2">
                     {info.bullets.map((b) => (
-                      <span key={b} className="flex items-center gap-2 text-sm font-normal">
-                        <Check className="size-3.5 text-primary" />
+                      <span key={b} className="flex items-center gap-2 text-[0.95rem]">
+                        <Check className="size-3.5 shrink-0 opacity-70" />
                         {b}
                       </span>
                     ))}
                   </span>
-                </ChoiceCard>
+                </button>
               );
             })}
           </div>
@@ -473,7 +498,7 @@ export function QuoteWizard() {
                 id="q-city"
                 type="button"
                 variant="outline"
-                className="h-10 w-full justify-between font-normal"
+                className="h-11 w-full justify-between"
                 onClick={() => setCityOpen(true)}
               >
                 {d.city || "Select city"}
@@ -508,7 +533,7 @@ export function QuoteWizard() {
         </p>
       )}
 
-      <div data-no-anim className="sticky bottom-0 -mx-4 mt-8 flex items-center justify-between border-t border-border bg-background/95 px-4 py-3 backdrop-blur">
+      <div data-no-anim className="sticky bottom-0 -mx-5 mt-10 flex items-center justify-between border-t border-border/70 bg-background/90 px-5 py-4 backdrop-blur-md">
         <Button
           variant="ghost"
           onClick={() => {
@@ -519,7 +544,7 @@ export function QuoteWizard() {
         >
           Back
         </Button>
-        <Button size="lg" className="min-w-32 gap-2" onClick={() => void next()} disabled={starting}>
+        <Button size="lg" className="min-w-40 gap-2" onClick={() => void next()} disabled={starting}>
           {starting && <Loader2 className="size-4 animate-spin" />}
           {d.step === LAST_STEP ? "Submit" : "Next"}
         </Button>
@@ -567,36 +592,31 @@ function Shell({ step, children }: { step: number; children: React.ReactNode }) 
 
   return (
     <div ref={root} className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-xl items-center justify-between px-4 py-3">
-          <span className="editorial-heading text-lg italic">InnerSpacio</span>
-          <span className="text-xs text-muted-foreground">
-            Step {Math.min(step + 1, STEPS.length)} of {STEPS.length}
-          </span>
-        </div>
-        <ol className="mx-auto flex max-w-xl gap-1 px-4 pb-3" aria-label="Progress">
+      <div className="sticky top-[72px] z-30 border-b border-border/60 bg-background/90 backdrop-blur-md">
+        <ol className="mx-auto flex max-w-3xl gap-3 px-5 py-4" aria-label="Progress">
           {STEPS.map((s, i) => (
-            <li key={s} className="flex-1">
-              <div className="h-1 overflow-hidden rounded-full bg-border">
+            <li key={s} className="flex-1" aria-current={i === step ? "step" : undefined}>
+              <div className="h-px overflow-hidden bg-foreground/15">
                 <div
                   data-seg
-                  className="h-full origin-left rounded-full bg-primary"
+                  className="h-0.5 origin-left bg-saffron"
                   style={{ transform: `scaleX(${i <= step ? 1 : 0})` }}
                 />
               </div>
               <span
                 className={cn(
-                  "mt-1 block text-[10px] uppercase tracking-wider",
+                  "font-caps mt-2 flex items-center gap-1.5 text-[0.7rem] tracking-[0.14em] uppercase transition-colors",
                   i === step ? "text-foreground" : "text-muted-foreground"
                 )}
               >
-                {s}
+                <span className="tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+                <span className="hidden sm:inline">{s}</span>
               </span>
             </li>
           ))}
         </ol>
-      </header>
-      <main className="mx-auto max-w-xl px-4 pt-8 pb-4">{children}</main>
+      </div>
+      <main className="mx-auto max-w-3xl px-5 pt-14 pb-6">{children}</main>
     </div>
   );
 }
@@ -604,8 +624,8 @@ function Shell({ step, children }: { step: number; children: React.ReactNode }) 
 function Heading({ title, sub }: { title: string; sub: string }) {
   return (
     <div>
-      <h1 className="editorial-heading text-2xl leading-tight">{title}</h1>
-      <p className="mt-1.5 text-sm text-muted-foreground">{sub}</p>
+      <h1 className="display display-md">{title}</h1>
+      <p className="mt-4 max-w-lg text-[1.05rem] text-muted-foreground">{sub}</p>
     </div>
   );
 }
@@ -639,12 +659,12 @@ function ChoiceCard({
       }}
       aria-pressed={selected}
       className={cn(
-        "w-full rounded-lg border bg-card px-4 py-3.5 text-left text-sm font-medium transition-colors",
-        "focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-        selected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:bg-muted",
-        block && "py-4"
+        "relative w-full rounded-2xl border bg-card px-5 py-4 text-left text-[1.05rem] transition-[border-color,background-color,transform] duration-300 ease-(--ease-out-expo)",
+        selected ? "border-foreground bg-secondary/70" : "border-border hover:-translate-y-0.5 hover:border-foreground/50",
+        block && "py-5"
       )}
     >
+      {selected && <span aria-hidden className="absolute top-4 right-4 size-2.5 rounded-full bg-saffron" />}
       {children}
     </button>
   );
@@ -667,7 +687,7 @@ function Stepper({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="grid size-11 place-items-center rounded-full bg-primary text-primary-foreground transition-opacity disabled:opacity-35"
+      className="grid size-11 place-items-center rounded-full border border-foreground/30 text-foreground transition-[background-color,color,opacity] duration-300 hover:bg-foreground hover:text-background disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-foreground"
     >
       {children}
     </button>
@@ -690,11 +710,11 @@ function RoomPhotoCard({
   useEffect(() => () => urls.forEach((x) => URL.revokeObjectURL(x)), [urls]);
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <h2 className="text-sm font-medium">{room.label}</h2>
+    <div className="rounded-3xl border border-border bg-card p-6">
+      <h2 className="display text-[1.7rem]">{room.label}</h2>
       <div className="mt-3 flex flex-wrap gap-2">
         {urls.map((u, i) => (
-          <div key={u} className="relative size-24 overflow-hidden rounded-lg border border-border">
+          <div key={u} className="relative size-28 overflow-hidden rounded-2xl border border-border">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={u} alt={`${room.label} photo ${i + 1}`} className="size-full object-cover" />
             <button
@@ -711,7 +731,7 @@ function RoomPhotoCard({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="grid size-24 place-items-center rounded-lg border border-dashed border-border text-muted-foreground hover:bg-muted"
+            className="grid size-28 place-items-center rounded-2xl border border-dashed border-foreground/30 text-muted-foreground transition-colors duration-300 hover:border-foreground hover:bg-secondary hover:text-foreground"
           >
             <span className="flex flex-col items-center gap-1 text-xs">
               <Camera className="size-5" />
@@ -732,7 +752,7 @@ function RoomPhotoCard({
           e.target.value = "";
         }}
       />
-      <Label htmlFor={`ideas-${room.key}`} className="mt-4 block text-xs text-muted-foreground">
+      <Label htmlFor={`ideas-${room.key}`} className="font-caps mt-5 block text-[0.72rem] tracking-[0.12em] text-muted-foreground uppercase">
         What do you have in mind? (optional)
       </Label>
       <Textarea

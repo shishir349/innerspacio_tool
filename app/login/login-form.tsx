@@ -32,7 +32,7 @@ export function LoginForm() {
   }
 
   return (
-    <form action={onSubmit} className="space-y-4">
+    <form action={onSubmit} className="space-y-6">
       <div className="grid gap-2">
         <Label htmlFor="email">Email</Label>
         <Input id="email" name="email" type="email" autoComplete="email" required autoFocus />
@@ -48,7 +48,7 @@ export function LoginForm() {
         />
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" disabled={isPending} className="w-full gap-2">
+      <Button type="submit" size="lg" disabled={isPending} className="w-full gap-2">
         {isPending && <Loader2 className="size-4 animate-spin" />}
         Sign in
       </Button>

@@ -85,7 +85,7 @@ export function PublishEstimateDialog({
       <DialogContent className="sm:max-w-lg">
         <form action={onSubmit}>
           <DialogHeader>
-            <DialogTitle className="editorial-heading text-xl">
+            <DialogTitle className="display text-[1.6rem]">
               Publish estimate — {roomName}
             </DialogTitle>
             <DialogDescription>

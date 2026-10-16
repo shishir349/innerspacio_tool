@@ -12,8 +12,8 @@ export default async function CostCataloguePage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm text-muted-foreground">Illustrative starting rates, in INR</p>
-        <h1 className="editorial-heading text-3xl text-foreground">Cost Catalogue</h1>
+        <p className="eyebrow">Illustrative starting rates, in INR</p>
+        <h1 className="display display-md mt-4 text-foreground">Cost Catalogue</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
           These are illustrative starting rates for development and demos only — not verified
           vendor quotations or current market prices. Review and edit every rate before relying on

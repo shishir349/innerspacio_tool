@@ -51,7 +51,7 @@ export function RoomDesignStudio({
           <Link href={`/projects/${project.id}`} className="text-sm text-muted-foreground hover:underline">
             {project.title}
           </Link>
-          <h1 className="editorial-heading text-3xl text-foreground">{room.name}</h1>
+          <h1 className="display display-md text-foreground">{room.name}</h1>
           <p className="text-sm text-muted-foreground">{roomTypeLabel}</p>
         </div>
         <Button

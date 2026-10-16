@@ -21,8 +21,8 @@ export default async function DesignStudioIndexPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">AI-assisted redesign workflow</p>
-          <h1 className="editorial-heading text-3xl text-foreground">Design Studio</h1>
+          <p className="eyebrow">AI-assisted redesign workflow</p>
+          <h1 className="display display-md mt-4 text-foreground">Design Studio</h1>
         </div>
         {rooms.length > 0 && (
           <Button variant="outline" render={<Link href="/projects" />} className="gap-2">

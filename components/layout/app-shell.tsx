@@ -1,41 +1,48 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
 import { NavLinks } from "@/components/layout/nav-links";
 import { UserMenu } from "@/components/layout/user-menu";
+import { MobileNav } from "@/components/layout/mobile-nav";
+import { CommandPalette } from "@/components/layout/command-palette";
 import { PageFade } from "@/components/motion/page-fade";
 import { DemoModeBanner } from "@/components/shared/demo-mode-banner";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 
+/** Studio shell: a calm 72px top bar, then the work. Native scroll (no Lenis) so tables and dialogs behave. */
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen w-full bg-background">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar px-4 py-6 md:flex">
-        <Link href="/dashboard" className="mb-8 block px-1">
-          <Logo />
-        </Link>
-        <NavLinks />
-        <div className="mt-auto space-y-3 px-1 pt-6">
-          <Button render={<Link href="/projects?new=1" />} size="sm" className="w-full gap-2">
-            <Plus className="size-4" />
-            New Project
-          </Button>
-          <UserMenu />
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Your space, your story.
-            <br />
-            innerspacio.com
-          </p>
-        </div>
-      </aside>
-      <div className="flex min-h-screen flex-1 flex-col">
-        <DemoModeBanner />
-        <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
-          <div className="mx-auto w-full max-w-6xl">
-            <PageFade>{children}</PageFade>
+    <div className="flex min-h-screen w-full flex-col bg-background">
+      <DemoModeBanner />
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
+        <div className="mx-auto flex h-[72px] w-full max-w-[96rem] items-center gap-6 px-4 md:px-8">
+          <Link href="/dashboard" className="shrink-0" aria-label="InnerSpacio Studio home">
+            <Logo size="sm" />
+          </Link>
+          <div className="mx-auto hidden lg:block">
+            <NavLinks />
           </div>
-        </main>
-      </div>
+          <div className="ml-auto flex items-center gap-3 lg:ml-0">
+            <CommandPalette trigger />
+            <Button render={<Link href="/projects?new=1" />} size="sm" className="hidden gap-1.5 sm:inline-flex">
+              <Plus className="size-4" />
+              New project
+            </Button>
+            <UserMenu />
+            <MobileNav />
+          </div>
+        </div>
+      </header>
+      <main className="flex-1 px-4 py-8 md:px-8 md:py-12">
+        <div className="mx-auto w-full max-w-[96rem]">
+          <PageFade>{children}</PageFade>
+        </div>
+      </main>
+      <footer className="border-t border-border/70 px-4 py-6 md:px-8">
+        <p className="font-caps mx-auto max-w-[96rem] text-[0.72rem] tracking-[0.16em] text-muted-foreground uppercase">
+          InnerSpacio · Your space, your story · innerspacio.com
+        </p>
+      </footer>
     </div>
   );
 }

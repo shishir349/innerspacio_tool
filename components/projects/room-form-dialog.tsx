@@ -86,7 +86,7 @@ export function RoomFormDialog({
       {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="editorial-heading text-xl">
+          <DialogTitle className="display text-[1.6rem]">
             {isEdit ? `Edit ${room!.name}` : "Add a Room"}
           </DialogTitle>
           <DialogDescription>

@@ -7,10 +7,10 @@ import type { Project } from "@/lib/types";
 export function ProjectCard({ project }: { project: Project }) {
   return (
     <Link href={`/projects/${project.id}`}>
-      <Card className="h-full border-border/80 transition-shadow hover:shadow-md">
+      <Card className="h-full transition-[transform,box-shadow] duration-500 ease-(--ease-out-expo) hover:-translate-y-1 hover:shadow-[0_28px_48px_-28px_rgba(33,24,18,0.35)]">
         <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
           <div>
-            <p className="editorial-heading text-lg leading-snug text-foreground">
+            <p className="display text-[1.4rem] leading-snug text-foreground">
               {project.title}
             </p>
             <p className="text-sm text-muted-foreground">{project.clientName}</p>

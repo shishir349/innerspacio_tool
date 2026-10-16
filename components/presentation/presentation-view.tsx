@@ -49,7 +49,7 @@ export function PresentationView({
     <div className="min-h-screen bg-background">
       <header className="flex items-center justify-between border-b border-border px-6 py-4 print:hidden">
         <div>
-          <p className="editorial-heading text-xl italic text-foreground">InnerSpacio</p>
+          <p className="display text-[1.6rem] italic text-foreground">InnerSpacio</p>
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             Your space, your story
           </p>
@@ -160,7 +160,7 @@ export function PresentationView({
           <div className="space-y-5">
             {view === "original" ? (
               <div>
-                <h2 className="editorial-heading text-2xl text-foreground">The Room Today</h2>
+                <h2 className="display text-[2rem] text-foreground">The Room Today</h2>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   Dimensions: {room_.dimensions.length ?? "—"} × {room_.dimensions.width ?? "—"}{" "}
                   {room_.dimensions.unit} (ceiling {room_.dimensions.ceilingHeight ?? "—"} {room_.dimensions.unit})
@@ -168,7 +168,7 @@ export function PresentationView({
               </div>
             ) : activeConcept ? (
               <div>
-                <h2 className="editorial-heading text-2xl text-foreground">{activeConcept.title}</h2>
+                <h2 className="display text-[2rem] text-foreground">{activeConcept.title}</h2>
                 <p className="text-sm text-muted-foreground">{activeConcept.style}</p>
                 <p className="mt-3 text-sm leading-relaxed text-foreground/90">{activeConcept.description}</p>
                 {activeConcept.keyChanges.length > 0 && (
@@ -202,7 +202,7 @@ export function PresentationView({
 
             {room_.estimateSummary && (
               <div className="rounded-xl border border-border bg-secondary/40 p-5">
-                <p className="editorial-heading text-lg text-foreground">Preliminary Estimate</p>
+                <p className="display text-[1.4rem] text-foreground">Preliminary Estimate</p>
                 <ul className="mt-3 space-y-1.5 text-sm text-foreground/90">
                   {room_.estimateSummary.lineItems.map((li) => (
                     <li key={li.id} className="flex justify-between gap-3">

@@ -170,7 +170,7 @@ export function PresentationLinkPanel({ project }: { project: Project }) {
   return (
     <Card className="border-border/80">
       <CardHeader>
-        <CardTitle className="editorial-heading text-lg">Client Presentation Link</CardTitle>
+        <CardTitle className="display text-[1.4rem]">Client Presentation Link</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         {!link ? (

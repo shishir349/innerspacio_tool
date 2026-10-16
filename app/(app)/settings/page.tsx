@@ -53,14 +53,14 @@ export default async function SettingsPage() {
         <p className="text-sm text-muted-foreground">
           Studio configuration · Signed in as {user.email}
         </p>
-        <h1 className="editorial-heading text-3xl text-foreground">Settings</h1>
+        <h1 className="display display-md text-foreground">Settings</h1>
       </div>
 
       <SettingsForm settings={settings} />
 
       <Card className="border-border/80">
         <CardHeader>
-          <CardTitle className="editorial-heading text-lg">Integration Status</CardTitle>
+          <CardTitle className="display text-[1.4rem]">Integration Status</CardTitle>
         </CardHeader>
         <CardContent className="divide-y divide-border/60">
           <StatusRow
