@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { buildBoq, summarizeBoq, type BoqInput } from "@/lib/boq/build";
+import { buildBoq, cityNote, summarizeBoq, type BoqInput } from "@/lib/boq/build";
 import { loadLeadSpec } from "@/lib/boq/lead";
 import { buildRequestSchema } from "@/lib/boq/schema";
 import { TIER_INFO } from "@/lib/quote/constants";
@@ -37,7 +37,9 @@ export async function POST(request: Request) {
   }
 
   const lines = buildBoq(input);
+  const cn = cityNote(input.city);
   return NextResponse.json({
+    warnings: cn ? [cn] : [],
     input,
     client,
     specification: `${TIER_INFO[input.tier].label} specification`,

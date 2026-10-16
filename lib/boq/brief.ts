@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { makeLine, modularLines, type BoqLine } from "@/lib/boq/build";
+import { cityNote, makeLine, modularLines, type BoqLine } from "@/lib/boq/build";
 import { BOQ_ITEMS, BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
 import { findRate } from "@/lib/rates/catalog";
 import { normalizeUnit, ordinalOf, resolveUnit, UNIT_CLASSES } from "@/lib/boq/classes";
@@ -128,6 +128,8 @@ export function quantify(
 ): { lines: BoqLine[]; warnings: string[]; coverage: CoverageRow[] } {
   const lines: BoqLine[] = [];
   const warnings: string[] = [];
+  const cn = cityNote(opts.city);
+  if (cn) warnings.push(cn);
   const coverage = new Map<string, CoverageRow>();
   const sheet = opts.sheet ?? "spazay";
   // Several plan rooms can map to one BOQ room (e.g. extra bedrooms): measure them together.

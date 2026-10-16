@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildBoq, summarizeBoq, type BoqInput } from "@/lib/boq/build";
+import { buildBoq, cityFactor, cityNote, summarizeBoq, type BoqInput } from "@/lib/boq/build";
+import { tierScale } from "@/lib/boq/classes";
 import { BOQ_ITEMS, BOQ_ROOMS, BOQ_TRADES, BOQ_UOMS } from "@/lib/boq/lists";
 import { RATE_CARD, getRate } from "@/lib/rates/catalog";
 import { LIVSPACE_NCR } from "@/lib/rates/livspace-benchmarks";
-import { BHK_ROOM_DEFAULTS, PACKAGE_BANDS, PACKAGE_TIERS, type Bhk, type QuoteRoomType } from "@/lib/quote/constants";
+import { BHK_ROOM_DEFAULTS, PACKAGE_TIERS, type Bhk, type QuoteRoomType } from "@/lib/quote/constants";
 
 const threeBhk: BoqInput = {
   bhk: "3",
@@ -89,25 +90,33 @@ describe("buildBoq", () => {
   const total = (i: BoqInput) => summarizeBoq(buildBoq(i)).total;
   const BHKS = ["1", "2", "3", "4", "5+"] as const;
 
-  it("a full home of every BHK lands inside the sheet's band for every tier and size", () => {
-    for (const bhk of BHKS) {
-      for (const tier of PACKAGE_TIERS) {
-        const { min, max } = PACKAGE_BANDS[bhk][tier];
-        for (const size of [undefined, "small", "large"] as const) {
-          const t = total(fullHome(bhk, tier, size));
-          expect(t, `${bhk} ${tier} ${size} = ${Math.round(t)}`).toBeGreaterThanOrEqual(min * 0.99);
-          expect(t, `${bhk} ${tier} ${size} = ${Math.round(t)}`).toBeLessThanOrEqual(max * 1.01);
-        }
-      }
+  it("prices at the Spazay card: a modular line is the card's carcass + shutter + hardware, no multiplier", () => {
+    const wardrobe = (tier: (typeof PACKAGE_TIERS)[number]) => buildBoq({ ...threeBhk, city: "Delhi", tier }).find((l) => l.item === "Wardrobe")!;
+    expect(wardrobe("premium").rate).toBe(getRate("mod:C06").rate + getRate("mod:S04").rate + getRate("mod:H02").rate);
+    expect(wardrobe("essential").rate).toBe(getRate("mod:C01").rate + getRate("mod:S01").rate + getRate("mod:H01").rate);
+    expect(wardrobe("luxury").rate).toBe(getRate("mod:C09").rate + getRate("mod:S05").rate + getRate("mod:H02").rate);
+  });
+
+  it("every non-modular line carries exactly the card rate", () => {
+    for (const l of buildBoq({ ...threeBhk, city: "Delhi" })) {
+      if (l.rateId === "mod:unit") continue;
+      expect(l.rate, l.rateId).toBe(getRate(l.rateId).rate);
     }
   });
 
-  it("size moves the price inside the band: large > unknown > small", () => {
+  it("spec mode and plan mode agree on the same item: modular wardrobe within 5% at every tier", () => {
     for (const tier of PACKAGE_TIERS) {
-      const [s, u, l] = [total(fullHome("3", tier, "small")), total(fullHome("3", tier)), total(fullHome("3", tier, "large"))];
-      expect(s).toBeLessThan(u);
-      expect(u).toBeLessThan(l);
+      const spec = buildBoq({ ...threeBhk, city: "Delhi", tier }).find((l) => l.item === "Wardrobe")!.rate;
+      const plan = getRate("pr:WARDROBE").rate * tierScale(tier);
+      expect(Math.abs(spec - plan) / spec, `${tier} spec ${spec} vs plan ${Math.round(plan)}`).toBeLessThan(0.05);
     }
+  });
+
+  it("tier changes specification and scope, not a price multiplier", () => {
+    const ids = (tier: (typeof PACKAGE_TIERS)[number]) => new Set(buildBoq({ ...threeBhk, tier }).map((l) => l.rateId));
+    expect(ids("premium")).not.toEqual(ids("essential"));
+    const paint = (tier: (typeof PACKAGE_TIERS)[number]) => buildBoq({ ...threeBhk, tier }).find((l) => l.trade === "Paint & Polish" && l.item === "Paint")!.rateId;
+    expect(new Set(PACKAGE_TIERS.map(paint)).size).toBe(3);
   });
 
   it("tiers and BHKs are strictly ordered", () => {
@@ -122,11 +131,18 @@ describe("buildBoq", () => {
     }
   });
 
-  it("fewer rooms cost less, extra rooms cost more, and a non-NCR city scales", () => {
+  it("fewer rooms cost less, extra rooms cost more", () => {
     const full = fullHome("3", "premium");
     expect(total({ ...full, rooms: full.rooms.slice(0, 4) })).toBeLessThan(total(full));
     expect(total({ ...full, rooms: [...full.rooms, { roomType: "bedroom" }] })).toBeGreaterThan(total(full));
-    expect(total({ ...full, city: "Indore" })).toBeLessThan(total(full));
+  });
+
+  it("no city factor without a verified policy; non-NCR cities are flagged, not silently scaled", () => {
+    const full = fullHome("3", "premium");
+    expect(total({ ...full, city: "Indore" })).toBe(total(full));
+    expect(cityFactor("Mumbai")).toBe(1);
+    expect(cityNote("Indore")).toMatch(/NCR card/);
+    expect(cityNote("Delhi")).toBeNull();
   });
 
   it("every line is still qty x rate after calibration", () => {
@@ -140,13 +156,6 @@ describe("buildBoq", () => {
     expect(rooms).toContain("Guest / Parents Bedroom");
     expect(rooms).toContain("Master Bathroom");
     expect(rooms).toContain("Others / Whole Home Civil");
-  });
-
-  it("applies the city factor to rates, not quantities", () => {
-    const ncr = buildBoq({ ...threeBhk, city: "Delhi" });
-    const tier2 = buildBoq({ ...threeBhk, city: "Indore" });
-    expect(tier2.length).toBe(ncr.length);
-    expect(summarizeBoq(tier2).total).toBeLessThan(summarizeBoq(ncr).total);
   });
 
   it("never throws or yields NaN on odd input", () => {

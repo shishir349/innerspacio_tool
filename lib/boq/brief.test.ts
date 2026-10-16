@@ -97,10 +97,13 @@ describe("quantify", () => {
     expect(lines).toHaveLength(0);
   });
 
-  it("applies the city factor to rates", () => {
+  it("applies no city factor without a verified policy, and warns for a non-NCR city", () => {
     const delhi = quantify([item({ rateId: "pt:PT03", basis: "wall_area" })], [master], opts).lines[0];
     const indore = quantify([item({ rateId: "pt:PT03", basis: "wall_area" })], [master], { ...opts, city: "Indore" }).lines[0];
-    expect(indore.rate).toBeLessThan(delhi.rate);
+    expect(indore.rate).toBe(delhi.rate);
+    const w = quantify([item({ rateId: "pt:PT03", basis: "wall_area" })], [master], { ...opts, city: "Indore" }).warnings;
+    expect(w.some((x) => /NCR card/.test(x))).toBe(true);
+    expect(quantify([item({ rateId: "pt:PT03", basis: "wall_area" })], [master], opts).warnings.some((x) => /NCR card/.test(x))).toBe(false);
   });
 
   it("sums every plan room that maps to the same BOQ room", () => {

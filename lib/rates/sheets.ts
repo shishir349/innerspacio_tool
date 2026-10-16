@@ -48,7 +48,6 @@ const LIVSPACE_MODULAR: Record<string, { price: number; label: string }> = {
   "Kitchen Wall Unit": { price: 2410, label: "Kitchen wall unit, shutter — standard" },
   "Kitchen Tall Unit": { price: 2372, label: "Tall shutter storage — standard" },
 };
-const MODULAR_DEFAULT = LIVSPACE_MODULAR.Wardrobe;
 
 const exGst = (price: number) => Math.round(price / (1 + LIVSPACE_GST));
 
@@ -57,6 +56,8 @@ export interface Resolved {
   source: RateSource;
   /** Livspace reference ₹ (sheet = "both" only). */
   alt?: number;
+  /** Sheet = "livspace" but no verified Livspace rate exists: billed at the Spazay card rate and must be reviewed. */
+  unmapped?: true;
 }
 
 /** Rate to bill for `spazayRate` under `sheet`. */
@@ -64,13 +65,14 @@ export function resolveRate(id: string, spazayRate: number, sheet: RateSheet): R
   const ls = LIVSPACE[id];
   if (sheet === "livspace" && ls) return { rate: exGst(ls.price), source: "livspace" };
   if (sheet === "both" && ls) return { rate: spazayRate, source: "spazay", alt: exGst(ls.price) };
+  if (sheet === "livspace") return { rate: spazayRate, source: "spazay", unmapped: true };
   return { rate: spazayRate, source: "spazay" };
 }
 
-/** Livspace all-in modular unit for `item`, ex-GST ₹/sq ft. */
-export function livspaceModular(item: string): { rate: number; label: string } {
-  const m = LIVSPACE_MODULAR[item] ?? MODULAR_DEFAULT;
-  return { rate: exGst(m.price), label: m.label };
+/** Livspace all-in modular unit for `item`, ex-GST ₹/sq ft; null when no verified equivalent exists (never a stand-in price). */
+export function livspaceModular(item: string): { rate: number; label: string } | null {
+  const m = LIVSPACE_MODULAR[item];
+  return m ? { rate: exGst(m.price), label: m.label } : null;
 }
 
 export function livspaceCoverage(): number {

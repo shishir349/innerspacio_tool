@@ -2,9 +2,6 @@ import { findRate, getRate } from "@/lib/rates/catalog";
 import { livspaceModular, resolveRate, type RateSheet, type RateSource } from "@/lib/rates/sheets";
 import { BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
 import {
-  BHK_ROOM_DEFAULTS,
-  METRO_CITIES,
-  PACKAGE_BANDS,
   type Bhk,
   type HomeSize,
   type PackageTier,
@@ -57,6 +54,8 @@ export interface BoqLine {
   altRate?: number;
   /** No rate in the sheet — a placeholder allowance to confirm before issue. */
   provisional?: boolean;
+  /** A rate that needs a human look (e.g. no verified Livspace equivalent, billed at the Spazay rate). */
+  rateNote?: string;
 }
 
 // ---------- ASSUMPTIONS ----------
@@ -96,11 +95,20 @@ const ROOM_MAP: Record<QuoteRoomType, BoqRoom[]> = {
   other: ["Foyer / Entryway", "Balcony 1"],
 };
 
-/** Rates are Spazay (NCR) selling rates; other cities scale. */
+/**
+ * City rate policy. The Spazay card is an NCR selling-rate list. No verified policy exists for any
+ * other city, so no factor is applied (1.0) and `cityNote()` says so. To adopt a policy, add the
+ * confirmed multiplier here, e.g. `Mumbai: 1.05`; it then applies to the rate on every line.
+ */
+export const CITY_RATE_FACTORS: Readonly<Record<string, number>> = {};
 const NCR = ["Delhi", "Gurugram", "Noida"];
 export function cityFactor(city: string): number {
-  if (NCR.includes(city)) return 1;
-  return METRO_CITIES.includes(city) ? 1.03 : 0.95;
+  return CITY_RATE_FACTORS[city] ?? 1;
+}
+/** A warning when the city is outside the card's NCR basis and no policy is configured. */
+export function cityNote(city: string): string | null {
+  if (!city || NCR.includes(city) || CITY_RATE_FACTORS[city] !== undefined) return null;
+  return `Rates are the Spazay NCR card. No verified rate adjustment is configured for ${city}, so none is applied.`;
 }
 
 interface Spec {
@@ -237,6 +245,7 @@ function push(
   if (!(qty > 0) || !Number.isFinite(qty)) return;
   const r = getRate(rateId);
   const res = resolveRate(rateId, r.rate, ctx.sheet);
+  const rateNote = res.unmapped ? "No verified Livspace rate for this item; billed at the Spazay card rate. Review." : undefined;
   const rate = Math.round(res.rate * ctx.factor);
   const base = r.desc || r.item;
   let q = r2(qty);
@@ -266,6 +275,7 @@ function push(
     rateSource: res.source,
     ...(res.alt !== undefined ? { altRate: Math.round(res.alt * ctx.factor) } : {}),
     ...(r.provisional ? { provisional: true } : {}),
+    ...(rateNote ? { rateNote } : {}),
   });
 }
 
@@ -273,9 +283,10 @@ function push(
 function modular(ctx: Ctx, room: BoqRoom, item: string, w: number, h: number, note: string) {
   const area = w * h;
   const dims = { l: w, h };
-  if (ctx.sheet === "livspace") {
+  const ls = livspaceModular(item);
+  if (ctx.sheet === "livspace" && ls) {
     // Livspace prices a unit as one all-in standard rate, not carcass + shutter + hardware.
-    const m = livspaceModular(item);
+    const m = ls;
     const rate = Math.round(m.rate * ctx.factor);
     const q = r2(area);
     ctx.out.push({
@@ -299,7 +310,9 @@ function modular(ctx: Ctx, room: BoqRoom, item: string, w: number, h: number, no
   const parts = [ctx.spec.carcass, ctx.spec.shutter, ctx.spec.hardware].map((id) => getRate(id));
   const rate = parts.reduce((n, p) => n + Math.round(p.rate * ctx.factor), 0);
   const q = r2(area);
-  const alt = ctx.sheet === "both" ? Math.round(livspaceModular(item).rate * ctx.factor) : undefined;
+  const alt = ctx.sheet === "both" && ls ? Math.round(ls.rate * ctx.factor) : undefined;
+  const rateNote =
+    ctx.sheet === "livspace" && !ls ? "No verified Livspace rate for this unit; billed at the Spazay card rate. Review." : undefined;
   ctx.out.push({
     room,
     trade: "Modular Woodwork",
@@ -318,6 +331,7 @@ function modular(ctx: Ctx, room: BoqRoom, item: string, w: number, h: number, no
     amount: r2(q * rate),
     rateSource: "spazay",
     ...(alt ? { altRate: alt } : {}),
+    ...(rateNote ? { rateNote } : {}),
   });
 }
 
@@ -446,37 +460,8 @@ function wholeHome(ctx: Ctx, carpet: number) {
   if (ctx.spec.decor) push(ctx, room, ctx.spec.decor, "Furnishing", 1, {}, "Art & décor styling allowance");
 }
 
-/** Where in the tier band a home lands: smaller homes sit lower, larger ones higher, unknown size mid-band. */
-function bandPosition(size: HomeSize | undefined): number {
-  return size === "large" ? 0.75 : size === "small" ? 0.35 : 0.5;
-}
-
-const rawTotals = new Map<string, number>();
-
-/**
- * Calibration so a full typical home of this BHK lands inside the sheet's tier band (PACKAGE_BANDS).
- * The bottom-up build prices every item at the full Spazay card (à-la-carte, bespoke); a package
- * is priced below that. One multiplier on every rate, found from a reference build of the standard
- * room set, so qty × rate still equals the amount on each line and fewer/extra rooms scale naturally.
- */
-export function packageFactor(input: Pick<BoqInput, "bhk" | "homeSize" | "tier" | "sheet">): number {
-  const band = PACKAGE_BANDS[input.bhk]?.[input.tier];
-  const defaults = BHK_ROOM_DEFAULTS[input.bhk];
-  if (!band || !defaults) return 1;
-  const key = `${input.bhk}|${input.homeSize ?? ""}|${input.tier}|${input.sheet ?? "spazay"}`;
-  let raw = rawTotals.get(key);
-  if (raw === undefined) {
-    const rooms: BoqInput["rooms"] = [];
-    for (const [roomType, n] of Object.entries(defaults)) for (let i = 0; i < (n ?? 0); i++) rooms.push({ roomType: roomType as QuoteRoomType });
-    raw = summarizeBoq(buildLines({ ...input, city: "Delhi", rooms }, 1)).total;
-    rawTotals.set(key, raw);
-  }
-  if (!(raw > 0)) return 1;
-  return (band.min + (band.max - band.min) * bandPosition(input.homeSize)) / raw;
-}
-
 export function buildBoq(input: BoqInput): BoqLine[] {
-  return buildLines(input, cityFactor(input.city) * packageFactor(input));
+  return buildLines(input, cityFactor(input.city));
 }
 
 function buildLines(input: BoqInput, factor: number): BoqLine[] {

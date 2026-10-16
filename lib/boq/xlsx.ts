@@ -23,6 +23,8 @@ export interface BoqSheetLine {
   /** Livspace reference rate (compare mode). */
   altRate?: number | null;
   provisional?: boolean;
+  /** A rate to review (e.g. no verified Livspace equivalent). */
+  rateNote?: string;
   description: string;
   uom: string;
   l?: number | null;
@@ -396,7 +398,7 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
   block("Client scope (excluded from this estimate)", CLIENT_SCOPE, false);
 
   // ---- Scope Coverage ----
-  if (opts.coverage?.length || opts.planRooms?.length) {
+  if (opts.coverage?.length || opts.planRooms?.length || opts.lines.some((l) => l.rateNote)) {
     const sc = wb.addWorksheet("Scope Coverage");
     sc.columns = [{ width: 44 }, { width: 70 }, { width: 24 }, { width: 30 }];
     band(
@@ -427,6 +429,16 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
       sc.getCell(`A${r}`).value = `${prov.length} line(s) are provisional allowances with no rate in the reference list — ${prov
         .map((l) => l.title || l.item)
         .join("; ")}. Confirm each against the approved selection or a vendor quote before issue.`;
+      sc.getCell(`A${r}`).alignment = { wrapText: true, vertical: "top" };
+      sc.getRow(r).height = 48;
+      r++;
+    }
+    const flagged = opts.lines.filter((l) => l.rateNote);
+    if (flagged.length) {
+      sc.mergeCells(`A${r}:D${r}`);
+      sc.getCell(`A${r}`).value = `${flagged.length} line(s) have no verified rate on the selected sheet and are billed at the Spazay card rate — ${flagged
+        .map((l) => l.title || l.item)
+        .join("; ")}. Review before issue.`;
       sc.getCell(`A${r}`).alignment = { wrapText: true, vertical: "top" };
       sc.getRow(r).height = 48;
       r++;

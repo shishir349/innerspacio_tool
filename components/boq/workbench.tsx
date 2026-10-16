@@ -64,6 +64,8 @@ interface Row {
   rateSource?: "spazay" | "livspace";
   altRate?: number | null;
   provisional?: boolean;
+  /** A rate to review (no verified rate on the chosen sheet). */
+  rateNote?: string;
   /** Rate-card id when the rate came from the sheet; empty = custom rate. */
   rateId: string;
   room: string;
@@ -117,6 +119,7 @@ function toRows(lines: LineLike[]): Row[] {
     rateSource: l.rateSource,
     altRate: l.altRate ?? null,
     provisional: l.provisional,
+    rateNote: l.rateNote,
     description: l.description,
     uom: l.uom,
     l: l.l ?? null,
@@ -284,6 +287,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
             rateSource: r.rateSource,
             altRate: r.altRate ?? undefined,
             provisional: r.provisional || undefined,
+            rateNote: r.rateNote || undefined,
             description: r.description,
             uom: r.uom,
             l: r.l,
@@ -683,10 +687,11 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                         <span
                           className={
                             "mt-0.5 block text-[0.82rem] " +
-                            (r.provisional ? "font-medium text-amber-600" : "text-muted-foreground")
+                            (r.provisional || r.rateNote ? "font-medium text-amber-600" : "text-muted-foreground")
                           }
+                          title={r.rateNote}
                         >
-                          {r.provisional ? "Provisional" : r.rateSource === "livspace" ? "Livspace" : r.rateSource === "spazay" ? "Spazay" : ""}
+                          {r.provisional ? "Provisional" : r.rateNote ? "Review rate" : r.rateSource === "livspace" ? "Livspace" : r.rateSource === "spazay" ? "Spazay" : ""}
                           {r.altRate ? ` · LS ₹${r.altRate.toLocaleString("en-IN")}` : ""}
                         </span>
                       </td>

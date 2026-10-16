@@ -18,7 +18,8 @@ describe("rate sheet resolution", () => {
   });
 
   it("an id with no verified Livspace equivalent falls back to Spazay and says so", () => {
-    expect(resolveRate("lf:LFE02", 34413, "livspace")).toEqual({ rate: 34413, source: "spazay" });
+    expect(resolveRate("lf:LFE02", 34413, "livspace")).toEqual({ rate: 34413, source: "spazay", unmapped: true });
+    expect(resolveRate("lf:LFE02", 34413, "spazay").unmapped).toBeUndefined();
     expect(resolveRate("lf:LFE02", 34413, "both").alt).toBeUndefined();
   });
 
@@ -35,9 +36,10 @@ describe("rate sheet resolution", () => {
     for (const r of al) expect(r.rate).toBeGreaterThan(0);
   });
 
-  it("livspace modular uses one all-in rate; unknown units use the wardrobe rate", () => {
-    expect(livspaceModular("Kitchen Base Unit").rate).toBe(Math.round(3375 / 1.18));
-    expect(livspaceModular("TV Unit").rate).toBe(Math.round(2500 / 1.18));
+  it("livspace modular uses one all-in rate; a unit with no verified equivalent is null, never a stand-in", () => {
+    expect(livspaceModular("Kitchen Base Unit")?.rate).toBe(Math.round(3375 / 1.18));
+    expect(livspaceModular("Wardrobe")?.rate).toBe(Math.round(2500 / 1.18));
+    expect(livspaceModular("TV Unit")).toBeNull();
   });
 });
 
@@ -84,5 +86,23 @@ describe("sheet applied to a BOQ", () => {
     const ok = quantifyRequestSchema.safeParse({ tier: "premium", city: "Delhi", rooms: [], items: [] });
     expect(ok.success && ok.data.sheet).toBe("spazay");
     expect(quantifyRequestSchema.safeParse({ tier: "premium", city: "Delhi", sheet: "x", rooms: [], items: [] }).success).toBe(false);
+  });
+});
+
+describe("livspace gaps are flagged, never silent", () => {
+  const input = { bhk: "3" as const, homeSize: "small" as const, city: "Delhi", tier: "premium" as const, sheet: "livspace" as const, rooms: [{ roomType: "living_room" as const }, { roomType: "bedroom" as const }] };
+  it("spec-mode lines without a Livspace mapping carry a rate note and the Spazay rate", async () => {
+    const { buildBoq } = await import("@/lib/boq/build");
+    const lines = buildBoq(input);
+    const tv = lines.find((l) => l.item === "TV Unit")!;
+    expect(tv.rateNote).toMatch(/No verified Livspace rate/);
+    expect(tv.rateSource).toBe("spazay");
+    const wardrobe = lines.find((l) => l.item === "Wardrobe")!;
+    expect(wardrobe.rateNote).toBeUndefined();
+    expect(wardrobe.rateSource).toBe("livspace");
+  });
+  it("the Spazay sheet never produces a rate note", async () => {
+    const { buildBoq } = await import("@/lib/boq/build");
+    expect(buildBoq({ ...input, sheet: "spazay" }).some((l) => l.rateNote)).toBe(false);
   });
 });

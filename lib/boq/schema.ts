@@ -41,6 +41,7 @@ export const lineSchema = z.object({
   rateSource: z.enum(["spazay", "livspace"]).optional(),
   altRate: num.nullish(),
   provisional: z.boolean().optional(),
+  rateNote: z.string().max(200).optional(),
 });
 
 const coverageRow = z.object({
