@@ -53,3 +53,6 @@ next-env.d.ts
 
 # raw brand font files (licence: demo for personal use) - only the web subsets in app/fonts are used
 /fonts/
+
+# keep the template
+!.env.example
