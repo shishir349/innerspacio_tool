@@ -189,7 +189,7 @@ export function ConceptStudio({
       <Card className="border-border/80">
         <CardContent className="space-y-4 pt-6">
           <div className="flex items-center justify-between">
-            <h3 className="display text-[1.4rem] text-foreground">Generate Concepts</h3>
+            <h3 className="display text-[1.8rem] text-foreground">Generate Concepts</h3>
             <Badge variant="outline" className="text-[0.85rem]">
               Provider: {providerName}
               {providerIsDemo ? " (demo)" : ""}

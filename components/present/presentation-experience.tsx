@@ -18,6 +18,9 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/logo";
 import { BrandReveal } from "@/components/motion/brand-reveal";
 import { SmoothScroll } from "@/components/motion/smooth-scroll";
+import { SplitHeading } from "@/components/motion/split-heading";
+import { ScrollProgress } from "@/components/motion/scroll-progress";
+import { ScrollReveal } from "@/components/motion/scroll-reveal";
 
 export function PresentationExperience({
   token,
@@ -107,6 +110,7 @@ export function PresentationExperience({
     {/* Night: the presentation is a dark stage so the renders carry the room. Print falls back to paper. */}
     <div className="dark min-h-screen bg-background pb-28 text-foreground print:pb-0">
       {!readOnly && <BrandReveal name={data.clientFirstName} />}
+      <ScrollProgress />
       {readOnly && (
         <div className="bg-accent px-4 py-2 text-center text-[0.85rem] font-medium text-accent-foreground print:hidden">
           Designer preview — this is exactly what your client sees, but selections and feedback
@@ -126,11 +130,11 @@ export function PresentationExperience({
       <div className="mx-auto max-w-[88rem] px-5 py-12 md:px-10 md:py-20">
         {/* Welcome + progress */}
         <div className="mb-12 md:mb-16">
-          <p className="eyebrow">
+          <SplitHeading as="h1" scroll={false} className="display display-lg max-w-[18ch] text-foreground">{data.projectTitle}</SplitHeading>
+          <p className="label-caps mt-6 text-muted-foreground">
             {data.clientFirstName ? `Welcome, ${data.clientFirstName}` : "Welcome"}
             {data.location ? ` · ${data.location}` : ""}
           </p>
-          <h1 className="display display-lg mt-6 max-w-[18ch] text-foreground">{data.projectTitle}</h1>
           <p className="mt-6 max-w-xl text-[1.05rem] leading-relaxed text-muted-foreground">
             Here&apos;s your personalized design presentation. Explore each room, compare concepts
             against your current space, and let us know what you think.
@@ -154,9 +158,9 @@ export function PresentationExperience({
                   setActiveConceptId("original");
                 }}
                 className={cn(
-                  "font-caps shrink-0 rounded-full border px-5 py-2.5 text-[0.8rem] tracking-[0.12em] uppercase transition-colors duration-300",
+                  "font-caps shrink-0 rounded-md border px-5 py-2.5 text-[0.78rem] font-semibold tracking-[0.12em] uppercase transition-colors duration-300",
                   room.roomId === activeRoom.roomId
-                    ? "border-foreground bg-foreground text-background"
+                    ? "border-primary bg-primary text-primary-foreground"
                     : "border-foreground/25 text-muted-foreground hover:border-foreground hover:text-foreground"
                 )}
               >
@@ -169,16 +173,16 @@ export function PresentationExperience({
           </div>
         )}
 
-        <p className="eyebrow mb-4">{roomTypeLabel}</p>
+        <p className="label-caps mb-4 text-muted-foreground">{roomTypeLabel}</p>
 
         {/* Concept switcher */}
         <div className="mb-4 no-scrollbar flex gap-2 overflow-x-auto pb-1 print:hidden">
           <button
             onClick={() => setActiveConceptId("original")}
             className={cn(
-              "font-caps shrink-0 rounded-full border px-4 py-2 text-[0.82rem] tracking-[0.12em] uppercase transition-colors duration-300",
+              "font-caps shrink-0 rounded-md border px-4 py-2 text-[0.78rem] font-semibold tracking-[0.12em] uppercase transition-colors duration-300",
               activeConceptId === "original"
-                ? "border-saffron bg-saffron text-[#211812]"
+                ? "border-primary bg-primary text-primary-foreground"
                 : "border-foreground/25 text-muted-foreground hover:border-foreground hover:text-foreground"
             )}
           >
@@ -189,9 +193,9 @@ export function PresentationExperience({
               key={concept.id}
               onClick={() => setActiveConceptId(concept.id)}
               className={cn(
-                "font-caps shrink-0 rounded-full border px-4 py-2 text-[0.82rem] tracking-[0.12em] uppercase transition-colors duration-300",
+                "font-caps shrink-0 rounded-md border px-4 py-2 text-[0.78rem] font-semibold tracking-[0.12em] uppercase transition-colors duration-300",
                 activeConceptId === concept.id
-                  ? "border-saffron bg-saffron text-[#211812]"
+                  ? "border-primary bg-primary text-primary-foreground"
                   : "border-foreground/25 text-muted-foreground hover:border-foreground hover:text-foreground"
               )}
             >
@@ -201,13 +205,13 @@ export function PresentationExperience({
           ))}
         </div>
 
-        {/* Main viewer */}
-        <div className="relative">
+        {/* Main viewer: wipes in on every room / concept switch */}
+        <ScrollReveal key={`${activeRoom.roomId}-${activeConceptId}`} variant="wipe" start="top 100%" className="relative">
           {activeConceptId === "original" || !activeConcept ? (
             activeRoom.originalPhotoUrl ? (
               <button
                 onClick={() => setFullscreenIndex(null)}
-                className="relative block aspect-[4/3] w-full overflow-hidden rounded-3xl bg-muted sm:aspect-[16/10]"
+                className="relative block aspect-[4/3] w-full overflow-hidden rounded-2xl bg-muted sm:aspect-[16/10]"
               >
                 <Image
                   src={activeRoom.originalPhotoUrl}
@@ -238,7 +242,7 @@ export function PresentationExperience({
                     afterLabel={activeConcept.title}
                   />
                 ) : (
-                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-muted sm:aspect-[16/10]">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-muted sm:aspect-[16/10]">
                     <Image
                       src={activeConcept.imageUrl}
                       alt={activeConcept.title}
@@ -305,7 +309,7 @@ export function PresentationExperience({
               </div>
             </div>
           )}
-        </div>
+        </ScrollReveal>
 
         {activeRoom.concepts.length === 0 && activeConceptId === "original" && (
           <p className="mt-4 text-[0.95rem] text-muted-foreground">
@@ -320,7 +324,7 @@ export function PresentationExperience({
         </p>
 
         {activeRoom.estimate && (
-          <div className="mt-8">
+          <ScrollReveal className="mt-8">
             <EstimateCard
               token={token}
               roomId={activeRoom.roomId}
@@ -333,7 +337,7 @@ export function PresentationExperience({
                 }))
               }
             />
-          </div>
+          </ScrollReveal>
         )}
       </div>
 

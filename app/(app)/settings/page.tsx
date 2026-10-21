@@ -3,6 +3,7 @@ import { requirePageUser } from "@/lib/auth";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   isAnthropicConfigured,
   isImageGenerationConfigured,
@@ -49,18 +50,13 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-[0.95rem] text-muted-foreground">
-          Studio configuration · Signed in as {user.email}
-        </p>
-        <h1 className="display display-md text-foreground">Settings</h1>
-      </div>
+      <PageHeader title="Settings" description={`Studio configuration · Signed in as ${user.email}`} />
 
       <SettingsForm settings={settings} />
 
       <Card className="border-border/80">
         <CardHeader>
-          <CardTitle className="display text-[1.4rem]">Integration Status</CardTitle>
+          <CardTitle className="display text-[1.8rem]">Integration Status</CardTitle>
         </CardHeader>
         <CardContent className="divide-y divide-border/60">
           <StatusRow

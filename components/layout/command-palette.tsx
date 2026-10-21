@@ -52,11 +52,11 @@ export function CommandPalette({ trigger }: { trigger?: boolean }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="font-caps hidden items-center gap-2 rounded-full border border-foreground/20 px-4 py-2 text-[0.82rem] tracking-[0.12em] text-muted-foreground uppercase transition-colors hover:border-foreground hover:text-foreground lg:inline-flex"
+          className="font-caps hidden items-center gap-2 whitespace-nowrap rounded-md border border-primary/25 px-3 py-2 text-[0.75rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase transition-colors hover:border-primary hover:text-primary lg:inline-flex"
           aria-label="Open command menu"
         >
           <Search className="size-3.5" /> Search
-          <kbd className="rounded bg-secondary px-1.5 py-0.5 text-[0.82rem] tracking-normal">Ctrl K</kbd>
+          <kbd className="rounded bg-accent px-1.5 py-0.5 text-[0.72rem] tracking-normal whitespace-nowrap text-accent-foreground">Ctrl K</kbd>
         </button>
       )}
       <Dialog

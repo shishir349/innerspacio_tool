@@ -79,7 +79,7 @@ export function DesignBriefForm({
     <Card className="border-border/80">
       <CardContent className="space-y-5 pt-6">
         <div>
-          <h3 className="display text-[1.4rem] text-foreground">Design Brief</h3>
+          <h3 className="display text-[1.8rem] text-foreground">Design Brief</h3>
           <p className="text-[0.95rem] text-muted-foreground">
             Capture what the client wants before generating concepts — style, palette, must-keeps
             and budget all shape the AI prompt.

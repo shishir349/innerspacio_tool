@@ -10,6 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Pop } from "@/components/motion/pop";
+import { ScrollProgress } from "@/components/motion/scroll-progress";
+import { SplitHeading } from "@/components/motion/split-heading";
+import { Hero } from "@/components/quote/hero";
 import { ConceptSlider, type SlideItem } from "@/components/quote/concept-slider";
 import { EstimateView, type QuoteEstimate } from "@/components/quote/estimate-view";
 import { EASE, MOTION_OK, gsap, useGSAP } from "@/lib/motion";
@@ -370,7 +373,7 @@ export function QuoteWizard() {
                   key={t.value}
                   className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-4"
                 >
-                  <span className="display text-[1.5rem]">{t.label}</span>
+                  <span className="display text-[1.9rem]">{t.label}</span>
                   <div className="flex items-center gap-3">
                     <Stepper label={`Remove ${t.label}`} disabled={n === 0} onClick={() => bump(t.value, -1)}>
                       <Minus className="size-4" />
@@ -396,7 +399,7 @@ export function QuoteWizard() {
             {PACKAGE_TIERS.map((t) => {
               const info = TIER_INFO[t];
               const world =
-                t === "essential" ? "bg-sand text-foreground" : t === "premium" ? "surface-olive" : "surface-terracotta";
+                t === "essential" ? "bg-card text-foreground ring-1 ring-border" : t === "premium" ? "surface-royal" : "surface-navy";
               const on = d.tier === t;
               return (
                 <button
@@ -408,18 +411,18 @@ export function QuoteWizard() {
                     set("tier", t);
                   }}
                   className={cn(
-                    "relative w-full rounded-3xl p-7 text-left transition-[box-shadow,transform] duration-500 ease-(--ease-out-expo)",
+                    "relative w-full rounded-2xl p-7 text-left transition-[box-shadow,transform] duration-500 ease-(--ease-out-expo)",
                     world,
-                    on ? "ring-2 ring-offset-4 ring-offset-background ring-saffron" : "hover:-translate-y-1"
+                    on ? "ring-2 ring-offset-4 ring-offset-background ring-royal" : "hover:-translate-y-1"
                   )}
                 >
                   <span className="flex items-start justify-between gap-4">
-                    <span className="display text-[2.2rem]">{info.label}</span>
+                    <span className="display text-[2.6rem]">{info.label}</span>
                     <span
                       aria-hidden
                       className={cn(
                         "grid size-8 place-items-center rounded-full transition-all duration-300",
-                        on ? "scale-100 bg-saffron text-foreground" : "scale-75 border border-current opacity-40"
+                        on ? (t === "essential" ? "scale-100 bg-royal text-cream" : "scale-100 bg-cream text-royal") : "scale-75 border border-current opacity-40"
                       )}
                     >
                       {on && <Check className="size-4" />}
@@ -552,19 +555,19 @@ export function QuoteWizard() {
               )}
             </div>
           )}
-          <div className="surface-night mt-14 rounded-3xl p-8 text-center sm:p-12">
+          <div className="surface-navy mt-14 rounded-2xl p-8 text-center sm:p-12">
             <h2 className="display display-md">
               Want an <em>accurate</em> quote?
             </h2>
             <p className="mx-auto mt-4 max-w-md opacity-85">Book a free consultation with an InnerSpacio designer for a detailed quote.</p>
             {consult === "sent" ? (
-              <p className="mt-8 flex items-center justify-center gap-2 text-saffron">
+              <p className="mt-8 flex items-center justify-center gap-2 text-signal">
                 <Check className="size-5" /> Request received. We&apos;ll be in touch soon.
               </p>
             ) : (
               <Button
                 size="lg"
-                className="mt-8 bg-saffron text-foreground hover:bg-[#ffe066]"
+                className="mt-8 bg-cream text-navy hover:bg-white"
                 onClick={() => void requestConsult()}
                 disabled={consult === "sending"}
               >
@@ -652,12 +655,14 @@ function Shell({ step, children }: { step: number; children: React.ReactNode }) 
 
   return (
     <div ref={root} className="min-h-screen bg-background">
-      <div className="sticky top-[72px] z-30 border-b border-border/60 bg-background/90 backdrop-blur-md">
+      <ScrollProgress />
+      {step === 0 && <Hero />}
+      <div id="estimate" className="sticky top-[72px] z-30 border-b border-border/60 bg-background/90 backdrop-blur-md">
         <ol className="mx-auto flex max-w-3xl gap-2 px-5 py-4" aria-label="Progress">
           {STEPS.map((s, i) => (
             <li key={s} className="flex-1" aria-current={i === step ? "step" : undefined}>
-              <div className="h-px overflow-hidden bg-foreground/15">
-                <div data-seg className="h-0.5 origin-left bg-saffron" style={{ transform: `scaleX(${i <= step ? 1 : 0})` }} />
+              <div className="h-px overflow-hidden bg-primary/20">
+                <div data-seg className="h-0.5 origin-left bg-royal" style={{ transform: `scaleX(${i <= step ? 1 : 0})` }} />
               </div>
               <span
                 className={cn(
@@ -680,7 +685,7 @@ function Shell({ step, children }: { step: number; children: React.ReactNode }) 
 function Heading({ title, sub }: { title: string; sub: string }) {
   return (
     <div>
-      <h1 className="display display-md">{title}</h1>
+      <SplitHeading as="h1" scroll={false} className="display display-md">{title}</SplitHeading>
       <p className="mt-4 max-w-lg text-[1.05rem] text-muted-foreground">{sub}</p>
     </div>
   );
@@ -715,11 +720,11 @@ function ChoiceCard({
       }}
       aria-pressed={selected}
       className={cn(
-        "relative w-full rounded-2xl border bg-card px-5 py-4 text-left text-[1.05rem] transition-[border-color,background-color,transform] duration-300 ease-(--ease-out-expo)",
-        selected ? "border-foreground bg-secondary/70" : "border-border hover:-translate-y-0.5 hover:border-foreground/50"
+        "relative w-full rounded-lg border bg-card px-5 py-4 text-left text-[1.05rem] transition-[border-color,background-color,transform] duration-300 ease-(--ease-out-expo)",
+        selected ? "border-primary bg-accent text-accent-foreground" : "border-border hover:-translate-y-0.5 hover:border-primary/60"
       )}
     >
-      {selected && <span aria-hidden className="absolute top-4 right-4 size-2.5 rounded-full bg-saffron" />}
+      {selected && <span aria-hidden className="absolute top-4 right-4 size-2.5 rounded-full bg-royal" />}
       {children}
     </button>
   );
@@ -768,7 +773,7 @@ function RoomPhotoCard({
 
   return (
     <div className="rounded-3xl border border-border bg-card p-6">
-      <h2 className="display text-[1.7rem]">{room.label}</h2>
+      <h2 className="display text-[2.1rem]">{room.label}</h2>
       <div className="mt-4 flex flex-wrap gap-2">
         {urls.map((u, i) => (
           <div key={u} className="relative size-28 overflow-hidden rounded-2xl border border-border">

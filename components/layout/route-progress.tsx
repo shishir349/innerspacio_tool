@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 /**
- * A saffron line that starts the moment an internal link is clicked and finishes when the new page
+ * A royal line that starts the moment an internal link is clicked and finishes when the new page
  * arrives: the click always answers instantly, even while the server is still rendering.
  */
 export function RouteProgress() {
@@ -45,7 +45,7 @@ export function RouteProgress() {
       style={{ opacity: phase === "idle" ? 0 : 1, transition: "opacity 0.3s ease 0.15s" }}
     >
       <div
-        className="h-full origin-left bg-saffron"
+        className="h-full origin-left bg-royal"
         style={{
           transform: `scaleX(${phase === "loading" ? 0.85 : phase === "done" ? 1 : 0})`,
           transition: phase === "loading" ? "transform 6s cubic-bezier(0.1, 0.7, 0.2, 1)" : phase === "done" ? "transform 0.25s ease-out" : "none",

@@ -12,7 +12,7 @@ InnerSpacio AI Studio: the tool InnerSpacio's interior designers use in client m
 - **Existing clients** opening a presentation link: want to see their rooms beautifully, choose, approve.
 
 ## Brand truth
-InnerSpacio: "Your space, your story." Residential interior design and execution in Delhi NCR, 25+ residential projects led by an in-house team. The brand world is innerspacio.com: warm limestone canvas, dark-brown ink, walnut pills, olive/terracotta/gold material cards, a single saffron signal, high-contrast display serif, condensed caps labels.
+InnerSpacio: "Your space, your story." Residential interior design and execution in Delhi NCR, 25+ residential projects led by an in-house team. The brand world is now royal blue (#014BAA) on light cream (#F8F3F0), Paceon display caps over Archivo Medium, drawn like an architect's sheet (see DESIGN.md).
 
 ## Non-negotiables (carried through any redesign)
 - Client-facing pages render only the allowlisted DTOs; no cost, margin, supplier or internal notes.
@@ -22,4 +22,4 @@ InnerSpacio: "Your space, your story." Residential interior design and execution
 - Reduced-motion users get a complete static experience; Lenis only on client-facing routes.
 
 ## Anti-references
-The previous look (ivory + sage + Fraunces/Inter, sidebar app shell) is replaced, not polished. Generic SaaS dashboards, glassy gradients, and stock-photo hero sections are out.
+The earlier looks (ivory + sage + Fraunces/Inter; then walnut + saffron + serif) are replaced, not polished. Generic SaaS dashboards, glassy gradients, and stock-photo hero sections are out.

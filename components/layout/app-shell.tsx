@@ -6,14 +6,16 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { RouteProgress } from "@/components/layout/route-progress";
+import { ScrollProgress } from "@/components/motion/scroll-progress";
 import { DemoModeBanner } from "@/components/shared/demo-mode-banner";
 import { Button } from "@/components/ui/button";
 
-/** Studio shell: a calm 72px top bar, then the work. Native scroll (no Lenis) so tables and dialogs behave. */
+/** Studio shell: a calm 72px top bar, then the work. Lenis scrolls the page; tables, dialogs and selects keep native inner scroll. */
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
       <RouteProgress />
+      <ScrollProgress />
       <DemoModeBanner />
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-[72px] w-full max-w-[96rem] items-center gap-6 px-4 md:px-8">

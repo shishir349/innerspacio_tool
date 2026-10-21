@@ -61,7 +61,7 @@ export function NewProjectDialog({ defaultOpen = false }: { defaultOpen?: boolea
       <DialogContent className="sm:max-w-lg">
         <form action={onSubmit}>
           <DialogHeader>
-            <DialogTitle className="display text-[1.6rem]">New Project</DialogTitle>
+            <DialogTitle className="display text-[2rem]">New Project</DialogTitle>
             <DialogDescription>
               You can save with just a few details and add rooms, photos and preferences later.
             </DialogDescription>

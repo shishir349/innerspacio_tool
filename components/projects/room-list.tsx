@@ -10,7 +10,7 @@ export function RoomList({ project }: { project: Project }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="display text-[1.6rem] text-foreground">Rooms</h2>
+        <h2 className="display text-[2rem] text-foreground">Rooms</h2>
         <RoomFormDialog
           projectId={project.id}
           trigger={

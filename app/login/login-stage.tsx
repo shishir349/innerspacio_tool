@@ -1,13 +1,13 @@
 "use client";
 
 import { useRef } from "react";
-import Image from "next/image";
+import { LogoMark } from "@/components/layout/logo";
 import { SplitText } from "gsap/SplitText";
 import { DUR, EASE, MOTION_OK, gsap, useGSAP } from "@/lib/motion";
 
 gsap.registerPlugin(SplitText); // only the login stage uses it: keep it out of every other bundle
 
-/** The sign-in stage: a gold-lit night room where the roof line draws and a slow glow breathes. */
+/** The sign-in stage: a navy room where the roof line draws and a slow blue glow breathes. */
 export function LoginStage() {
   const root = useRef<HTMLDivElement>(null);
 
@@ -29,14 +29,14 @@ export function LoginStage() {
   );
 
   return (
-    <aside ref={root} className="surface-night relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between lg:p-16">
-      <div data-glow className="stage-gold pointer-events-none absolute -bottom-[30%] -left-[20%] size-[90vmin] opacity-55" aria-hidden />
-      <Image data-logo src="/logo.webp" alt="InnerSpacio" width={890} height={260} priority className="relative h-auto w-72" />
+    <aside ref={root} className="surface-navy relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between lg:p-16">
+      <div data-glow className="stage-glow pointer-events-none absolute -bottom-[30%] -left-[20%] size-[90vmin] opacity-55" aria-hidden />
+      <div data-logo className="relative w-72"><LogoMark className="w-full bg-cream" /></div>
       <div className="relative">
         <h2 data-stage-title className="display display-lg max-w-[12ch]">
           Your space, <em>your story.</em>
         </h2>
-        <p data-stage-fade className="font-caps mt-8 text-[0.82rem] tracking-[0.1em] text-[#d9b48a] uppercase">
+        <p data-stage-fade className="label-caps mt-8 text-signal">
           InnerSpacio · Interior design studio
         </p>
       </div>

@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/motion/reveal";
 import { StatusBadge } from "@/components/projects/status-badge";
+import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -33,17 +34,16 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-14">
-      <header className="flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <h1 className="display display-lg">
-            Welcome <em>back.</em>
-          </h1>
-          {projects.length > 0 && <p className="mt-4 text-[1.05rem] text-muted-foreground">{summary.join(" · ")}</p>}
-        </div>
-        <Button render={<Link href="/projects?new=1" />} size="lg" className="gap-2">
-          <Plus className="size-4" /> New project
-        </Button>
-      </header>
+      <PageHeader
+        large
+        title={<>Welcome <em>back.</em></>}
+        description={projects.length > 0 ? summary.join(" · ") : undefined}
+        actions={
+          <Button render={<Link href="/projects?new=1" />} size="lg" className="gap-2">
+            <Plus className="size-4" /> New project
+          </Button>
+        }
+      />
 
       {!latest ? (
         <p className="rounded-3xl border border-dashed border-border p-14 text-center text-[1.05rem] text-muted-foreground">
@@ -52,13 +52,13 @@ export default async function DashboardPage() {
       ) : (
         <Reveal immediate className="space-y-14">
           <section aria-labelledby="continue">
-            <h2 id="continue" className="eyebrow">
+            <h2 id="continue" className="display text-[2.4rem]">
               Continue where you left off
             </h2>
             <div className="mt-5 rounded-3xl border border-border bg-card p-7 sm:p-9">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <p className="display text-[clamp(1.8rem,3.4vw,2.6rem)] leading-tight">{latest.title}</p>
+                  <p className="display text-[clamp(2.4rem,4.4vw,3.4rem)] leading-[0.95]">{latest.title}</p>
                   <p className="mt-2 text-[1.05rem] text-muted-foreground">
                     {latest.clientName} · {latest.location}
                   </p>
@@ -85,7 +85,7 @@ export default async function DashboardPage() {
           {others.length > 0 && (
             <section aria-labelledby="others">
               <div className="flex items-baseline justify-between">
-                <h2 id="others" className="eyebrow">
+                <h2 id="others" className="display text-[2.4rem]">
                   Other projects
                 </h2>
                 <Link href="/projects" className="link-draw text-[0.95rem] text-muted-foreground hover:text-foreground">

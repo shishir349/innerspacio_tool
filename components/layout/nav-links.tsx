@@ -17,7 +17,7 @@ export const NAV_ITEMS = [
 
 const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + "/");
 
-/** Top-bar navigation. The saffron dot glides (CSS transition, no JS animation) under whichever item is active. */
+/** Top-bar navigation. The royal dot glides (CSS transition, no JS animation) under whichever item is active. */
 export function NavLinks({ orientation = "row", onNavigate }: { orientation?: "row" | "col"; onNavigate?: () => void }) {
   const pathname = usePathname();
   const root = useRef<HTMLElement>(null);
@@ -46,9 +46,9 @@ export function NavLinks({ orientation = "row", onNavigate }: { orientation?: "r
             aria-current={active ? "page" : undefined}
             onClick={onNavigate}
             className={cn(
-              "font-caps rounded-full text-[0.88rem] font-medium uppercase tracking-[0.08em] transition-colors duration-300",
-              orientation === "row" ? "px-3.5 py-2" : "px-4 py-3 text-base",
-              active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              "font-caps whitespace-nowrap rounded-md text-[0.78rem] font-semibold uppercase tracking-[0.1em] transition-colors duration-300",
+              orientation === "row" ? "px-3 py-2" : "px-4 py-3 text-base",
+              active ? "text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
             {item.label}
@@ -58,7 +58,7 @@ export function NavLinks({ orientation = "row", onNavigate }: { orientation?: "r
       {orientation === "row" && (
         <span
           aria-hidden
-          className="pointer-events-none absolute -bottom-1.5 left-0 size-1.5 rounded-full bg-saffron transition-[transform,opacity] duration-500 ease-(--ease-out-expo)"
+          className="pointer-events-none absolute -bottom-1.5 left-0 size-1.5 rounded-full bg-royal transition-[transform,opacity] duration-500 ease-(--ease-out-expo)"
           style={{ transform: `translateX(${dotX ?? 0}px)`, opacity: dotX === null ? 0 : 1 }}
         />
       )}

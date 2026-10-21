@@ -36,7 +36,7 @@ app/presentation/…          designer's own full-screen view (login required)
 app/projects/[id]/preview/  designer previews the client view, read-only
 app/api/projects/[projectId]/rooms/[roomId]/{analyze,concepts,estimate}/route.ts
 components/ui/              shadcn primitives; feature folders beside it
-components/motion/          Develop, BrandReveal, CountUp, Pop (GSAP) + SmoothScroll (Lenis, client-facing only). Studio page/list entrances are CSS (`template.tsx`, `.reveal`); `RouteProgress` + `(app)/loading.tsx` answer every click instantly; list pages use `repo.listProjectSummaries()` (never `listProjects()` for lists); `getCurrentUser` is React-`cache`d per request
+components/motion/          Develop, BrandReveal, CountUp, Pop (GSAP) + SmoothScroll (Lenis, mounted once in the root layout; inner scroll areas opt out). Studio page/list entrances are CSS (`template.tsx`, `.reveal`); `RouteProgress` + `(app)/loading.tsx` answer every click instantly; list pages use `repo.listProjectSummaries()` (never `listProjects()` for lists); `getCurrentUser` is React-`cache`d per request
 lib/
   config.ts                 which integrations are configured (isDemoMode etc.)
   auth.ts                   getCurrentUser / requireUser / requirePageUser
@@ -81,7 +81,7 @@ scripts/create-user.ts      operator CLI (service-role)
 - **`server-only`** is stubbed in Vitest (`test/stubs/server-only.ts`); server modules import it normally. Config is `vitest.config.mts` (must be `.mts`; `.ts` loads as CJS and fails on Node 22).
 - **`<Button render={<Link/>}>`**: `components/ui/button.tsx` sets `nativeButton={false}` whenever `render` is passed (Base UI warns otherwise). Don't pass `render` a real `<button>` without overriding it.
 - **Secrets**: `OPENAI_API_KEY`/`STABILITY_API_KEY` are read only in `server-only` provider files. Never prefix with `NEXT_PUBLIC_`.
-- **Motion**: GSAP only inside `gsap.matchMedia().add(MOTION_OK, …)` (reduced-motion users get none). Lenis only on `/get-quote` (nested scroll areas in the app fight it). Server components pass named formatters to `CountUp` (`"int"|"lakh"`), never functions.
+- **Motion**: GSAP only inside `gsap.matchMedia().add(MOTION_OK, …)` (reduced-motion users get none). Lenis runs site-wide from the root layout (`smooth-scroll.tsx`; `prevent` keeps dialogs, menus, selects, textareas and `.overflow-*` areas native, `/boq-print` native). Look = DESIGN.md "Blueprint": royal `#014BAA` on cream `#F8F3F0`, Paceon display caps (never below ~28px, no rupee/dash glyphs: draw money in Archivo) + Archivo Medium; use `PageHeader` for page titles (no eyebrow above headings), `SplitHeading` / `ScrollReveal` / `Parallax` / `DrawLine` / `Marquee` / `Magnetic` from `components/motion`. Server components pass named formatters to `CountUp` (`"int"|"lakh"`), never functions.
 - Rate limiter is per-process; wrong for multi-instance/serverless — swap via `getRateLimiter()` before scaling.
 
 ## Env

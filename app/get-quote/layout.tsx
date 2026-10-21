@@ -8,7 +8,7 @@ export default function GetQuoteLayout({ children }: { children: React.ReactNode
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-[72px] max-w-[88rem] items-center justify-between px-5 md:px-10">
           <a href="https://innerspacio.com" aria-label="InnerSpacio home">
-            <Logo studio={false} size="sm" />
+            <Logo studio={false} size="md" />
           </a>
           <a
             href="https://innerspacio.com"

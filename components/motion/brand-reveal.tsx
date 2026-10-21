@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import { LogoMark } from "@/components/layout/logo";
 import { DUR, EASE, MOTION_OK, gsap, useGSAP } from "@/lib/motion";
 
 /**
@@ -52,14 +52,14 @@ export function BrandReveal({ name }: { name?: string }) {
 
   if (gone) return null;
   return (
-    <div ref={root} aria-hidden className="fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-night text-[#f3efe6] print:hidden">
-      <div data-glow className="stage-gold absolute size-[120vmax] opacity-60" />
+    <div ref={root} aria-hidden className="fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-navy text-cream print:hidden">
+      <div data-glow className="stage-glow absolute size-[120vmax] opacity-60" />
       <div className="relative flex flex-col items-center">
         <div data-logo className="w-[min(30rem,80vw)]">
-          <Image src="/logo.webp" alt="" width={890} height={260} priority className="h-auto w-full" />
+          <LogoMark className="w-full bg-cream" />
         </div>
         {name && (
-          <p data-for className="font-caps mt-8 text-[0.9rem] tracking-[0.18em] text-[#211812] uppercase">
+          <p data-for className="label-caps mt-8 text-signal">
             A design presentation for {name}
           </p>
         )}

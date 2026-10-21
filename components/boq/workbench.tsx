@@ -116,8 +116,8 @@ const STATE_LABEL: Record<LineState, string> = { confirmed: "Confirmed", assumed
 const STATE_TONE: Record<LineState, string> = { confirmed: "text-emerald-700", assumed: "font-medium text-amber-600", awaiting: "font-medium text-rose-600" };
 
 const selectCls =
-  "h-8 w-full rounded-lg border border-transparent bg-transparent px-2 text-[0.8rem] outline-none transition-colors hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-saffron/70";
-const numCls = "h-8 w-full num rounded-lg border border-transparent bg-transparent px-2 text-right text-[0.8rem] outline-none transition-colors hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-saffron/70";
+  "h-8 w-full rounded-lg border border-transparent bg-transparent px-2 text-[0.8rem] outline-none transition-colors hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-royal/70";
+const numCls = "h-8 w-full num rounded-lg border border-transparent bg-transparent px-2 text-right text-[0.8rem] outline-none transition-colors hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-royal/70";
 
 let keySeq = 1;
 
@@ -696,7 +696,7 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <p className="display text-[2.4rem] leading-none">{formatInr(totals.all)}</p>
+                <p className="num text-[2.4rem] leading-none font-semibold">{formatInr(totals.all)}</p>
                 <Button variant="outline" onClick={deleteAll} disabled={busy !== null} className="gap-2 text-destructive">
                   <Trash2 className="size-4" /> Delete BOQ
                 </Button>

@@ -2,17 +2,42 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Paceon: ultra-condensed display caps (no rupee sign, dashes or arrows: never used for prose or money). Archivo: the working face. */
+@font-face {
+  font-family: "Paceon";
+  src: url("./fonts/paceon.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Archivo";
+  src: url("./fonts/archivo-latin-ext.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Archivo";
+  src: url("./fonts/archivo-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-text), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --font-serif: var(--font-display), Georgia, "Times New Roman", serif;
-  --font-heading: var(--font-display), Georgia, "Times New Roman", serif;
-  --font-caps: var(--font-text), system-ui, sans-serif;
-  --font-wordmark: var(--font-label), "Arial Narrow", sans-serif;
+  --font-serif: "Paceon", "Arial Narrow", Impact, sans-serif;
+  --font-heading: "Paceon", "Arial Narrow", Impact, sans-serif;
+  --font-caps: "Archivo", system-ui, sans-serif;
+  --font-wordmark: "Paceon", "Arial Narrow", Impact, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -42,15 +67,17 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --color-saffron: var(--saffron);
-  --color-olive: var(--olive);
-  --color-terracotta: var(--terracotta);
-  --color-rust: var(--rust);
-  --color-walnut: var(--walnut);
-  --color-umber: var(--umber);
-  --color-sand: var(--sand);
+  --color-royal: var(--royal);
+  --color-royal-deep: var(--royal-deep);
+  --color-cream: var(--cream);
   --color-paper: var(--paper);
-  --color-night: var(--night);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-mist: var(--mist);
+  --color-signal: var(--signal);
+  --color-navy: var(--navy);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -61,86 +88,88 @@
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-:root {
-  /* Atelier: measured from innerspacio.com. Canvas, ink and walnut, with olive, terracotta and ONE saffron signal. */
-  --canvas: #f3efe6;
-  --paper: #fffdf8;
-  --sand: #e8ddcc;
-  --umber: #6e5a49;
-  --walnut: #79553a;
-  --olive: #626a44;
-  --saffron: #ffd21f;
-  --terracotta: #e8501a;
-  --rust: #7e3d25;
-  --night: #0f0907;
 
-  --background: #f3efe6;
-  --foreground: #211812;
-  --card: #fffdf8;
-  --card-foreground: #211812;
-  --popover: #fffdf8;
-  --popover-foreground: #211812;
-  --primary: #79553a;
-  --primary-foreground: #f3efe6;
-  --secondary: #e8ddcc;
-  --secondary-foreground: #211812;
-  --muted: #ece4d6;
-  --muted-foreground: #6e5a49;
-  --accent: #e8ddcc;
-  --accent-foreground: #211812;
-  --destructive: #7e3d25;
-  --border: #ddd2c0;
-  --input: #d6cab6;
-  --ring: #79553a;
-  --chart-1: #79553a;
-  --chart-2: #626a44;
-  --chart-3: #e8501a;
-  --chart-4: #6e5a49;
-  --chart-5: #e3a400;
-  --radius: 0.75rem;
-  --sidebar: #f3efe6;
-  --sidebar-foreground: #211812;
-  --sidebar-primary: #79553a;
-  --sidebar-primary-foreground: #f3efe6;
-  --sidebar-accent: #e8ddcc;
-  --sidebar-accent-foreground: #211812;
-  --sidebar-border: #ddd2c0;
-  --sidebar-ring: #79553a;
+:root {
+  /* Blueprint: cream drafting paper, royal-blue ink. Everything else is a tint of these two. */
+  --cream: #f8f3f0;
+  --paper: #fffcfa;
+  --royal: #014baa;
+  --royal-deep: #01367a;
+  --navy: #051836;
+  --ink: #0a1d42;
+  --ink-soft: #46587a;
+  --mist: #ece5e0;
+  --signal: #8db8f4;
+  --danger: #b3261e;
+  --success: #1c7a54;
+
+  --background: #f8f3f0;
+  --foreground: #0a1d42;
+  --card: #fffcfa;
+  --card-foreground: #0a1d42;
+  --popover: #fffcfa;
+  --popover-foreground: #0a1d42;
+  --primary: #014baa;
+  --primary-foreground: #f8f3f0;
+  --secondary: #ece5e0;
+  --secondary-foreground: #0a1d42;
+  --muted: #f0e9e4;
+  --muted-foreground: #46587a;
+  --accent: #e4ecf8;
+  --accent-foreground: #01367a;
+  --destructive: #b3261e;
+  --border: #014baa26;
+  --input: #014baa40;
+  --ring: #014baa;
+  --chart-1: #014baa;
+  --chart-2: #3f7fd6;
+  --chart-3: #8db8f4;
+  --chart-4: #46587a;
+  --chart-5: #01367a;
+  --radius: 0.5rem;
+  --sidebar: #f8f3f0;
+  --sidebar-foreground: #0a1d42;
+  --sidebar-primary: #014baa;
+  --sidebar-primary-foreground: #f8f3f0;
+  --sidebar-accent: #e4ecf8;
+  --sidebar-accent-foreground: #01367a;
+  --sidebar-border: #014baa26;
+  --sidebar-ring: #014baa;
 }
 
-/* Night: the dark stage for the client presentation and brand moments (also a Settings choice). */
+/* Navy: the dark stage for the client presentation and brand moments (also a Settings choice). */
 .dark {
-  --background: #120d09;
-  --foreground: #f3efe6;
-  --card: #1c1510;
-  --card-foreground: #f3efe6;
-  --popover: #1c1510;
-  --popover-foreground: #f3efe6;
-  --primary: #d9b48a;
-  --primary-foreground: #1a1008;
-  --secondary: #2a2018;
-  --secondary-foreground: #f3efe6;
-  --muted: #241b14;
-  --muted-foreground: #b9a794;
-  --accent: #33271d;
-  --accent-foreground: #f3efe6;
-  --destructive: #e07a57;
-  --border: #3a2d22;
-  --input: #46372a;
-  --ring: #ffd21f;
-  --chart-1: #d9b48a;
-  --chart-2: #9aa470;
-  --chart-3: #e8501a;
-  --chart-4: #b9a794;
-  --chart-5: #ffd21f;
-  --sidebar: #120d09;
-  --sidebar-foreground: #f3efe6;
-  --sidebar-primary: #d9b48a;
-  --sidebar-primary-foreground: #1a1008;
-  --sidebar-accent: #33271d;
-  --sidebar-accent-foreground: #f3efe6;
-  --sidebar-border: #3a2d22;
-  --sidebar-ring: #ffd21f;
+  --background: #051836;
+  --foreground: #f8f3f0;
+  --card: #0a2352;
+  --card-foreground: #f8f3f0;
+  --popover: #0a2352;
+  --popover-foreground: #f8f3f0;
+  --primary: #f8f3f0;
+  --primary-foreground: #051836;
+  --secondary: #0d2c66;
+  --secondary-foreground: #f8f3f0;
+  --muted: #09204a;
+  --muted-foreground: #a9bad8;
+  --accent: #0d2c66;
+  --accent-foreground: #f8f3f0;
+  --destructive: #ff8b80;
+  --border: #f8f3f024;
+  --input: #f8f3f03d;
+  --ring: #8db8f4;
+  --chart-1: #8db8f4;
+  --chart-2: #3f7fd6;
+  --chart-3: #f8f3f0;
+  --chart-4: #a9bad8;
+  --chart-5: #014baa;
+  --sidebar: #051836;
+  --sidebar-foreground: #f8f3f0;
+  --sidebar-primary: #f8f3f0;
+  --sidebar-primary-foreground: #051836;
+  --sidebar-accent: #0d2c66;
+  --sidebar-accent-foreground: #f8f3f0;
+  --sidebar-border: #f8f3f024;
+  --sidebar-ring: #8db8f4;
 }
 
 @layer base {
@@ -150,33 +179,85 @@
   html {
     @apply font-sans;
     font-size: 16px;
-    letter-spacing: 0.003em;
+    font-weight: 500;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    scrollbar-color: var(--royal) var(--cream);
+    scrollbar-width: thin;
   }
   body {
     @apply bg-background text-foreground;
     line-height: 1.55;
+    font-synthesis: none;
   }
+  /* Browser surfaces carry the palette too. */
   ::selection {
-    background: var(--saffron);
-    color: #211812;
+    background: var(--royal);
+    color: var(--cream);
+  }
+  .dark ::selection {
+    background: var(--signal);
+    color: var(--navy);
+  }
+  input,
+  textarea {
+    caret-color: var(--royal);
+  }
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"],
+  progress {
+    accent-color: var(--royal);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--cream);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--royal) 55%, var(--cream));
+    border: 2px solid var(--cream);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--royal);
+  }
+  .dark ::-webkit-scrollbar-track {
+    background: var(--navy);
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    border-color: var(--navy);
   }
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 3px;
     border-radius: 4px;
   }
+  a {
+    text-underline-offset: 0.2em;
+  }
   b,
   strong {
-    font-weight: 600;
+    font-weight: 700;
   }
   h1,
   h2,
   h3,
   h4 {
-    font-weight: 500;
+    font-family: var(--font-heading);
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    text-transform: uppercase;
+    text-wrap: balance;
   }
+  /* Paceon is too condensed to read at body size: bare headings get a poster floor (utility classes still win). */
+  h1 { font-size: 3rem; }
+  h2 { font-size: 2.1rem; }
+  h3 { font-size: 1.75rem; }
+  h4 { font-size: 1.4rem; }
 }
 
 @layer components {
@@ -193,57 +274,54 @@
   .reveal > :nth-child(6) { animation-delay: 300ms; }
   .reveal > :nth-child(n + 7) { animation-delay: 360ms; }
 
-  /* Display serif: the brand headline voice. <em> inside is the italic accent word. */
+  /* Paceon display caps: the poster voice. <em> is the royal-blue accent word (Paceon has no italic). */
   .editorial-heading,
   .display {
     font-family: var(--font-heading);
     font-weight: 400;
-    letter-spacing: -0.012em;
-    line-height: 1.04;
+    letter-spacing: 0.012em;
+    line-height: 0.92;
+    text-transform: uppercase;
     text-wrap: balance;
   }
   .editorial-heading em,
   .display em {
-    font-style: italic;
+    font-style: normal;
+    color: var(--royal);
+  }
+  .dark .display em,
+  .surface-royal .display em,
+  .surface-deep .display em,
+  .surface-navy .display em {
+    color: var(--signal);
   }
   .display-xl {
-    font-size: clamp(3rem, 6.4vw, 6.25rem);
+    font-size: clamp(3.75rem, 11vw, 6rem);
   }
   .display-lg {
-    font-size: clamp(2.5rem, 5.2vw, 4.75rem);
+    font-size: clamp(3rem, 8vw, 5rem);
   }
   .display-md {
-    font-size: clamp(2rem, 3.4vw, 3.25rem);
+    font-size: clamp(2.25rem, 4.6vw, 3.5rem);
   }
-  /* Condensed caps label with a leading rule. */
-  .eyebrow {
+  /* Small label: Archivo caps, tracked. A standalone label only, never a kicker above a heading. */
+  .eyebrow,
+  .label-caps {
     font-family: var(--font-caps);
-    font-weight: 500;
-    font-size: 0.85rem;
-    letter-spacing: 0.1em;
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--umber);
+  }
+  .eyebrow {
+    color: var(--ink-soft);
     display: inline-flex;
     align-items: center;
     gap: 0.75rem;
   }
-  .eyebrow::before {
-    content: "";
-    width: 1.5rem;
-    height: 1px;
-    background: currentColor;
-    opacity: 0.6;
-  }
-  .label-caps {
-    font-family: var(--font-caps);
-    font-weight: 500;
-    font-size: 0.85rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
   /* Numbers that must align in columns (BOQ, rupees, quantities). */
   .num {
-    font-family: var(--font-caps);
+    font-family: var(--font-sans);
     font-weight: 500;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0;
@@ -257,27 +335,46 @@
   .link-draw:focus-visible {
     background-size: 100% 1px;
   }
-  .surface-olive {
-    background: var(--olive);
-    color: #f3efe6;
+  /* Dimension line: the measured hairline with end ticks, drawn like a plan annotation. */
+  .dim-line {
+    position: relative;
+    height: 9px;
+    color: var(--royal);
   }
-  .surface-terracotta {
-    background: radial-gradient(90% 120% at 25% 20%, #cf7448 0%, #7e3d25 55%, #4f200f 100%);
-    color: #fff4e6;
+  .dim-line::before {
+    content: "";
+    position: absolute;
+    inset: 4px 0 auto 0;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.45;
   }
-  .surface-gold {
-    background: radial-gradient(110% 95% at 38% 32%, #fff2a3 0%, #fece22 52%, #e3a400 100%);
-    color: #211812;
+  .dim-line::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(currentColor, currentColor) 0 0 / 1px 100% no-repeat,
+      linear-gradient(currentColor, currentColor) 100% 0 / 1px 100% no-repeat;
+    opacity: 0.45;
   }
-  .surface-night {
-    background: radial-gradient(60% 70% at 50% 40%, #2e1a0d 0%, #0f0907 70%);
-    color: #f3efe6;
+  .surface-royal {
+    background: var(--royal);
+    color: var(--cream);
   }
-  .stage-gold {
-    background: radial-gradient(circle, #fffdf2, #ffecb0 22%, rgba(255, 205, 110, 0.55), transparent 62%);
+  .surface-deep {
+    background: radial-gradient(90% 120% at 25% 15%, #0a63d6 0%, var(--royal) 45%, var(--royal-deep) 100%);
+    color: var(--cream);
+  }
+  .surface-navy {
+    background: radial-gradient(60% 70% at 50% 35%, #0b2f73 0%, var(--navy) 72%);
+    color: var(--cream);
+  }
+  .stage-glow {
+    background: radial-gradient(circle, rgba(141, 184, 244, 0.55), rgba(1, 75, 170, 0.28) 38%, transparent 66%);
   }
   .contact-shadow {
-    box-shadow: 0 28px 48px -28px rgba(33, 24, 18, 0.35);
+    box-shadow: 0 28px 48px -28px rgba(5, 24, 54, 0.4);
   }
   .no-scrollbar {
     scrollbar-width: none;
@@ -318,18 +415,31 @@
   }
 }
 
+/* Split headings stay hidden until SplitText has measured them (set data-split-ready). The animation is a fail-safe so a failed script never hides a heading. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-split]:not([data-split-ready]) {
+    visibility: hidden;
+    animation: split-failsafe 0s 2.2s forwards;
+  }
+}
+@keyframes split-failsafe {
+  to {
+    visibility: visible;
+  }
+}
+
 @media print {
   .dark {
     --background: #fff;
-    --foreground: #211812;
+    --foreground: #0a1d42;
     --card: #fff;
-    --muted: #f3efe6;
-    --muted-foreground: #6e5a49;
-    --border: #ddd2c0;
-    --secondary: #e8ddcc;
-    --primary: #79553a;
-    --primary-foreground: #f3efe6;
-    --accent: #e8ddcc;
+    --muted: #f8f3f0;
+    --muted-foreground: #46587a;
+    --border: #014baa26;
+    --secondary: #ece5e0;
+    --primary: #014baa;
+    --primary-foreground: #f8f3f0;
+    --accent: #e4ecf8;
   }
 }
 

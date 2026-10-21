@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ROOM_TYPES } from "@/lib/types";
 import { Sparkles, Camera, Plus } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -19,17 +20,17 @@ export default async function DesignStudioIndexPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="eyebrow">AI-assisted redesign workflow</p>
-          <h1 className="display display-md mt-4 text-foreground">Design Studio</h1>
-        </div>
-        {rooms.length > 0 && (
-          <Button variant="outline" render={<Link href="/projects" />} className="gap-2">
-            <Plus className="size-4" /> Add a room
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Design Studio"
+        description="AI-assisted redesign: photograph a room, read the space, generate concepts."
+        actions={
+          rooms.length > 0 ? (
+            <Button variant="outline" render={<Link href="/projects" />} className="gap-2">
+              <Plus className="size-4" /> Add a room
+            </Button>
+          ) : undefined
+        }
+      />
 
       {rooms.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-16 text-center">

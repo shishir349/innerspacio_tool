@@ -74,7 +74,7 @@ export function AnalysisPanel({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="display text-[1.4rem] text-foreground">AI Room Analysis</h3>
+          <h3 className="display text-[1.8rem] text-foreground">AI Room Analysis</h3>
           <p className="text-[0.95rem] text-muted-foreground">
             Claude reviews the uploaded photo(s) and drafts observations — always verify on site.
           </p>

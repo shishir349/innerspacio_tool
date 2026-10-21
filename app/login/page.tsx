@@ -19,8 +19,7 @@ export default async function LoginPage() {
       <main className="flex flex-col justify-center px-6 py-16 sm:px-14 lg:px-20">
         <div className="mx-auto w-full max-w-sm">
           <Logo className="lg:hidden" />
-          <p className="eyebrow mt-10 lg:mt-0">Studio workspace</p>
-          <h1 className="display display-md mt-5">
+          <h1 className="display display-md mt-10 lg:mt-0">
             Welcome <em>back.</em>
           </h1>
           <p className="mt-3 text-muted-foreground">Sign in to continue to your projects.</p>

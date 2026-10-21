@@ -7,6 +7,7 @@ import { loadLeadSpec } from "@/lib/boq/lead";
 import { RATE_CARD } from "@/lib/rates/catalog";
 import { UNIT_CLASSES } from "@/lib/boq/classes";
 import { BoqWorkbench, type WorkbenchInitial } from "@/components/boq/workbench";
+import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -39,14 +40,15 @@ export default async function BoqPage({
     const projects = await repo.listProjectSummaries();
     return (
       <div className="space-y-6">
-        <div>
-          <p className="eyebrow">Bill of quantities</p>
-          <h1 className="display display-md mt-4 text-foreground">BOQ Builder</h1>
-          <p className="mt-1 max-w-2xl text-[0.95rem] text-muted-foreground">
-            Every BOQ is saved under a project. Choose the project this BOQ is for.
-            {lead && leadSpec && !leadSpec.projectId && " This lead has no project yet — open it from Leads first."}
-          </p>
-        </div>
+        <PageHeader
+          title="BOQ Builder"
+          description={
+            <>
+              Every BOQ is saved under a project. Choose the project this BOQ is for.
+              {lead && leadSpec && !leadSpec.projectId && " This lead has no project yet — open it from Leads first."}
+            </>
+          }
+        />
         {projects.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border p-8 text-center text-[0.95rem] text-muted-foreground">
             No projects yet.{" "}
@@ -117,21 +119,25 @@ export default async function BoqPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="eyebrow">
-          Bill of quantities ·{" "}
-          <Link href={`/projects/${project.id}`} className="link-draw text-foreground">
-            {project.title}
-          </Link>
-        </p>
-        <h1 className="display display-md mt-4 text-foreground">BOQ <em>builder</em></h1>
-        <p className="mt-3 max-w-2xl text-muted-foreground">
-          Generates a room-by-room BOQ from the InnerSpacio rate card, lets you edit every line, saves it under this
-          project and exports the reference-format workbook.
-          {saved ? ` Reopened “${saved.title}”.` : ""}
-          {leadSpec ? ` Prefilled from lead “${leadSpec.client}”.` : ""}
-        </p>
-      </div>
+      <PageHeader
+        meta={
+          <>
+            Bill of quantities ·{" "}
+            <Link href={`/projects/${project.id}`} className="link-draw text-foreground">
+              {project.title}
+            </Link>
+          </>
+        }
+        title={<>BOQ <em>builder</em></>}
+        description={
+          <>
+            Generates a room-by-room BOQ from the InnerSpacio rate card, lets you edit every line, saves it under this
+            project and exports the reference-format workbook.
+            {saved ? ` Reopened “${saved.title}”.` : ""}
+            {leadSpec ? ` Prefilled from lead “${leadSpec.client}”.` : ""}
+          </>
+        }
+      />
       <BoqWorkbench
         key={saved?.id ?? "new"}
         initial={initial}

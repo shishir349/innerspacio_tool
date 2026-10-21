@@ -65,7 +65,7 @@ export function ConceptSlider({ items }: { items: SlideItem[] }) {
             ) : it.state === "done" && it.url ? (
               <Develop src={it.url} alt={`${it.label} concept`} className="size-full object-cover" />
             ) : (
-              <div className="flex size-full flex-col items-center justify-center gap-3 bg-sand/60 px-6 text-center">
+              <div className="flex size-full flex-col items-center justify-center gap-3 bg-mist/60 px-6 text-center">
                 {it.state === "fail" ? (
                   <>
                     <X className="size-6 text-destructive" />
@@ -83,7 +83,7 @@ export function ConceptSlider({ items }: { items: SlideItem[] }) {
                       {it.state === "queued" ? "Waiting to start…" : "Designing this room…"}
                     </p>
                     <span className="h-px w-32 overflow-hidden bg-foreground/15" aria-hidden>
-                      <span className={cn("block h-0.5 w-1/3 bg-saffron", it.state === "run" && "animate-[slide_1.4s_ease-in-out_infinite]")} />
+                      <span className={cn("block h-0.5 w-1/3 bg-royal", it.state === "run" && "animate-[slide_1.4s_ease-in-out_infinite]")} />
                     </span>
                     <p className="text-[0.85rem] text-muted-foreground">Usually under a minute.</p>
                   </>
@@ -128,7 +128,7 @@ export function ConceptSlider({ items }: { items: SlideItem[] }) {
                 key={it.key}
                 className={cn(
                   "h-1.5 rounded-full transition-all duration-500",
-                  i === active ? "w-6 bg-saffron" : "w-1.5 bg-foreground/20",
+                  i === active ? "w-6 bg-royal" : "w-1.5 bg-foreground/20",
                   it.state === "done" && i !== active && "bg-primary/40"
                 )}
               />

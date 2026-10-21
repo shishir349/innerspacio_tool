@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/format";
 import { formatRange } from "@/lib/quote/format";
 import { Button } from "@/components/ui/button";
 import { openLeadProjectAction } from "@/lib/actions/leads";
+import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -56,10 +57,7 @@ export default async function LeadsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="eyebrow">Self-serve quote requests</p>
-        <h1 className="display display-md mt-4 text-foreground">Leads</h1>
-      </div>
+      <PageHeader title="Leads" description="Quote requests submitted through the self-serve estimate." />
 
       {leads.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border p-8 text-center text-[0.95rem] text-muted-foreground">

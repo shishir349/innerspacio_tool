@@ -4,11 +4,11 @@ import type { ProjectStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const STYLES: Record<ProjectStatus, string> = {
-  new: "bg-sand text-foreground border-transparent",
-  in_progress: "bg-saffron/35 text-foreground border-transparent",
-  concept_review: "bg-terracotta/15 text-rust border-transparent",
-  estimate_ready: "bg-olive/15 text-olive border-transparent",
-  completed: "bg-olive text-primary-foreground border-transparent",
+  new: "bg-mist text-foreground border-transparent",
+  in_progress: "bg-royal/35 text-foreground border-transparent",
+  concept_review: "bg-royal-deep/15 text-danger border-transparent",
+  estimate_ready: "bg-royal/15 text-royal border-transparent",
+  completed: "bg-royal text-primary-foreground border-transparent",
   on_hold: "bg-muted text-muted-foreground border-transparent",
 };
 
