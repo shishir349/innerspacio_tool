@@ -60,11 +60,11 @@ describe("engine: nothing is added that the scope did not ask for", () => {
     const items = [item("Master Bedroom", "wardrobe"), item("Kids Room", "wardrobe")];
     expect(quantify(items, rooms, { tier: "premium", city: "Noida", homeCare: false }).lines).toHaveLength(2);
   });
-  it("by default exactly ONE extra line appears — the deep clean — and it is marked auto-added", () => {
+  it("by default exactly ONE extra line appears — floor protection — and it is marked auto-added", () => {
     const { lines } = quantify([item("Master Bedroom", "wardrobe")], rooms, { tier: "premium", city: "Noida" });
     expect(lines).toHaveLength(2);
     const extra = lines.filter((l) => l.autoAdded);
-    expect(extra.map((l) => l.rateId)).toEqual(["sc:SC02"]);
+    expect(extra.map((l) => l.rateId)).toEqual(["sc:SC04"]);
   });
   it("items stay in their own room and are sized from that room only", () => {
     const { lines } = quantify([item("Master Bedroom", "wardrobe"), item("Kids Room", "wardrobe")], rooms, { tier: "premium", city: "Noida", homeCare: false });

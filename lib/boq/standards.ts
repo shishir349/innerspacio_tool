@@ -59,6 +59,35 @@ export const FURNITURE = {
   bathWallTileH: 8,
 } as const;
 
+/**
+ * Pre-booking standard kitchen (owner's answer): high-gloss laminate shutters, HDHMR carcass with BWP plywood in the
+ * wet area, Hettich hardware, 5-6 Hettich InnoTech drawers (the upper end is used so the estimate is not light) and a
+ * bottle pull-out. Loft is optional, so it is NOT included. Post-booking the kitchen is redesigned to the client's choices.
+ */
+export const KITCHEN_STANDARD = {
+  carcass: "mod:C06", // prelam HDHMR
+  wetCarcass: "mod:C09", // BWP ply, sink / wet base
+  shutter: "mod:S02", // HDHMR + 1mm high-gloss laminate
+  hardware: "mod:H02", // Hettich
+  sinkBaseW: 3,
+  innotechDrawers: 6,
+  bottlePullouts: 1,
+  loft: false,
+} as const;
+
+/** Standard-kitchen inclusions that have NO rate on the card: stated in the estimate, never priced from a guess. */
+export const KITCHEN_UNPRICED = ["grain trolley", "1 wicker basket", "GTPT unit"] as const;
+
+/** Wall tile height assumed for every bathroom until measured (validated post-booking, on site). */
+export const BATH_TILE_H = 8;
+
+/** Shown with every estimate: these are priced only when a requirement asks for them. */
+export const OPT_IN_DISCLAIMER =
+  "Deep cleaning, electrical work (points, modifications), waterproofing and other services are NOT included unless specifically requested; they are quoted separately on request. Floor protection during works is included.";
+/** Sanitaryware, CP fittings and appliances stay with the client (wide choice, budget varies by selection). */
+export const CLIENT_SCOPE_NOTE =
+  "Sanitaryware, CP fittings and fixtures are in the client's scope and are not priced. The vanity unit is priced (modular work).";
+
 export function carpetArea(bhk: Bhk, size: HomeSize | undefined): number {
   const c = CARPET_SQFT[bhk] ?? CARPET_SQFT["2"];
   return size === "large" ? c.large : c.small;

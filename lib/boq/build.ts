@@ -1,5 +1,5 @@
 import { findRate, getRate } from "@/lib/rates/catalog";
-import { CEILING_H, FURNITURE as F, ROOM_STANDARDS, SECONDARY_BEDROOM, WALL_NET, carpetArea, roomScale } from "@/lib/boq/standards";
+import { BATH_TILE_H, CEILING_H, CLIENT_SCOPE_NOTE, FURNITURE as F, KITCHEN_STANDARD as KS, KITCHEN_UNPRICED, OPT_IN_DISCLAIMER, ROOM_STANDARDS, SECONDARY_BEDROOM, WALL_NET, carpetArea, roomScale } from "@/lib/boq/standards";
 import { livspaceModular, resolveRate, type RateSheet, type RateSource } from "@/lib/rates/sheets";
 import { BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
 import {
@@ -114,15 +114,12 @@ interface Spec {
   stoneFab: string;
   backsplash: "tile" | "stone";
   sinkCut: string;
-  bathPackage: string;
   partition: string;
   mirror: string;
   lf: "LFB" | "LFE" | "LFL";
   decor: string | null;
-  kitchenExtras: string[];
   floor: { living: string | null; bed: string | null };
   skirt: { living: string | null; bed: string | null };
-  ledProfile: boolean;
   loft: boolean;
   curtain: string;
 }
@@ -139,15 +136,12 @@ const SPEC: Record<PackageTier, Spec> = {
     stoneFab: "cv:CV07",
     backsplash: "tile",
     sinkCut: "cv:CV17",
-    bathPackage: "bth:BTH01",
     partition: "mg:MG12",
     mirror: "mg:MG01",
     lf: "LFB",
     decor: null,
-    kitchenExtras: ["mod:K01"],
     floor: { living: null, bed: null },
     skirt: { living: null, bed: null },
-    ledProfile: false,
     loft: false,
     curtain: "fu:BF02",
   },
@@ -162,15 +156,12 @@ const SPEC: Record<PackageTier, Spec> = {
     stoneFab: "cv:CV09",
     backsplash: "stone",
     sinkCut: "cv:CV17",
-    bathPackage: "bth:BTH01",
     partition: "mg:MG13",
     mirror: "mg:MG04",
     lf: "LFE",
     decor: "fu:BF14",
-    kitchenExtras: ["mod:K01", "mod:K09", "mod:K14"],
     floor: { living: "fl:FL13", bed: "fl:FL04" },
     skirt: { living: "fl:SK13", bed: "fl:SK03" },
-    ledProfile: false,
     loft: true,
     curtain: "fu:BF03",
   },
@@ -185,15 +176,12 @@ const SPEC: Record<PackageTier, Spec> = {
     stoneFab: "cv:CV09",
     backsplash: "stone",
     sinkCut: "cv:CV18",
-    bathPackage: "bth:BTH02",
     partition: "mg:MG14",
     mirror: "mg:MG04",
     lf: "LFL",
     decor: "fu:BF15",
-    kitchenExtras: ["mod:K01", "mod:K03", "mod:K09", "mod:K13", "mod:K14", "mod:K15"],
     floor: { living: "fl:FL10", bed: "fl:FL06" },
     skirt: { living: "fl:SK10", bed: "fl:SK06" },
-    ledProfile: true,
     loft: true,
     curtain: "fu:BF03",
   },
@@ -282,7 +270,7 @@ function push(
 }
 
 /** Carcass + shutter + hardware for `w × h` ft of cabinet elevation (Spazay prices them separately). */
-function modular(ctx: Ctx, room: BoqRoom, item: string, w: number, h: number, note: string) {
+function modular(ctx: Ctx, room: BoqRoom, item: string, w: number, h: number, note: string, parts?: Pick<Spec, "carcass" | "shutter" | "hardware">) {
   const area = w * h;
   const dims = { l: w, h };
   const ls = livspaceModular(item);
@@ -310,8 +298,9 @@ function modular(ctx: Ctx, room: BoqRoom, item: string, w: number, h: number, no
     return;
   }
   // Spazay's professional BOQ prices a unit as ONE all-in line (carcass + shutter + hardware).
-  const parts = [ctx.spec.carcass, ctx.spec.shutter, ctx.spec.hardware].map((id) => getRate(id));
-  const rate = parts.reduce((n, p) => n + Math.round(p.rate * ctx.factor), 0);
+  const p3 = parts ?? ctx.spec;
+  const pr = [p3.carcass, p3.shutter, p3.hardware].map((id) => getRate(id));
+  const rate = pr.reduce((n, p) => n + Math.round(p.rate * ctx.factor), 0);
   const q = r2(area);
   const alt = ctx.sheet === "both" && ls ? Math.round(ls.rate * ctx.factor) : undefined;
   const rateNote =
@@ -320,10 +309,10 @@ function modular(ctx: Ctx, room: BoqRoom, item: string, w: number, h: number, no
     room,
     trade: "Modular Woodwork",
     item,
-    code: parts.map((p) => p.code).join("+"),
+    code: pr.map((p) => p.code).join("+"),
     rateId: MODULAR_ALLIN,
     description:
-      `Modular ${item.toLowerCase()} with ${parts[0].item} carcass, ${parts[1].item} shutters/fronts and ${parts[2].item}, ` +
+      `Modular ${item.toLowerCase()} with ${pr[0].item} carcass, ${pr[1].item} shutters/fronts and ${pr[2].item}, ` +
       "including standard internal shelves, drawers and hanging provision as per approved design. " +
       "Measured on finished cabinet elevation area; visible sides, extra depth and add-ons are separate.",
     ...(note ? { remarks: note } : {}),
@@ -348,11 +337,8 @@ function envelope(ctx: Ctx, room: BoqRoom, L: number, B: number, opts: { paintWa
   const { spec } = ctx;
   if (!opts.wet) {
     push(ctx, room, spec.ceiling, "False Ceiling", floor, { l: L, b: B }, "Gypsum false ceiling");
-    push(ctx, room, "el:EL04", "Electrical Point", floor, { l: L, b: B }, "False-ceiling wiring and conduit");
     push(ctx, room, spec.paint, "Paint", wall * (opts.paintWalls ?? 1), opts.paintWalls ? {} : { l: 2 * (L + B), h: CEILING_H }, "Wall paint, 2 coats over primer");
     push(ctx, room, CEILING_PAINT, "Paint", floor, { l: L, b: B }, "Ceiling paint");
-    push(ctx, room, "el:EL30", "Electrical Point", Math.max(2, Math.round(floor / 25)), {}, "Light points");
-    push(ctx, room, "el:EL13", "Electrical Point", floor > 150 ? 2 : 1, {}, "Switch / socket boards");
   }
 }
 
@@ -362,13 +348,10 @@ function livingRoom(ctx: Ctx, room: BoqRoom, L: number, B: number) {
   modular(ctx, room, "TV Unit", F.tvBase.w, F.tvBase.h, `TV base unit, ${F.tvBase.w} ft × ${F.tvBase.h} ft`);
   modular(ctx, room, "TV Unit", F.tvFloat.w, F.tvFloat.h, `TV floating wall unit, ${F.tvFloat.w} ft × ${F.tvFloat.h} ft`);
   push(ctx, room, spec.panel, "Wall Panelling", F.tvPanel.w * F.tvPanel.h, { l: F.tvPanel.w, h: F.tvPanel.h }, `TV wall panelling, ${F.tvPanel.w} ft × ${F.tvPanel.h} ft`);
-  push(ctx, room, "el:EL11", "Electrical Point", 1, {}, "TV + data point");
-  push(ctx, room, "el:EL35", "Electrical Point", 1, {}, "32A AC point");
   if (spec.floor.living) {
     push(ctx, room, spec.floor.living, "Floor Tiling", L * B, { l: L, b: B }, "Flooring");
     if (spec.skirt.living) push(ctx, room, spec.skirt.living, "Floor Tiling", 2 * (L + B), {}, "Skirting");
   }
-  if (spec.ledProfile) push(ctx, room, "el:EL08", "Decorative Lighting", L * B, { l: L, b: B }, "LED profile lighting allowance");
   push(ctx, room, spec.curtain, "Curtain Channels/Rods", B, { l: B }, "Curtain channel along window wall");
   push(ctx, room, `lf:${spec.lf}01`, "Sofa", 1, {}, "3-seater sofa");
   push(ctx, room, `lf:${spec.lf}03`, "Coffee Table", 1, {}, "Coffee table");
@@ -389,9 +372,13 @@ function kitchen(ctx: Ctx, room: BoqRoom, L: number, B: number) {
   const run = Math.max(8, L + B - 3); // L-shaped run, ft
   const top = run * F.counterDepth;
   envelope(ctx, room, L, B, { paintWalls: 0.4 });
-  modular(ctx, room, "Kitchen Base Unit", run, F.kitchenUnitH, `Base units, ${r2(run)} ft run`);
-  modular(ctx, room, "Kitchen Wall Unit", r2(run * F.kitchenWallRun), F.kitchenUnitH, `Wall units, ${r2(run * F.kitchenWallRun)} ft run`);
-  modular(ctx, room, "Kitchen Tall Unit", F.kitchenTall.w, F.kitchenTall.h, `Tall pantry unit, ${F.kitchenTall.w} ft × ${F.kitchenTall.h} ft`);
+  // Standard pre-booking kitchen: HDHMR carcass, BWP ply at the sink base, high-gloss laminate, Hettich.
+  const std = { carcass: KS.carcass, shutter: KS.shutter, hardware: KS.hardware };
+  const wet = Math.min(KS.sinkBaseW, run);
+  modular(ctx, room, "Kitchen Base Unit", r2(run - wet), F.kitchenUnitH, `Base units, ${r2(run - wet)} ft run, HDHMR carcass`, std);
+  modular(ctx, room, "Kitchen Base Unit", wet, F.kitchenUnitH, `Sink base unit, ${wet} ft, BWP plywood carcass (wet area)`, { ...std, carcass: KS.wetCarcass });
+  modular(ctx, room, "Kitchen Wall Unit", r2(run * F.kitchenWallRun), F.kitchenUnitH, `Wall units, ${r2(run * F.kitchenWallRun)} ft run`, std);
+  modular(ctx, room, "Kitchen Tall Unit", F.kitchenTall.w, F.kitchenTall.h, `Tall pantry unit, ${F.kitchenTall.w} ft × ${F.kitchenTall.h} ft`, std);
   push(ctx, room, spec.stone, "Countertop - Supply", top, { l: run, b: F.counterDepth }, "Countertop slab supply");
   push(ctx, room, spec.stoneFab, "Countertop", top, { l: run, b: F.counterDepth }, "Countertop fabrication and installation");
   if (spec.backsplash === "stone") {
@@ -402,12 +389,9 @@ function kitchen(ctx: Ctx, room: BoqRoom, L: number, B: number) {
   }
   push(ctx, room, "cv:CV16", "Countertop", 1, {}, "Hob cut-out");
   push(ctx, room, spec.sinkCut, "Sink & Faucet", 1, {}, "Sink cut-out");
-  for (const id of spec.kitchenExtras) push(ctx, room, id, "Kitchen Cabinetry (Top & Bottom)", 1, {}, getRate(id).item);
+  push(ctx, room, "mod:K03", "Kitchen Cabinetry (Top & Bottom)", KS.innotechDrawers, {}, `Hettich InnoTech drawers (${KS.innotechDrawers})`);
+  push(ctx, room, "mod:K14", "Kitchen Cabinetry (Top & Bottom)", KS.bottlePullouts, {}, "Bottle pull-out");
   push(ctx, room, "cv:CV25", "Plumbing Point", 2, {}, "Sink and appliance plumbing points");
-  push(ctx, room, "cv:WP03", "Civil Work", L * B, { l: L, b: B }, "Kitchen wet-area waterproofing");
-  push(ctx, room, "el:EL03", "Electrical Point", 3, {}, "Hob, fridge, microwave points");
-  push(ctx, room, "el:EL35", "Electrical Point", 1, {}, "32A point");
-  push(ctx, room, "el:EL09", "Electrical Point", 1, {}, "Exhaust-fan point");
   if (ctx.tier !== "essential") push(ctx, room, "cv:CV04", "Floor Tiling", L * B, { l: L, b: B }, "Floor tiling");
 }
 
@@ -427,30 +411,23 @@ function bedroom(ctx: Ctx, room: BoqRoom, L: number, B: number, index: number) {
   push(ctx, room, `lf:${spec.lf}${index === 0 ? "08" : "07"}`, index === 0 ? "King Size Bed" : "Queen Size Bed", 1, {}, "Bed with storage, frame only");
   push(ctx, room, `lf:${spec.lf}09`, "Soft Furnishings", 1, {}, "Mattress");
   push(ctx, room, `lf:${spec.lf}10`, "End/Side Table", 1, {}, "Pair of bedside tables");
-  push(ctx, room, "el:EL35", "Electrical Point", 1, {}, "32A AC point");
   if (spec.floor.bed) {
     push(ctx, room, spec.floor.bed, "Floor Tiling", L * B, { l: L, b: B }, "Flooring");
     if (spec.skirt.bed) push(ctx, room, spec.skirt.bed, "Floor Tiling", 2 * (L + B), {}, "Skirting");
   }
-  if (spec.ledProfile) push(ctx, room, "el:EL08", "Decorative Lighting", L * B, { l: L, b: B }, "LED profile lighting allowance");
   push(ctx, room, spec.curtain, "Curtain Channels/Rods", B, { l: B }, "Curtain channel along window wall");
 }
 
 function bathroom(ctx: Ctx, room: BoqRoom, L: number, B: number) {
   const { spec } = ctx;
   const floor = L * B;
-  const wallTile = 2 * (L + B) * F.bathWallTileH * WALL_NET;
-  push(ctx, room, "cv:CV10", "Civil Work", floor, { l: L, b: B }, "Bathroom waterproofing");
+  const wallTile = 2 * (L + B) * BATH_TILE_H * WALL_NET;
   push(ctx, room, "cv:CV04", "Floor Tiling", floor, { l: L, b: B }, "Floor tiling");
-  push(ctx, room, "cv:CV03", "Wall Tiling", wallTile, { l: 2 * (L + B), h: F.bathWallTileH }, `Wall tiling up to ${F.bathWallTileH} ft`);
+  push(ctx, room, "cv:CV03", "Wall Tiling", wallTile, { l: 2 * (L + B), h: BATH_TILE_H }, `Wall tiling up to ${BATH_TILE_H} ft`);
   push(ctx, room, "fc:FC28", "False Ceiling", floor, { l: L, b: B }, "Grid ceiling");
-  push(ctx, room, spec.bathPackage, "Sanitary Fittings", 1, {}, "Sanitaryware and CP fittings package");
   modular(ctx, room, "Bathroom Vanity", F.vanity.w, F.vanity.h, `Vanity unit, ${F.vanity.w} ft × ${F.vanity.h} ft`);
   push(ctx, room, spec.partition, "Mirror / Glass", F.partition.w * F.partition.h, { l: F.partition.w, h: F.partition.h }, `Shower partition, ${F.partition.w} ft × ${F.partition.h} ft`);
   push(ctx, room, spec.mirror, "Mirror / Glass", F.vanityMirror.w * F.vanityMirror.h, { l: F.vanityMirror.w, h: F.vanityMirror.h }, `Vanity mirror, ${F.vanityMirror.w} ft × ${F.vanityMirror.h} ft`);
-  push(ctx, room, "fu:BF10", "Sanitary Fittings", 1, {}, "Storage geyser, supply");
-  push(ctx, room, "el:EL09", "Electrical Point", 1, {}, "Exhaust-fan point");
-  push(ctx, room, "el:EL30", "Electrical Point", 3, {}, "Light points");
 }
 
 function otherRoom(ctx: Ctx, room: BoqRoom, L: number, B: number) {
@@ -461,7 +438,6 @@ function otherRoom(ctx: Ctx, room: BoqRoom, L: number, B: number) {
 function wholeHome(ctx: Ctx, carpet: number) {
   const room: BoqRoom = "Others / Whole Home Civil";
   push(ctx, room, "sc:SC04", "Cleaning / Protection", carpet, {}, "Floor protection during works");
-  push(ctx, room, "sc:SC02", "Cleaning / Protection", carpet, {}, "Post-renovation deep cleaning");
   if (ctx.spec.decor) push(ctx, room, ctx.spec.decor, "Furnishing", 1, {}, "Art & décor styling allowance");
 }
 
@@ -631,9 +607,9 @@ export const REPAINT: Record<PackageTier, string> = {
 /** Ceilings take one mid-grade emulsion at every tier (Asian Royale Aspira, fresh). */
 const CEILING_PAINT = "ps:F03";
 
-/** The loose-furniture grade prefix and bathroom package a tier uses (the server enforces these on AI-picked ids). */
-export function tierGrade(tier: PackageTier): { lf: Spec["lf"]; bath: string } {
-  return { lf: SPEC[tier].lf, bath: SPEC[tier].bathPackage };
+/** The loose-furniture grade prefix a tier uses (the server enforces it on AI-picked ids). */
+export function tierGrade(tier: PackageTier): { lf: Spec["lf"] } {
+  return { lf: SPEC[tier].lf };
 }
 
 /** Rate ids the tier uses for common finishes — a hint for the AI scope step. */
@@ -647,7 +623,6 @@ export function tierHints(tier: PackageTier): Record<string, string> {
     falseCeiling: s.ceiling,
     wallPaint: s.paint,
     looseFurniture: `${s.lf}01-${s.lf}15 only (grade fixed by the tier)`,
-    bathroomFittings: s.bathPackage,
     repaintExistingWalls: REPAINT[tier],
     stone: s.stone,
     showerPartition: s.partition,
@@ -668,6 +643,9 @@ export function specAssumptions(input: Pick<BoqInput, "bhk" | "homeSize">): stri
     `All quantities are standard-size ESTIMATES for a ${input.bhk} BHK of about ${carpet} sq ft carpet, not measurements. Replace with site measurements before issue.`,
     `Room sizes (ft): living ${dim("living_room")}, dining ${dim("dining_room")}, kitchen ${dim("kitchen")}, bedroom ${dim("bedroom")} (later bedrooms ${Math.round((1 - SECONDARY_BEDROOM) * 100)}% smaller), bathroom ${dim("bathroom")}; ceiling ${CEILING_H} ft; ${Math.round(WALL_NET * 100)}% of wall area after doors and windows.`,
     `Joinery: master wardrobe ${F.wardrobeMaster.w}×${F.wardrobeMaster.h} ft, other bedrooms ${F.wardrobeOther.w}×${F.wardrobeOther.h} ft (never more than ${Math.round(F.wardrobeMaxShare * 100)}% of the room's long side), TV unit ${F.tvBase.w}×${F.tvBase.h} ft plus a ${F.tvFloat.w}×${F.tvFloat.h} ft floating unit, crockery ${F.crockery.w}×${F.crockery.h} ft.`,
+    `Kitchen (pre-booking standard): high-gloss laminate shutters, HDHMR carcass with BWP plywood at the sink base, Hettich hardware, ${KS.innotechDrawers} InnoTech drawers and a bottle pull-out; loft is optional and not included. Also standard but with no card rate, so NOT priced: ${KITCHEN_UNPRICED.join(", ")}. Redesigned to the client's choices after booking.`,
+    `Bathroom wall tiling is taken to ${BATH_TILE_H} ft (validated on site after booking). ${CLIENT_SCOPE_NOTE}`,
+    OPT_IN_DISCLAIMER,
     "Rates are package rates: the Spazay card items scaled so a standard home of this size and tier lands in InnerSpacio's price band. Essential, Premium and Luxury change the specification and scope.",
   ];
 }

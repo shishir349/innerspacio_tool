@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { WALL_NET } from "@/lib/boq/standards";
+import { BATH_TILE_H, WALL_NET } from "@/lib/boq/standards";
 import { cityNote, makeLine, modularLines, SCOPE_STATUSES, type BoqLine, type QtySource, type ScopeStatus } from "@/lib/boq/build";
 import { BOQ_ITEMS, BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
 import { findRate } from "@/lib/rates/catalog";
@@ -109,10 +109,8 @@ export interface QuantifyOptions {
   city: string;
   /** Rate sheet that prices the lines (default Spazay). */
   sheet?: RateSheet;
-  /** Add whole-home post-renovation deep cleaning on the plan's floor area (default true). */
+  /** Add whole-home floor protection on the plan's floor area (default true). Deep cleaning is NEVER added by default. */
   homeCare?: boolean;
-  /** Also add floor protection for the whole plan (default false — only when asked for). */
-  floorProtection?: boolean;
 }
 
 /** What each designer requirement turned into — drives the Scope Coverage sheet and gap warnings. */
@@ -136,7 +134,7 @@ const PRIMER_IDS = [PRIMER, "pt:PT12"];
 export const HELD_STATUSES: readonly ScopeStatus[] = ["RETAIN", "EXCLUDED", "UNCONFIRMED"];
 
 export function quantify(
-  allItems: BriefItem[],
+  rawItems: BriefItem[],
   rooms: PlanRoom[],
   opts: QuantifyOptions
 ): { lines: BoqLine[]; warnings: string[]; coverage: CoverageRow[] } {
@@ -145,6 +143,10 @@ export function quantify(
   const cn = cityNote(opts.city);
   if (cn) warnings.push(cn);
   const coverage = new Map<string, CoverageRow>();
+  // Tier grade, client-scope fixtures and opt-in services are enforced before anything is priced or recorded.
+  const guarded = guardFurniture(rawItems, opts.tier);
+  warnings.push(...guarded.warnings);
+  const allItems = guarded.items;
   // Scope status gate: held items are recorded in coverage and never priced; a REFURBISH needs its own
   // refurbishment rate (naming a unit class would price a brand-new unit, so it is held until a rate is given).
   const status = (i: BriefItem): ScopeStatus => i.status ?? "NEW";
@@ -154,9 +156,7 @@ export function quantify(
     if (status(i) === "UNCONFIRMED") warnings.push(`${i.room}: UNCONFIRMED — “${i.requirement.slice(0, 70)}” is not priced until the designer confirms the scope.`);
     if (status(i) === "REFURBISH") warnings.push(`${i.room}: REFURBISH — “${i.requirement.slice(0, 70)}” has no refurbishment rate on the card; add a manual line.`);
   }
-  const guarded = guardFurniture(allItems.filter((i) => !isHeld(i)), opts.tier);
-  warnings.push(...guarded.warnings);
-  const items = guarded.items;
+  const items = allItems.filter((i) => !isHeld(i));
   const sheet = opts.sheet ?? "spazay";
   // Several plan rooms can map to one BOQ room (e.g. extra bedrooms): measure them together.
   const sized = (r: BoqRoom) => rooms.filter((x) => x.boqRoom === r && x.l > 0 && x.b > 0);
@@ -296,8 +296,10 @@ export function quantify(
           );
         }
         if (it.basis === "wall_area") {
-          qty = group.reduce((n, g) => n + 2 * (g.l + g.b) * g.h * WALL_NET, 0);
-          dims = { l: 2 * (room.l + room.b), h: room.h };
+          // Bathroom wall finishes run to the standard tile height (8 ft) until measured; paint keeps the room height.
+          const wallH = (r: PlanRoom) => (/Bathroom/.test(it.room) && rate.trade !== "Paint & Polish" ? Math.min(r.h, BATH_TILE_H) : r.h);
+          qty = group.reduce((n, g) => n + 2 * (g.l + g.b) * wallH(g) * WALL_NET, 0);
+          dims = { l: 2 * (room.l + room.b), h: wallH(room) };
           if (rate.trade === "Paint & Polish") {
             const feature = lines
               .filter((l) => l.room === it.room && l.trade === "Wall Panelling" && l.uom === "Sq.Ft.")
@@ -360,9 +362,9 @@ export function quantify(
     track();
   }
 
-  // The scope may already carry its own cleaning line; do not add a second one.
-  const hasCleaning = lines.some((l) => l.trade === "Site Protection, Deep Cleaning & Handover");
-  if (opts.homeCare !== false && !hasCleaning) {
+  // Floor protection is a default charge; the scope may already carry its own, so do not add a second one.
+  const hasProtection = lines.some((l) => l.rateId === "sc:SC04" || l.rateId === "sc:SC05");
+  if (opts.homeCare !== false && !hasProtection) {
     const seen = new Set<string>();
     let floor = 0;
     for (const r of rooms) {
@@ -374,11 +376,8 @@ export function quantify(
     if (floor > 0) {
       const home: BoqRoom = "Others / Whole Home Civil";
       const extras: [string, string, string][] = [
-        ["sc:SC02", "Post-renovation deep cleaning (on plan floor area).", "Post-renovation deep cleaning"],
+        ["sc:SC04", "Floor protection during works (on plan floor area).", "Floor protection during works"],
       ];
-      if (opts.floorProtection) {
-        extras.unshift(["sc:SC04", "Floor protection during works (on plan floor area).", "Floor protection during works"]);
-      }
       for (const [id, note, title] of extras) {
         const l = makeLine(id, home, "Cleaning / Protection", r2(floor), {}, note, opts.city, sheet, title);
         if (l) lines.push({ ...l, area: "Whole Home", autoAdded: true, qtySource: rooms.every((r) => r.source !== "assumed") ? "measured" : "estimated" });

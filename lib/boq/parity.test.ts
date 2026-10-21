@@ -7,7 +7,7 @@ const master: PlanRoom = { id: "m", name: "Master", boqRoom: "Master Bedroom", l
 const plan: PlanRoom[] = [master, { id: "l", name: "Living", boqRoom: "Living", l: 10, b: 10, h: 10, source: "labelled" }];
 const o = { tier: "premium" as const, city: "Delhi" };
 const rate = (p: Partial<BriefItem>): BriefItem => ({
-  room: "Master Bedroom", requirement: "req", kind: "rate", basis: "count", ...p,
+  room: "Master Bedroom", requirement: "req: electrical points", kind: "rate", basis: "count", ...p,
 });
 
 describe("repaint is measured net of the feature wall", () => {
@@ -78,11 +78,9 @@ describe("companions and multipliers", () => {
 });
 
 describe("whole-home care", () => {
-  it("default: deep cleaning only — floor protection is opt-in", () => {
+  it("default: floor protection only — deep cleaning is never added unless a requirement asks for it", () => {
     const { lines } = quantify([], plan, o);
-    expect(lines.map((l) => l.code)).toEqual(["SC02"]);
-    const withProt = quantify([], plan, { ...o, floorProtection: true }).lines.map((l) => l.code);
-    expect(withProt.sort()).toEqual(["SC02", "SC04"]);
+    expect(lines.map((l) => l.code)).toEqual(["SC04"]);
   });
 
   it("homeCare:false adds nothing", () => {

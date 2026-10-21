@@ -97,8 +97,8 @@ describe("model slips are absorbed", () => {
 
   it("a second 'one per level / room' unit is dropped with a warning", () => {
     const items = [
-      unit({ room: "Others / Whole Home Civil", unit: "deep_clean", basis: "area", requirement: "ground" }),
-      unit({ room: "Others / Whole Home Civil", unit: "deep_clean", basis: "area", requirement: "first" }),
+      unit({ room: "Others / Whole Home Civil", unit: "deep_clean", basis: "area", requirement: "deep clean ground" }),
+      unit({ room: "Others / Whole Home Civil", unit: "deep_clean", basis: "area", requirement: "deep clean first" }),
       unit({ room: "Master Bedroom", unit: "wardrobe", area: "Dress" }),
       unit({ room: "Master Bedroom", unit: "wardrobe", area: "Dress", requirement: "again" }),
       unit({ room: "Master Bedroom", unit: "wardrobe", area: "Bedroom", requirement: "other area" }),

@@ -6,7 +6,7 @@ const room = (p: Partial<PlanRoom>): PlanRoom => ({
   id: "r1", name: "Bed", boqRoom: "Master Bedroom", l: 12, b: 14, h: 10, source: "labelled", ...p,
 });
 const item = (p: Partial<BriefItem>): BriefItem => ({
-  room: "Master Bedroom", requirement: "req", kind: "rate", basis: "count", ...p,
+  room: "Master Bedroom", requirement: "req: electrical points", kind: "rate", basis: "count", ...p,
 });
 const opts = { tier: "premium" as const, city: "Delhi", homeCare: false };
 
@@ -30,7 +30,7 @@ describe("quantify edge cases", () => {
 
   it("two rooms sharing an id are counted once in home-care floor area", () => {
     const r = quantify([], [room({ id: "x" }), room({ id: "x", boqRoom: "Utility", l: 5, b: 5 })], { tier: "premium", city: "Delhi" });
-    expect(r.lines.find((l) => l.rateId === "sc:SC02")!.qty).toBe(168);
+    expect(r.lines.find((l) => l.rateId === "sc:SC04")!.qty).toBe(168);
   });
 
   it("two plan rooms with same boqRoom: items measure both", () => {
@@ -65,10 +65,11 @@ describe("quantify edge cases", () => {
 
 import { quantify as q2 } from "@/lib/boq/brief";
 describe("home care does not double an explicit cleaning line", () => {
-  it("skips the automatic deep clean when the scope already has one", () => {
+  it("adds floor protection once and keeps the scope's own cleaning line", () => {
     const r = { id: "a", name: "A", boqRoom: "Living" as const, l: 10, b: 10, h: 10, source: "labelled" as const };
     const own = { room: "Others / Whole Home Civil" as const, requirement: "clean", kind: "rate" as const, rateId: "sc:SC01", basis: "area" as const, width: 500, height: 1 };
     const { lines } = q2([own], [r], { tier: "premium", city: "Delhi" });
-    expect(lines.filter((l) => l.trade.startsWith("Site Protection"))).toHaveLength(1);
+    expect(lines.filter((l) => l.rateId === "sc:SC01")).toHaveLength(1);
+    expect(lines.filter((l) => l.rateId === "sc:SC04")).toHaveLength(1);
   });
 });

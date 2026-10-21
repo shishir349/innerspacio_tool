@@ -120,9 +120,10 @@ describe("Apex Alphabet brief vs the professional BOQ", () => {
     expect(out.lines.find((l) => l.rateId === "al:VGARDEN")!.trade).toBe("Market Supply");
   });
 
-  test("is not over-scoped: no demolition of the whole room, no false ceiling, no floor protection", () => {
+  test("is not over-scoped: no demolition of the whole room, no false ceiling, no deep clean (floor protection is the one default)", () => {
     expect(out.lines.some((l) => l.trade === "False Ceiling" && l.room === "Master Bedroom")).toBe(false);
-    expect(out.lines.some((l) => l.code === "SC04")).toBe(false);
+    expect(out.lines.some((l) => l.code === "SC02")).toBe(false);
+    expect(out.lines.filter((l) => l.code === "SC04")).toHaveLength(1);
     const demo = out.lines.filter((l) => l.room === "Master Bedroom" && l.trade.startsWith("Demolition"));
     expect(demo).toHaveLength(1);
     expect(demo[0].uom).toBe("L.S.");

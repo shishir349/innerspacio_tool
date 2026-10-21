@@ -6,9 +6,9 @@ const mk = (room: string, requirement: string, rateId: string, count = 1): Brief
   ({ room, requirement, kind: "rate", rateId, count, basis: "count", status: "NEW" }) as BriefItem;
 
 describe("grade follows the tier, not the model", () => {
-  it("premium run: luxury picks become elevated, bathroom luxury becomes the premium package", () => {
+  it("premium run: luxury furniture picks become elevated; bathroom fittings are the client's scope", () => {
     const r = guardFurniture([mk("Guest / Parents Bedroom", "Provide bed and side tables.", "lf:LFL08"), mk("Master Bathroom", "Replace sanitaryware and fixtures.", "bth:BTH02")], "premium");
-    expect(r.items.map((x) => x.rateId)).toEqual(["lf:LFE08", "bth:BTH01"]);
+    expect(r.items.map((x) => [x.rateId, x.status])).toEqual([["lf:LFE08", "NEW"], ["bth:BTH02", "EXCLUDED"]]);
     expect(r.warnings).toHaveLength(2);
     const t = guardFurniture([{ ...mk("Living", "sofa", "lf:LFL01"), title: "Living room — luxury 3-seater sofa" }], "premium");
     expect(t.items[0].title).toBe("Living room — elevated 3-seater sofa");

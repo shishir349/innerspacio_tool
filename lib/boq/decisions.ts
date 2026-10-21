@@ -38,7 +38,7 @@ export const DECISIONS: readonly Rule[] = [
   {
     id: "kitchen-size",
     kind: "decision",
-    message: "Kitchen cabinetry size is a code default (L-run × height). Confirm the layout and the base / wall / tall runs and heights.",
+    message: "Kitchen is a pre-booking standard-specification estimate (size is a code default). The kitchen is redesigned to the client's choices after booking: confirm layout, runs and finish then.",
     applies: (l) => l.room === "Kitchen" && l.trade === "Modular Woodwork" && l.qtySource === "estimated",
   },
   {
@@ -50,7 +50,7 @@ export const DECISIONS: readonly Rule[] = [
   {
     id: "tile-height",
     kind: "decision",
-    message: "Bathroom wall tiling runs to the full room height. Confirm the tile height (the spec-mode standard is 8 ft).",
+    message: "Bathroom wall tiling is taken to the 8 ft standard height. Validate the tile height on site after booking.",
     applies: (l) => l.trade === "Wall Tiling" && bathroom(l.room),
   },
   {

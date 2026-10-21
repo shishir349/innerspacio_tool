@@ -89,6 +89,8 @@ export function validateBoq(lines: CheckLine[], opts: { cardRates?: boolean } = 
     if (cardRates && card && l.rate > 0 && Math.abs(l.rate - card.rate) / card.rate > RATE_DRIFT && !l.rateNote) {
       at("warn", `rate ₹${l.rate} differs from the card rate ₹${card.rate} by more than ${RATE_DRIFT * 100}%.`);
     }
+    // Measurement rules: area work in Sq.Ft., linear in Rft, countables in Nos, packages L.S. — the card unit is the rule.
+    if (card && card.uom !== l.uom) at("warn", `unit ${l.uom} differs from the card unit ${card.uom} for this rate.`);
     if (l.provisional) at("warn", "provisional allowance with no card rate; confirm before issue.");
     if (l.rateNote) at("warn", l.rateNote);
 

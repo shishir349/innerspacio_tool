@@ -15,7 +15,7 @@ const opts = { tier: "premium" as const, city: "Delhi" };
 
 const item = (p: Partial<BriefItem>): BriefItem => ({
   room: "Master Bedroom",
-  requirement: "req",
+  requirement: "req: electrical points",
   kind: "rate",
   basis: "count",
   ...p,
@@ -85,9 +85,9 @@ describe("quantify", () => {
     expect(warnings.join(" ")).toMatch(/zz:NOPE/);
   });
 
-  it("adds whole-home protection and cleaning from the plan's floor area", () => {
+  it("adds whole-home floor protection (never deep cleaning) from the plan's floor area", () => {
     const { lines } = quantify([], [master, utility], opts);
-    const cleaning = lines.find((l) => l.rateId === "sc:SC02")!;
+    const cleaning = lines.find((l) => l.rateId === "sc:SC04")!;
     expect(cleaning.qty).toBe(12 * 14 + 6 * 4);
     expect(cleaning.room).toBe("Others / Whole Home Civil");
   });
