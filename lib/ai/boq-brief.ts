@@ -125,9 +125,10 @@ export const SCOPE_RULES = `SCOPE RULES (a senior estimator's BOQ, not a maximal
 - UNIT CLASSES: when an item is one of the classes below, set "unit" to the class id and the room; do NOT choose a rate id and do NOT give width/height/count unless the designer's text states that size (the system sizes the unit from the plan and prices it at the estimator's rate). Use rateId only for items no class covers (wallpaper, trims, lighting points, electrical, loose furniture lf: ids, curtains...). One item per physical unit; never split one unit into base / wall / runs.
 ${unitClassText()}
 - Price only what the requirements ask for. "Renovate the room" does NOT mean demolish everything or add a false ceiling: keep the existing ceiling, floor and walls unless a requirement says otherwise.
-- Existing painted walls are REPAINT (pt:PT06-PT10), never "Fresh Paint". Fresh is for new plaster / bare surfaces only. Paint lines use basis=wall_area; the panelled/wallpapered feature is netted off automatically.
+- Existing painted walls are REPAINT (ps:R01-R11 from the paint sheet), never "Fresh Paint". Fresh is for new plaster / bare surfaces only. Paint lines use basis=wall_area; the panelled/wallpapered feature is netted off automatically.
 - The Entrance (main door, nameplate, entry feature) is its own room "Entrance"; the Foyer is separate when both appear.
 - Give EVERY item a specific "title": what, where, finish — e.g. "Entrance feature wall — fluted HDHMR louvre panelling with PU paint finish".
+- LOOSE FURNITURE: price ONLY the pieces a requirement names, in the count it states ("bed and side tables" = one bed + one pair of bedside tables). Do NOT add chairs, coffee tables, extra sofas or desks the text does not name. Use the tier's grade only (looseFurniture / bathroomFittings in the tier hints).
 - Count what the text counts: "six wall points" -> count 6; "two lounge chairs and a side table" -> 2 chairs + 1 table; "three light fittings" -> count 3. Never fewer than stated.
 - A feature wall brings the lights the brief mentions for it. Wallpaper's oil-primer is added automatically — do not add it.
 - Doors: width x height with sides=2 (both faces); say "plus frame" in the note.

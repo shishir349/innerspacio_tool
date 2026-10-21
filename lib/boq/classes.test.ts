@@ -34,7 +34,7 @@ describe("unit classes", () => {
       unit({ room: "Others / Whole Home Civil", unit: "window_upvc", width: 10, height: 10 }),
     ];
     const amounts = quantify(sized, rooms, opts).lines.map((l) => Math.round(l.amount));
-    expect(amounts).toEqual([1_171_800, 249_200, 498_200, 868_000, 622_750, 139_950, 113_800]);
+    expect(amounts).toEqual([1_171_800, 249_200, 498_200, 672_000, 622_750, 139_950, 113_800]);
   });
 
   it("a stated size wins; an omitted one is computed from the plan and recorded", () => {

@@ -134,7 +134,7 @@ const SPEC: Record<PackageTier, Spec> = {
     hardware: "mod:H01",
     panel: "wp:WP01",
     ceiling: "fc:FC01",
-    paint: "pt:PT02",
+    paint: "ps:F01", // Asian Apcolite Premium Emulsion
     stone: "st:ST02",
     stoneFab: "cv:CV07",
     backsplash: "tile",
@@ -157,7 +157,7 @@ const SPEC: Record<PackageTier, Spec> = {
     hardware: "mod:H02",
     panel: "wp:WP09",
     ceiling: "fc:FC02",
-    paint: "pt:PT03",
+    paint: "ps:F06", // Asian Royale Luxury Emulsion
     stone: "st:ST08",
     stoneFab: "cv:CV09",
     backsplash: "stone",
@@ -180,7 +180,7 @@ const SPEC: Record<PackageTier, Spec> = {
     hardware: "mod:H02",
     panel: "wp:WP23",
     ceiling: "fc:FC03",
-    paint: "pt:PT04",
+    paint: "ps:F05", // Asian Royale Lustre
     stone: "st:ST09",
     stoneFab: "cv:CV09",
     backsplash: "stone",
@@ -350,7 +350,7 @@ function envelope(ctx: Ctx, room: BoqRoom, L: number, B: number, opts: { paintWa
     push(ctx, room, spec.ceiling, "False Ceiling", floor, { l: L, b: B }, "Gypsum false ceiling");
     push(ctx, room, "el:EL04", "Electrical Point", floor, { l: L, b: B }, "False-ceiling wiring and conduit");
     push(ctx, room, spec.paint, "Paint", wall * (opts.paintWalls ?? 1), opts.paintWalls ? {} : { l: 2 * (L + B), h: CEILING_H }, "Wall paint, 2 coats over primer");
-    push(ctx, room, "pt:PT11", "Paint", floor, { l: L, b: B }, "Ceiling paint");
+    push(ctx, room, CEILING_PAINT, "Paint", floor, { l: L, b: B }, "Ceiling paint");
     push(ctx, room, "el:EL30", "Electrical Point", Math.max(2, Math.round(floor / 25)), {}, "Light points");
     push(ctx, room, "el:EL13", "Electrical Point", floor > 150 ? 2 : 1, {}, "Switch / socket boards");
   }
@@ -623,10 +623,18 @@ export function modularLines(
 
 /** Repaint (existing painted walls) by tier — a renovation repaints, it does not "fresh paint". */
 export const REPAINT: Record<PackageTier, string> = {
-  essential: "pt:PT07",
-  premium: "pt:PT08",
-  luxury: "pt:PT09",
+  essential: "ps:R01", // Asian Apcolite Premium Emulsion
+  premium: "ps:R02", // Asian Health Shield
+  luxury: "ps:R03", // Asian Royale Lustre
 };
+
+/** Ceilings take one mid-grade emulsion at every tier (Asian Royale Aspira, fresh). */
+const CEILING_PAINT = "ps:F03";
+
+/** The loose-furniture grade prefix and bathroom package a tier uses (the server enforces these on AI-picked ids). */
+export function tierGrade(tier: PackageTier): { lf: Spec["lf"]; bath: string } {
+  return { lf: SPEC[tier].lf, bath: SPEC[tier].bathPackage };
+}
 
 /** Rate ids the tier uses for common finishes — a hint for the AI scope step. */
 export function tierHints(tier: PackageTier): Record<string, string> {
@@ -638,6 +646,8 @@ export function tierHints(tier: PackageTier): Record<string, string> {
     wallPanelling: s.panel,
     falseCeiling: s.ceiling,
     wallPaint: s.paint,
+    looseFurniture: `${s.lf}01-${s.lf}15 only (grade fixed by the tier)`,
+    bathroomFittings: s.bathPackage,
     repaintExistingWalls: REPAINT[tier],
     stone: s.stone,
     showerPartition: s.partition,

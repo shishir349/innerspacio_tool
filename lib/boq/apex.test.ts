@@ -74,7 +74,7 @@ const EXPECTED: [string, string, number][] = [
   ["Entrance", "al:NAMEPLATE", 1],
   ["Foyer / Entryway", "wp:WP14", 60],
   ["Living", "wp:WP53", 120],
-  ["Living", "pt:PT12", 120],
+  ["Living", "ps:W01", 120],
   ["Living", "al:CURTAIN", 45],
   ["Living", "el:EL05", 2],
   ["Living", "el:EL02", 5],

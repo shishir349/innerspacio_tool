@@ -49,8 +49,8 @@ describe("companions and multipliers", () => {
       rate({ rateId: "wp:WP53", basis: "area", width: 5, height: 10, requirement: "second wall" }),
     ];
     const { lines } = quantify(items, [master], { ...o, homeCare: false });
-    expect(lines.filter((l) => l.rateId === "pt:PT12")).toHaveLength(1);
-    expect(lines.find((l) => l.rateId === "pt:PT12")!.qty).toBe(120);
+    expect(lines.filter((l) => l.rateId === "ps:W01")).toHaveLength(1);
+    expect(lines.find((l) => l.rateId === "ps:W01")!.qty).toBe(120);
   });
 
   it("no duplicate primer when the scope already lists it", () => {

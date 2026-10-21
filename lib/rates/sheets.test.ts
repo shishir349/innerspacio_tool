@@ -44,7 +44,7 @@ describe("rate sheet resolution", () => {
 });
 
 describe("sheet applied to a BOQ", () => {
-  const items = [rate({ rateId: "pt:PT03", basis: "wall_area" }), rate({ rateId: "lf:LFE02", count: 1 })];
+  const items = [rate({ rateId: "pt:PT03", basis: "wall_area" }), rate({ rateId: "lf:LFE02", count: 1, requirement: "Provide a lounge chair" })];
 
   it("livspace reprices mapped lines only and tags the source per line", () => {
     const sp = quantify(items, [room], { ...base, sheet: "spazay" }).lines;

@@ -44,7 +44,7 @@ export const DECISIONS: readonly Rule[] = [
   {
     id: "paint-rate",
     kind: "decision",
-    message: "Whole-home paint is priced as fresh luxury emulsion at the estimator rate. Confirm repaint vs fresh, the emulsion grade and the area basis.",
+    message: "Whole-home paint is priced as fresh Asian Royale Luxury Emulsion at the paint-sheet rate. Confirm repaint vs fresh, the emulsion grade and the area basis.",
     applies: (l) => l.rateId === "pr:PAINT",
   },
   {

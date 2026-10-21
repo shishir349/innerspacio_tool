@@ -1,4 +1,5 @@
 import { SPAZAY_RATES, type SpazayRate } from "@/lib/rates/spazay-data";
+import { PAINT_ROWS, type PaintRow } from "@/lib/rates/paint-data";
 
 export interface RateEntry extends SpazayRate {
   /** No rate in the reference sheet: a provisional allowance to confirm before issue. */
@@ -7,6 +8,14 @@ export interface RateEntry extends SpazayRate {
   estimator?: boolean;
 }
 export type { SpazayRate };
+
+/** Paint rate sheet (lib/rates/paint-rates.csv): the go-to price for wall paint. */
+const PAINT_RATE = Object.fromEntries(PAINT_ROWS.map((r) => [r.id.slice(3), r.rate])) as Record<string, number>;
+const STAGE: Record<PaintRow["stage"], string> = { fresh: "Fresh paint", repaint: "Repaint", "wallpaper-prep": "Wallpaper base preparation" };
+const PAINT: readonly RateEntry[] = PAINT_ROWS.map((r) => ({
+  id: r.id, code: r.id.slice(3), trade: "Paint & Polish", item: `${STAGE[r.stage]} — ${r.product} (${r.coats})`,
+  uom: "Sq.Ft.", unit: "per sq ft", rate: r.rate, desc: r.notes,
+}));
 
 const NOT_IN_CARD = "RATE NOT STATED IN THE REFERENCE RATE LIST — provisional allowance, to be confirmed on selection or vendor quote.";
 
@@ -78,16 +87,22 @@ const ESTIMATOR: readonly RateEntry[] = [
   { id: "pr:WAINSCOT", code: "PR19", trade: "Wall Panelling", item: "Wainscoting with wallpaper and wall-light provision", uom: "Rft", unit: "running ft", rate: 467, desc: "Providing and fixing premium wall wainscoting with wallpaper and wall-light provision, including the metal strip and groove in wall using POP.", estimator: true },
   { id: "pr:FOYERPANEL", code: "PR20", trade: "Wall Panelling", item: "12mm ply/HDHMR with WPC louver / laminate panelling", uom: "Sq.Ft.", unit: "per sq ft", rate: 779, desc: "Providing and fixing 12mm ply/HDHMR with WPC louver/laminate in approved pattern/design, with cutting, jointing, fixing and installation as per approved design and sample.", estimator: true },
   { id: "pr:PVCCEIL", code: "PR21", trade: "False Ceiling", item: "PVC ceiling with framework", uom: "Sq.Ft.", unit: "per sq ft", rate: 311, desc: "Providing and fixing PVC ceiling, including approved framework/support system, boards/panels, cutting, joint treatment and finishing. Wiring, fixtures, painting and insulation are excluded; scaffolding extra as per actual.", estimator: true },
-  { id: "pr:PAINT", code: "PR22", trade: "Paint & Polish", item: "Fresh paint — luxury emulsion, whole home", uom: "Sq.Ft.", unit: "per sq ft", rate: 62, desc: "Providing and applying fresh paint - luxury emulsion, including surface preparation, crack filling, putty, primer and required finish coats, as per approved shade. Major wall repairs, damp treatment, texture removal and furniture shifting are excluded unless separately specified.", estimator: true },
+  { id: "pr:PAINT", code: "PR22", trade: "Paint & Polish", item: "Fresh paint — Asian Royale Luxury Emulsion, whole home", uom: "Sq.Ft.", unit: "per sq ft", rate: PAINT_RATE.F06, desc: "Providing and applying fresh paint - luxury emulsion, including surface preparation, crack filling, putty, primer and required finish coats, as per approved shade. Major wall repairs, damp treatment, texture removal and furniture shifting are excluded unless separately specified.", estimator: true },
   { id: "pr:BOOKSHELF", code: "PR24", trade: "Modular Woodwork", item: "Floating shelf with metal rods (MS, powder coated) — bookshelf", uom: "Rft", unit: "running ft", rate: 1168, desc: "Providing and fixing floating shelf with metal rods (MS with powder coating) as book shelf.", estimator: true },
   { id: "pr:QUARTZ", code: "PR23", trade: "Stone & Countertops", item: "Quartz countertop incl. backsplash, fabrication and fixing", uom: "Sq.Ft.", unit: "per sq ft", rate: 1246, desc: "Providing and fixing countertop in 20mm quartz, including backsplash/dado area to match, cutting, fixing and edge polishing.", estimator: true },
 ];
 
-const ALL: readonly RateEntry[] = [...SPAZAY_RATES, ...ALLOWANCES, ...ESTIMATOR];
+const ALL: readonly RateEntry[] = [...SPAZAY_RATES, ...ALLOWANCES, ...ESTIMATOR, ...PAINT];
+/**
+ * Old card rows the paint sheet replaces (wall emulsion fresh / repaint, ceiling emulsion, wallpaper primer). They still
+ * resolve by id so saved BOQs open and price as before, but they are not offered in RATE_CARD (picker, AI rate card).
+ * Texture, distemper, enamel, PU / Duco and polish rows are NOT in the sheet and stay.
+ */
+export const SUPERSEDED_PAINT: ReadonlySet<string> = new Set(["pt:PT02", "pt:PT03", "pt:PT04", "pt:PT07", "pt:PT08", "pt:PT09", "pt:PT11", "pt:PT12"]);
 const BY_ID = new Map<string, RateEntry>(ALL.map((r) => [r.id, r]));
 
 /** Every rate we can bill (Spazay card + provisional allowances), in sheet order. */
-export const RATE_CARD: readonly RateEntry[] = ALL;
+export const RATE_CARD: readonly RateEntry[] = ALL.filter((r) => !SUPERSEDED_PAINT.has(r.id));
 
 export function findRate(id: string): RateEntry | undefined {
   return BY_ID.get(id);

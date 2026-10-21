@@ -31,6 +31,12 @@ const LIVSPACE: Record<string, { price: number; label: string }> = {
   "pt:PT04": { price: 36, label: "Asian Royale Luxury Emulsion — fresh painting" },
   "pt:PT08": { price: 20, label: "Asian Apcolite Premium Emulsion — re-painting" },
   "pt:PT12": { price: 61, label: "Base preparation for wallpaper" },
+  // Same Livspace products, keyed on the paint-sheet ids that replaced the rows above.
+  "ps:F07": { price: 25, label: "Asian Tractor Emulsion — fresh painting" },
+  "ps:F01": { price: 28, label: "Asian Apcolite Premium Emulsion — fresh painting" },
+  "ps:F06": { price: 36, label: "Asian Royale Luxury Emulsion — fresh painting" },
+  "ps:R01": { price: 20, label: "Asian Apcolite Premium Emulsion — re-painting" },
+  "ps:W01": { price: 61, label: "Base preparation for wallpaper" },
   "fc:FC01": { price: 153, label: "Standard gypsum false ceiling — plain" },
   "fc:FC02": { price: 167, label: "Designer false ceiling — POP / gypsum" },
   "el:EL30": { price: 855, label: "Wall / ceiling primary point — wiring, looping, conduit" },

@@ -4,6 +4,7 @@ import { cityNote, makeLine, modularLines, SCOPE_STATUSES, type BoqLine, type Qt
 import { BOQ_ITEMS, BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
 import { findRate } from "@/lib/rates/catalog";
 import { normalizeUnit, ordinalOf, resolveUnit, UNIT_CLASSES } from "@/lib/boq/classes";
+import { guardFurniture } from "@/lib/boq/tier-guard";
 import { RATE_SHEETS, type RateSheet } from "@/lib/rates/sheets";
 import { PACKAGE_TIERS, type PackageTier } from "@/lib/quote/constants";
 
@@ -127,7 +128,9 @@ export interface CoverageRow {
 }
 
 const WALLPAPER = "wp:WP53";
-const PRIMER = "pt:PT12";
+const PRIMER = "ps:W01"; // wallpaper base preparation (2 putty + oil primer)
+/** The old card primer row still counts as "already listed" in a saved or hand-written scope. */
+const PRIMER_IDS = [PRIMER, "pt:PT12"];
 
 /** Statuses that are recorded in the scope but never priced (RETAIN / EXCLUDED) or wait on the designer (UNCONFIRMED). */
 export const HELD_STATUSES: readonly ScopeStatus[] = ["RETAIN", "EXCLUDED", "UNCONFIRMED"];
@@ -151,7 +154,9 @@ export function quantify(
     if (status(i) === "UNCONFIRMED") warnings.push(`${i.room}: UNCONFIRMED — “${i.requirement.slice(0, 70)}” is not priced until the designer confirms the scope.`);
     if (status(i) === "REFURBISH") warnings.push(`${i.room}: REFURBISH — “${i.requirement.slice(0, 70)}” has no refurbishment rate on the card; add a manual line.`);
   }
-  const items = allItems.filter((i) => !isHeld(i));
+  const guarded = guardFurniture(allItems.filter((i) => !isHeld(i)), opts.tier);
+  warnings.push(...guarded.warnings);
+  const items = guarded.items;
   const sheet = opts.sheet ?? "spazay";
   // Several plan rooms can map to one BOQ room (e.g. extra bedrooms): measure them together.
   const sized = (r: BoqRoom) => rooms.filter((x) => x.boqRoom === r && x.l > 0 && x.b > 0);
@@ -193,7 +198,7 @@ export function quantify(
   const scaleOf = new Map<BriefItem, number>(resolved.map((r) => [r.item, r.scale]));
   const list = resolved.map((r) => r.item);
   const ordered = [...list.filter((i) => !isWallPaint(i)), ...list.filter(isWallPaint)];
-  const primerRooms = new Set(items.filter((i) => i.rateId === PRIMER).map((i) => i.room));
+  const primerRooms = new Set(items.filter((i) => PRIMER_IDS.includes(i.rateId ?? "")).map((i) => i.room));
 
   for (const it of ordered) {
     const before = lines.length;
