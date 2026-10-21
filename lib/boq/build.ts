@@ -34,6 +34,9 @@ export { carpetArea };
 
 /** Where a quantity comes from: read off a plan, written by the user, or a standard assumption. */
 export type QtySource = "measured" | "entered" | "estimated";
+/** What the designer's scope says about an item. Only NEW / REPLACE / REFURBISH (with a rate) produce a priced line. */
+export const SCOPE_STATUSES = ["NEW", "REPLACE", "RETAIN", "REFURBISH", "EXCLUDED", "UNCONFIRMED"] as const;
+export type ScopeStatus = (typeof SCOPE_STATUSES)[number];
 
 export interface BoqLine {
   room: BoqRoom;
@@ -66,6 +69,10 @@ export interface BoqLine {
   qtySource?: QtySource;
   /** A rate that needs a human look (e.g. no verified Livspace equivalent, billed at the Spazay rate). */
   rateNote?: string;
+  /** The scope status of the item this line prices (default NEW). */
+  scopeStatus?: ScopeStatus;
+  /** Added by the engine rather than by a scope item (deep clean, wallpaper primer). */
+  autoAdded?: boolean;
 }
 
 // ---------- ASSUMPTIONS ----------
@@ -190,6 +197,13 @@ const SPEC: Record<PackageTier, Spec> = {
     loft: true,
     curtain: "fu:BF03",
   },
+};
+
+/** The three card rates that make up an all-in modular unit, per tier — the single source of tier spec for modular work. */
+export const SPEC_MODULAR_PARTS: Record<PackageTier, [string, string, string]> = {
+  essential: [SPEC.essential.carcass, SPEC.essential.shutter, SPEC.essential.hardware],
+  premium: [SPEC.premium.carcass, SPEC.premium.shutter, SPEC.premium.hardware],
+  luxury: [SPEC.luxury.carcass, SPEC.luxury.shutter, SPEC.luxury.hardware],
 };
 
 // ---------- builder ----------

@@ -6,6 +6,7 @@ import { ImagePlus, Loader2, Map as MapIcon, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BOQ_ROOMS } from "@/lib/boq/lists";
 import { shrinkImage } from "@/lib/client-image";
+import { roomIssues } from "@/lib/boq/rooms";
 import type { BriefItem, PlanRoom } from "@/lib/boq/brief";
 import type { PackageTier } from "@/lib/quote/constants";
 import type { RateSheet } from "@/lib/rates/sheets";
@@ -55,11 +56,14 @@ export function BriefPanel({
   city,
   sheet,
   onResult,
+  onBeforeRun,
 }: {
   tier: PackageTier;
   city: string;
   sheet: RateSheet;
   onResult: (r: BriefResult) => void;
+  /** Return false to stop before the paid analysis starts (e.g. the designer declined to replace the current BOQ). */
+  onBeforeRun?: () => boolean;
 }) {
   const [plan, setPlan] = useState<File | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
@@ -72,6 +76,7 @@ export function BriefPanel({
   async function run() {
     if (!plan) return toast.error("Upload the layout plan first.");
     if (requirements.trim().length < 10) return toast.error("Paste the designer's requirements.");
+    if (onBeforeRun && !onBeforeRun()) return;
     setBusy(true);
     try {
       const fd = new FormData();
@@ -230,6 +235,11 @@ export function PlanRoomsEditor({
   busy: boolean;
 }) {
   const patch = (id: string, p: Partial<PlanRoom>) => onChange(rooms.map((r) => (r.id === id ? { ...r, ...p } : r)));
+  // A size the designer types is theirs, not the plan's: record it so quantities show "entered".
+  const patchSize = (id: string, p: Partial<PlanRoom>) => patch(id, { ...p, source: "entered" });
+  const issues = roomIssues(rooms);
+  const addRoom = () =>
+    onChange([...rooms, { id: `m${Date.now()}`, name: "New room", boqRoom: BOQ_ROOMS[0], l: 0, b: 0, h: 10, source: "entered" }]);
   const num = (v: string) => Math.max(0, Number(v) || 0);
   return (
     <section className="rounded-xl border border-border bg-card p-4">
@@ -238,10 +248,22 @@ export function PlanRoomsEditor({
           <h3 className="text-[0.95rem] font-medium">Rooms read from the plan</h3>
           <p className="text-[0.85rem] text-muted-foreground">Feet. Correct a size, then recalculate — quantities follow.</p>
         </div>
-        <Button size="sm" variant="outline" onClick={onRecalc} disabled={busy}>
-          Recalculate quantities
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={addRoom} disabled={busy}>
+            Add room
+          </Button>
+          <Button size="sm" variant="outline" onClick={onRecalc} disabled={busy}>
+            Recalculate quantities
+          </Button>
+        </div>
       </div>
+      {issues.length > 0 && (
+        <ul className="mt-2 list-disc space-y-0.5 pl-5 text-[0.85rem] text-amber-700">
+          {issues.map((i, n) => (
+            <li key={n}>{i.message}</li>
+          ))}
+        </ul>
+      )}
       <div className="mt-3 overflow-x-auto">
         <table className="w-full min-w-[640px] text-[0.85rem]">
           <thead>
@@ -257,7 +279,9 @@ export function PlanRoomsEditor({
           <tbody>
             {rooms.map((r) => (
               <tr key={r.id} className="border-t border-border/60">
-                <td className="py-1 pr-2">{r.name}</td>
+                <td className="py-1 pr-2">
+                  <input className={selectCls} aria-label="Room name" value={r.name} onChange={(e) => patch(r.id, { name: e.target.value })} />
+                </td>
                 <td className="w-48 py-1 pr-2">
                   <select
                     className={selectCls}
@@ -275,7 +299,7 @@ export function PlanRoomsEditor({
                       className={numCls}
                       inputMode="decimal"
                       value={r[k]}
-                      onChange={(e) => patch(r.id, { [k]: num(e.target.value) })}
+                      onChange={(e) => patchSize(r.id, { [k]: num(e.target.value) })}
                     />
                   </td>
                 ))}
@@ -288,6 +312,9 @@ export function PlanRoomsEditor({
                   >
                     {r.source}
                   </span>
+                  <button type="button" className="ml-2 text-[0.8rem] underline" onClick={() => onChange(rooms.filter((x) => x.id !== r.id))}>
+                    Remove
+                  </button>
                 </td>
               </tr>
             ))}

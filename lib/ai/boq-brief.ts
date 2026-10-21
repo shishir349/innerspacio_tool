@@ -90,6 +90,12 @@ const TOOL_SCHEMA: Anthropic.Tool = {
             height: { type: "number", description: "Feet. Default 7 for modular units." },
             count: { type: "number", description: "For count-type units (Nos / Point / Set / L.S.)." },
             note: { type: "string" },
+            status: {
+              type: "string",
+              enum: ["NEW", "REPLACE", "RETAIN", "REFURBISH", "EXCLUDED", "UNCONFIRMED"],
+              description: "Scope status of the requirement (see STATUS rules). Default NEW.",
+            },
+            assumption: { type: "string", description: "A provisional assumption the designer should confirm, when the text is vague." },
           },
           required: ["room", "requirement", "kind", "basis"],
         },
@@ -115,6 +121,7 @@ const TOOL_SCHEMA: Anthropic.Tool = {
  * (expected_BOQ vs your_BOQ). Shared by every AI provider so they estimate the same way.
  */
 export const SCOPE_RULES = `SCOPE RULES (a senior estimator's BOQ, not a maximal one)
+- STATUS: give every item "status". NEW = new work/installation. REPLACE = existing item removed and replaced. RETAIN = "retain / existing stays / keep" (emit it so the designer sees it is kept; it is NOT priced). EXCLUDED = "excluded / by client / not in scope" (emit it, NOT priced; never add the item because the room type usually has one, e.g. no dining table when it is excluded). REFURBISH = a limited treatment of an existing item (upholstery refresh, polish, shutter-only replacement): price only the treatment with a card rate, never a new unit or a new carcass; if no card rate covers it, leave rateId empty. UNCONFIRMED = vague wording that could mean small or large work ("enhance the wall", "necessary civil modifications", "upgrade the room"): do not guess a big scope, set UNCONFIRMED, put a short question in "questions", or give a SMALL clearly labelled "assumption" with status NEW.
 - UNIT CLASSES: when an item is one of the classes below, set "unit" to the class id and the room; do NOT choose a rate id and do NOT give width/height/count unless the designer's text states that size (the system sizes the unit from the plan and prices it at the estimator's rate). Use rateId only for items no class covers (wallpaper, trims, lighting points, electrical, loose furniture lf: ids, curtains...). One item per physical unit; never split one unit into base / wall / runs.
 ${unitClassText()}
 - Price only what the requirements ask for. "Renovate the room" does NOT mean demolish everything or add a false ceiling: keep the existing ceiling, floor and walls unless a requirement says otherwise.

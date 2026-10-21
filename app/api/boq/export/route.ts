@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { enforceRateLimit, RateLimitedError } from "@/lib/rate-limit";
 import { exportRequestSchema } from "@/lib/boq/schema";
+import { exportBlocker } from "@/lib/boq/review";
 import { buildBoqWorkbook } from "@/lib/boq/xlsx";
 
 export const runtime = "nodejs";
@@ -34,6 +35,9 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+
+  const blocked = exportBlocker(parsed.data.scope);
+  if (blocked) return NextResponse.json({ error: blocked, code: "scope_not_approved" }, { status: 409 });
 
   const buf = await buildBoqWorkbook(parsed.data);
   const name = (parsed.data.client || "InnerSpacio").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "") || "BOQ";

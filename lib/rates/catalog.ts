@@ -99,3 +99,15 @@ export function getRate(id: string): RateEntry {
   if (!r) throw new Error(`Unknown rate id: ${id}`);
   return r;
 }
+
+/**
+ * How a rate is priced. "all-in" = one rate is the whole unit (estimator `pr:*`, `mod:unit`);
+ * "component" = carcass / shutter / hardware / visible-side / add-on rates that only make a unit together;
+ * "provisional" = no sourced rate; "unit" = any other standalone item.
+ */
+export type RateBasis = "all-in" | "component" | "provisional" | "unit";
+export function rateBasis(id: string): RateBasis {
+  if (id.startsWith("pr:") || id === "mod:unit") return "all-in";
+  if (id.startsWith("al:")) return "provisional";
+  return /^mod:(C|S|H|HG|V|A)\d/.test(id) ? "component" : "unit";
+}

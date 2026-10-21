@@ -1,5 +1,6 @@
 import type { BriefItem, PlanRoom } from "@/lib/boq/brief";
-import { findRate } from "@/lib/rates/catalog";
+import { findRate, getRate } from "@/lib/rates/catalog";
+import { SPEC_MODULAR_PARTS } from "@/lib/boq/build";
 import type { PackageTier } from "@/lib/quote/constants";
 
 /**
@@ -43,13 +44,20 @@ export interface UnitClass {
 const r1 = (n: number) => Math.round(n * 10) / 10;
 /** U-shaped kitchen run; a misread plan dimension cannot make a 70 ft kitchen. */
 const run = (c: { l: number; b: number }) => Math.min(42, Math.max(18, c.l + 2 * c.b));
+/** Below the villa kitchen the 9.5 ft U-run was fitted to (148 sq ft), a kitchen is an apartment L-run. */
+const FLAT_KITCHEN = 140;
+/** A plan-derived size with no plan room behind it: width 0, so quantify() flags the line instead of pricing a guess. */
+const NO_ROOM: Size = { width: 0, why: "no plan room to size it from" };
+/** A default wall / unit width never exceeds the longest wall of the room it sits in (when the room is known). */
+const fit = (w: number, c: { l: number; b: number }) => (c.l > 0 ? Math.min(w, Math.max(c.l, c.b)) : w);
+const flatRun = (c: { l: number; b: number }) => Math.min(30, Math.max(12, c.l + c.b));
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 const wall = (sqft: number, h: number, why: string): Size => ({ width: r1(sqft / h), height: h, why });
 
 export const UNIT_CLASSES: Record<string, UnitClass> = {
   wardrobe: {
     label: "full-height wardrobe incl. a walk-in dress (ONE per bedroom)", rateId: "pr:WARDROBE", item: "Wardrobe", basis: "elevation", modular: true, once: "room",
-    size: (c) => wall(clamp(0.31 * c.area, 60, 220), 9, "0.31 x room floor area, 9 ft high"),
+    size: (c) => (c.area > 0 ? wall(clamp(0.31 * c.area, 60, 220), 9, "0.31 x room floor area, 9 ft high") : NO_ROOM),
   },
   lobby_wardrobe: {
     label: "storage wardrobe in a lobby / passage", rateId: "pr:LOBBYWARD", item: "Wardrobe", basis: "elevation", modular: true,
@@ -57,7 +65,7 @@ export const UNIT_CLASSES: Record<string, UnitClass> = {
   },
   tv_unit: {
     label: "TV unit", rateId: "pr:TVUNIT", item: "TV Unit", basis: "elevation", modular: true,
-    size: (_c, room) => (room === "Dining" || room === "Living" ? { width: 12, height: 8, why: "12 x 8 ft TV wall in a living / dining space" } : { width: 8, height: 8, why: "8 x 8 ft" }),
+    size: (c, room) => (room === "Dining" || room === "Living" ? { width: fit(9, c), height: 8, why: "9 x 8 ft TV wall in a living / dining space (within the room's longest wall)" } : { width: fit(6, c), height: 7, why: "6 x 7 ft (within the room's longest wall)" }),
   },
   study_unit: {
     label: "study / home-office storage unit or work desk", rateId: "pr:STUDY", item: "Study Table/Desk", basis: "elevation", modular: true,
@@ -65,7 +73,7 @@ export const UNIT_CLASSES: Record<string, UnitClass> = {
   },
   kids_study: {
     label: "kids study unit for two, with storage", rateId: "pr:KIDSSTUDY", item: "Study Table/Desk", basis: "elevation", modular: true,
-    size: () => ({ width: 8, height: 9, why: "8 x 9 ft" }),
+    size: (c) => ({ width: fit(6, c), height: 8, why: "6 x 8 ft (within the room's longest wall)" }),
   },
   dresser: {
     label: "dresser / dressing unit (mirror is separate)", rateId: "pr:KIDSSTUDY", item: "Console/Chest Of Drawers", basis: "elevation", modular: true,
@@ -77,15 +85,20 @@ export const UNIT_CLASSES: Record<string, UnitClass> = {
   },
   kitchen_cabinetry: {
     label: "whole modular kitchen (base + wall + tall + island) — ONE line", rateId: "pr:KITCHEN", item: "Kitchen Base Unit", basis: "elevation", modular: true, once: "room",
-    size: (c) => ({ width: r1(run(c)), height: 9.5, why: "U-run (L + 2B, within 18-42 ft) x 9.5 ft of base, wall and tall units" }),
+    size: (c) =>
+      !(c.area > 0)
+        ? NO_ROOM
+        : c.area < FLAT_KITCHEN
+        ? { width: r1(flatRun(c)), height: 8, why: "apartment L-run (L + B, 12-30 ft) x 8 ft of base, wall and tall units, no island" }
+        : { width: r1(run(c)), height: 9.5, why: "U-run (L + 2B, within 18-42 ft) x 9.5 ft of base, wall and tall units" },
   },
   crockery_unit: {
     label: "crockery unit", rateId: "pr:CROCKERY", item: "Crockery Unit", basis: "elevation", modular: true,
-    size: () => ({ width: 6, height: 10, why: "6 x 10 ft" }),
+    size: (c) => ({ width: fit(5, c), height: 8, why: "5 x 8 ft (within the room's longest wall)" }),
   },
   utility_counter: {
     label: "utility / laundry counter with storage below", rateId: "pr:UTILITY", item: "Study Table/Desk", basis: "elevation", modular: true,
-    size: () => ({ width: 11, height: 6, why: "11 x 6 ft counter run with storage" }),
+    size: (c) => ({ width: fit(8, c), height: 6, why: "8 x 6 ft counter run with storage (within the room's longest wall)" }),
   },
   book_shelf: {
     label: "metal-rod floating bookshelf (running ft)", rateId: "pr:BOOKSHELF", item: "Study Table/Desk", basis: "length",
@@ -100,7 +113,11 @@ export const UNIT_CLASSES: Record<string, UnitClass> = {
     size: (c, room) =>
       room === "Utility"
         ? { width: 25, height: 1, why: "25 sq ft utility counter" }
-        : { width: r1(run(c) * 4.5 + 24), height: 1, why: "U-run x 4.5 ft (top + backsplash) + 24 sq ft island" },
+        : !(c.area > 0)
+          ? NO_ROOM
+          : c.area < FLAT_KITCHEN
+          ? { width: r1(flatRun(c) * 4), height: 1, why: "apartment L-run x 4 ft (top + backsplash), no island" }
+          : { width: r1(run(c) * 4.5 + 24), height: 1, why: "U-run x 4.5 ft (top + backsplash) + 24 sq ft island" },
   },
   vanity: {
     label: "bathroom vanity unit with counter (1 per bathroom)", rateId: "pr:VANITY", item: "Bathroom Vanity", basis: "count", once: "room",
@@ -124,19 +141,19 @@ export const UNIT_CLASSES: Record<string, UnitClass> = {
   },
   feature_wall: {
     label: "feature wall: laminate / WPC louver / panel / inlays / LED", rateId: "pr:FEATURE", item: "Wall Panelling", basis: "elevation",
-    size: (c) => (c.area > 350 ? { width: 12, height: 10, why: "12 x 10 ft wall in a large room" } : { width: 10, height: 10, why: "10 x 10 ft wall" }),
+    size: (c) => (c.area > 350 ? { width: fit(10, c), height: 10, why: "10 x 10 ft wall in a large room" } : { width: fit(8, c), height: 9, why: "8 x 9 ft wall (within the room's longest wall)" }),
   },
   french_moulding_wall: {
     label: "bedroom wall with French moulding (POP) and wallpaper", rateId: "pr:FRENCH", item: "Wall Panelling", basis: "elevation",
-    size: (c) => ({ width: r1(0.75 * (c.l + c.b)), height: 10, why: "0.75 x (L + B) of wall, 10 ft high" }),
+    size: (c) => (c.l > 0 ? { width: r1(0.75 * (c.l + c.b)), height: 10, why: "0.75 x (L + B) of wall, 10 ft high" } : NO_ROOM),
   },
   wainscot_wall: {
     label: "wall wainscoting with wallpaper and wall lights (running ft)", rateId: "pr:WAINSCOT", item: "Wall Panelling", basis: "length",
-    size: (c) => ({ width: r1(Math.max(c.l, c.b) * 2), why: "two long walls" }),
+    size: (c) => (c.l > 0 ? { width: r1(Math.max(c.l, c.b) * 2), why: "two long walls" } : NO_ROOM),
   },
   foyer_panelling: {
     label: "entrance / foyer wall panelling (WPC louver / laminate)", rateId: "pr:FOYERPANEL", item: "Wall Panelling", basis: "elevation",
-    size: () => ({ width: 10, height: 10, why: "10 x 10 ft wall" }),
+    size: (c) => ({ width: fit(10, c), height: 10, why: "10 x 10 ft wall (within the room's longest wall)" }),
   },
   pvc_ceiling: {
     label: "PVC ceiling (facade, balcony)", rateId: "pr:PVCCEIL", item: "False Ceiling", basis: "area", aiSized: true,
@@ -171,14 +188,11 @@ export function unitClassText(): string {
   return UNIT_IDS.map((id) => `- ${id}: ${UNIT_CLASSES[id].label}`).join("\n");
 }
 
-/** Premium all-in spec sum (carcass + shutter + hardware) — the base the estimator rates are fitted to. */
-const PREMIUM_SPEC = 1152 + 950 + 467;
-const TIER_SPEC: Record<PackageTier, number> = {
-  essential: 763 + 747 + 389,
-  premium: PREMIUM_SPEC,
-  luxury: 1635 + 1168 + 467,
-};
-export const tierScale = (tier: PackageTier) => TIER_SPEC[tier] / PREMIUM_SPEC;
+/** Sum of a tier's all-in modular parts (carcass + shutter + hardware) at the card rates. */
+const specSum = (tier: PackageTier) => SPEC_MODULAR_PARTS[tier].reduce((n, id) => n + getRate(id).rate, 0);
+export { SPEC_MODULAR_PARTS };
+/** Modular rate scale vs premium, derived from the tier spec table in build.ts (no rupee figures live here). */
+export const tierScale = (tier: PackageTier) => specSum(tier) / specSum("premium");
 
 /** The "1" / "2" of "Kids Bedroom-1", "bedroom 2" … or "" when there is none. */
 export function ordinalOf(text: string): string {
@@ -207,10 +221,18 @@ export function resolveUnit(rawItem: BriefItem, rooms: PlanRoom[], tier: Package
   const it = normalizeUnit(rawItem);
   const cls = it.unit ? UNIT_CLASSES[it.unit] : undefined;
   if (!cls) return { item: rawItem, scale: 1 };
+  // The model's own rate id is measured differently from the class's (a Rft trim tagged feature_wall):
+  // the class would reprice it per sq ft. Keep the model's item as a plain rate line.
+  const given = it.rateId ? findRate(it.rateId) : undefined;
+  if (given && given.uom !== findRate(cls.rateId)?.uom) return { item: { ...it, unit: undefined }, scale: 1 };
 
   let mine = rooms.filter((r) => r.boqRoom === it.room && r.l > 0 && r.b > 0);
-  // A facade / balcony PVC ceiling belongs to no one room: it covers the plan's balconies.
-  if (it.unit === "pvc_ceiling" && mine.length === 0) mine = rooms.filter((r) => r.boqRoom.startsWith("Balcony") && r.l > 0 && r.b > 0);
+  // A PVC ceiling is a balcony / facade item: it sizes from its own balcony, or (filed under whole-home) from the plan's
+  // balconies. Filed under any other room it must NOT borrow that room's floor area, so it gets no default size.
+  if (it.unit === "pvc_ceiling") {
+    const facade = it.room.startsWith("Balcony") || it.room === "Others / Whole Home Civil";
+    mine = !facade ? [] : mine.length ? mine : rooms.filter((r) => r.boqRoom.startsWith("Balcony") && r.l > 0 && r.b > 0);
+  }
   // "Kids Bedroom-2": size from that bedroom (and its dress), not from every Kids Room on the plan.
   const nth = ordinalOf(`${it.area ?? ""} ${it.title ?? ""} ${it.requirement}`);
   if (nth) {
@@ -235,7 +257,7 @@ export function resolveUnit(rawItem: BriefItem, rooms: PlanRoom[], tier: Package
   // class is measured off the plan. Any other width/height the model volunteers is its guess and is
   // replaced by the class default: that is what makes two runs on one brief agree.
   const written = /\d\s*(?:ft|feet|foot|sq|sft|rft|'|"|x|×)/i.test(it.requirement);
-  const honour = cls.aiSized || written;
+  const honour = cls.aiSized || written || it.sizeBy === "designer";
   const stated = honour && ((it.width ?? 0) > 0 || (it.count ?? 0) > 0);
   let width = it.width;
   let height = it.height;

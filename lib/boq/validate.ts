@@ -1,5 +1,6 @@
 import { BOQ_UOMS } from "@/lib/boq/lists";
 import { findRate } from "@/lib/rates/catalog";
+import { openDecisions } from "@/lib/boq/decisions";
 import { PACKAGE_BANDS, type Bhk, type PackageTier } from "@/lib/quote/constants";
 
 /**
@@ -23,6 +24,7 @@ export interface CheckLine {
   provisional?: boolean;
   rateNote?: string;
   qtySource?: "measured" | "entered" | "estimated";
+  autoAdded?: boolean;
 }
 
 export interface Issue {
@@ -100,6 +102,9 @@ export function validateBoq(lines: CheckLine[], opts: { cardRates?: boolean } = 
   if (est > 0) {
     out.push({ severity: "warn", message: `${est} of ${lines.length} quantities are standard-size estimates, not measurements. Confirm on site before issue.` });
   }
+  // Open professional / commercial decisions: flagged for a human, never resolved here.
+  for (const d of openDecisions(lines)) out.push({ severity: "warn", message: `${d.message} (${d.count} line${d.count === 1 ? "" : "s"})` });
+
   return out;
 }
 

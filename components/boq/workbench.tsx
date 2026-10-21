@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Download, FileText, Loader2, Plus, Ruler, Sparkles, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, FileText, Loader2, Plus, Ruler, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,6 +28,12 @@ import { sanityChecks, validateBoq } from "@/lib/boq/validate";
 import { carpetArea } from "@/lib/boq/standards";
 import { BriefNotes, BriefPanel, PlanRoomsEditor, type BriefResult } from "@/components/boq/brief-panel";
 import type { BriefItem, PlanRoom } from "@/lib/boq/brief";
+import { BoqSummary } from "@/components/boq/boq-summary";
+import { RevisionPanel } from "@/components/boq/revision-panel";
+import { boqStatus, type BoqStatus, type Snapshot } from "@/lib/boq/revisions";
+import { ScopeReview, type UnitOption } from "@/components/boq/scope-review";
+import type { ScopeStatus } from "@/lib/boq/build";
+import { lineAssessment, type LineState } from "@/lib/boq/decisions";
 import { RATE_SHEETS, RATE_SHEET_LABEL, type RateSheet } from "@/lib/rates/sheets";
 
 export interface CatalogRate {
@@ -55,7 +61,7 @@ export interface WorkbenchInitial {
   saved?: { id: string; title: string; sheet: string; payload: Record<string, unknown> };
 }
 
-type Coverage = { requirement: string; room: string; lines: number; codes: string[]; titles: string[] };
+type Coverage = { requirement: string; room: string; lines: number; codes: string[]; titles: string[]; status?: ScopeStatus };
 
 interface Row {
   key: number;
@@ -68,6 +74,10 @@ interface Row {
   provisional?: boolean;
   /** A rate to review (no verified rate on the chosen sheet). */
   rateNote?: string;
+  /** Scope status of the item this line prices (NEW when absent). */
+  scopeStatus?: ScopeStatus;
+  /** Added by the system, not by a scope item. */
+  autoAdded?: boolean;
   /** Where the quantity came from; editing it makes it "entered". */
   qtySource?: "measured" | "entered" | "estimated";
   /** Rate-card id when the rate came from the sheet; empty = custom rate. */
@@ -102,6 +112,9 @@ const TRADE_ITEM: Record<string, string> = {
   "Site Protection, Deep Cleaning & Handover": "Cleaning / Protection",
 };
 
+const STATE_LABEL: Record<LineState, string> = { confirmed: "Confirmed", assumed: "Assumed", awaiting: "Awaiting approval" };
+const STATE_TONE: Record<LineState, string> = { confirmed: "text-emerald-700", assumed: "font-medium text-amber-600", awaiting: "font-medium text-rose-600" };
+
 const selectCls =
   "h-8 w-full rounded-lg border border-transparent bg-transparent px-2 text-[0.8rem] outline-none transition-colors hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-saffron/70";
 const numCls = "h-8 w-full num rounded-lg border border-transparent bg-transparent px-2 text-right text-[0.8rem] outline-none transition-colors hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-saffron/70";
@@ -125,6 +138,8 @@ function toRows(lines: LineLike[]): Row[] {
     provisional: l.provisional,
     rateNote: l.rateNote,
     qtySource: l.qtySource,
+    scopeStatus: l.scopeStatus,
+    autoAdded: l.autoAdded,
     description: l.description,
     uom: l.uom,
     l: l.l ?? null,
@@ -135,13 +150,13 @@ function toRows(lines: LineLike[]): Row[] {
   }));
 }
 
-export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; catalog: CatalogRate[] }) {
+export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchInitial; catalog: CatalogRate[]; units: UnitOption[] }) {
   const [bhk, setBhk] = useState<Bhk>(initial.bhk);
   const [homeSize, setHomeSize] = useState<HomeSize>(initial.homeSize ?? "small");
   const [city, setCity] = useState(initial.city);
   const [tier, setTier] = useState<PackageTier>(initial.tier);
   const savedPayload = initial.saved?.payload as
-    | { lines?: LineLike[]; coverage?: Coverage[]; planRooms?: PlanRoom[]; specification?: string; location?: string; client?: string }
+    | { lines?: LineLike[]; coverage?: Coverage[]; planRooms?: PlanRoom[]; specification?: string; location?: string; client?: string; scope?: { approved: boolean; items: BriefItem[] }; revision?: number; finalApproved?: { at: string; by: string }; revisions?: Snapshot[]; budget?: number }
     | undefined;
   const [sheet, setSheet] = useState<RateSheet>(
     (RATE_SHEETS as readonly string[]).includes(initial.saved?.sheet ?? "") ? (initial.saved!.sheet as RateSheet) : "spazay"
@@ -160,7 +175,20 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
   const [pick, setPick] = useState("");
   const [mode, setMode] = useState<"brief" | "spec">("brief");
   const [planRooms, setPlanRooms] = useState<PlanRoom[]>(savedPayload?.planRooms ?? []);
-  const [briefItems, setBriefItems] = useState<BriefItem[]>([]);
+  const [briefItems, setBriefItemsRaw] = useState<BriefItem[]>(savedPayload?.scope?.items ?? []);
+  const [budget, setBudget] = useState<number | undefined>(savedPayload?.budget);
+  const [revision, setRevision] = useState(savedPayload?.revision ?? 1);
+  const [finalApproved, setFinalApproved] = useState<{ at: string; by: string } | null>(savedPayload?.finalApproved ?? null);
+  const [revisions, setRevisions] = useState<Snapshot[]>(savedPayload?.revisions ?? []);
+  const [scopeApproved, setScopeApproved] = useState(savedPayload?.scope?.approved ?? false);
+  // True once the scope is edited after the lines were computed; cleared by "Update BOQ".
+  const [scopeDirty, setScopeDirty] = useState(false);
+  /** Any scope edit un-approves the BOQ and asks for a re-price. */
+  const setBriefItems = (items: BriefItem[]) => {
+    setBriefItemsRaw(items);
+    setScopeApproved(false);
+    setScopeDirty(true);
+  };
   const [notes, setNotes] = useState<Pick<BriefResult, "warnings" | "assumptions" | "unpriced" | "questions"> | null>(null);
 
   const roomList = useMemo(
@@ -185,6 +213,9 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
     return { all, trade: rank(trade), room: rank(room) };
   }, [rows]);
 
+  // Per-line state (confirmed / assumed / awaiting professional approval) with the reasons behind it.
+  const assessments = useMemo(() => new Map(rows.map((r) => [r.key, lineAssessment(r, rows)] as const)), [rows]);
+
   // Live checks on whatever is in the table, so every edit is re-validated. Warnings only: nothing here changes a number.
   const issues = useMemo(() => {
     const area = planRooms.length
@@ -197,6 +228,13 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
     for (const r of rows) if (r.qtySource) c[r.qtySource]++;
     return c;
   }, [rows]);
+
+  const status: BoqStatus = boqStatus({
+    scope: briefItems.length ? { approved: scopeApproved, items: briefItems } : undefined,
+    revision,
+    finalApproved: finalApproved ?? undefined,
+  });
+  const canApprove = rows.length > 0 && (briefItems.length === 0 || (scopeApproved && !scopeDirty)) && !issues.some((i) => i.severity === "error");
 
   async function generate() {
     if (roomList.length === 0) {
@@ -216,7 +254,8 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
       setSpec(j.specification);
       setRows(toRows(j.lines));
       setPlanRooms([]);
-      setBriefItems([]);
+      setBriefItemsRaw([]);
+      setScopeApproved(false);
       setNotes({ warnings: j.warnings ?? [], assumptions: j.assumptions ?? [], unpriced: [], questions: [] });
       setCoverage([]);
       toast.success(`${j.lines.length} lines generated.`);
@@ -228,9 +267,16 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
   }
 
   function onBriefResult(r: BriefResult) {
+    // An analysis that read no scope must never replace (or fake) a BOQ.
+    if (r.items.length === 0 || r.lines.length === 0) {
+      toast.error("The AI returned no priceable scope, so nothing was changed. Check the requirements text and try again, or add lines manually.");
+      return;
+    }
     setRows(toRows(r.lines as unknown as LineLike[]));
     setPlanRooms(r.rooms);
-    setBriefItems(r.items);
+    setBriefItemsRaw(r.items);
+    setScopeApproved(false);
+    setScopeDirty(false);
     setNotes({ warnings: r.warnings, assumptions: r.assumptions, unpriced: r.unpriced, questions: r.questions });
     setCoverage(r.coverage ?? []);
     setSpec(`${TIER_INFO[tier].label} specification`);
@@ -250,6 +296,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
       if (!r.ok) throw new Error(j.error ?? "Could not recalculate.");
       setRows(toRows(j.lines));
       setCoverage(j.coverage ?? []);
+      setScopeDirty(false);
       setNotes((n) => (n ? { ...n, warnings: j.warnings } : n));
       toast.success("Quantities recalculated.");
     } catch (e) {
@@ -266,7 +313,8 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
     const snap = { rows, planRooms, briefItems, notes, spec };
     setRows([]);
     setPlanRooms([]);
-    setBriefItems([]);
+    setBriefItemsRaw([]);
+    setScopeApproved(false);
     setNotes(null);
     setSpec("");
     toast("BOQ deleted.", {
@@ -276,7 +324,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
         onClick: () => {
           setRows(snap.rows);
           setPlanRooms(snap.planRooms);
-          setBriefItems(snap.briefItems);
+          setBriefItemsRaw(snap.briefItems);
           setNotes(snap.notes);
           setSpec(snap.spec);
         },
@@ -289,9 +337,11 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
     return {
           client,
           location,
-          specification: spec || undefined,
+          specification: [spec, `Rev ${revision}`, finalApproved ? "APPROVED" : "DRAFT — not approved"].filter(Boolean).join(" · ") || undefined,
           sheet,
           coverage: coverage.length ? coverage : undefined,
+          budget,
+          scope: briefItems.length ? { approved: scopeApproved, items: briefItems } : undefined,
           planRooms: planRooms.length
             ? planRooms.map((p) => ({ name: p.name, boqRoom: p.boqRoom, l: p.l, b: p.b, h: p.h, source: p.source }))
             : undefined,
@@ -307,6 +357,9 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
             provisional: r.provisional || undefined,
             rateNote: r.rateNote || undefined,
             qtySource: r.qtySource,
+            scopeStatus: r.scopeStatus,
+            rateId: r.rateId,
+            autoAdded: r.autoAdded || undefined,
             description: r.description,
             uom: r.uom,
             l: r.l,
@@ -318,7 +371,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
         };
   }
 
-  async function save() {
+  async function save(approve = false) {
     setBusy("save");
     try {
       const r = await fetch("/api/boq/save", {
@@ -332,12 +385,16 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
           title: title.trim() || "BOQ",
           tier,
           city,
+          finalApprove: approve || undefined,
         }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not save.");
       setBoqId(j.id);
-      toast.success("Saved to the project.");
+      setRevision(j.revision ?? 1);
+      setFinalApproved(j.finalApproved ?? null);
+      setRevisions(j.revisions ?? []);
+      toast.success(approve ? "Estimate approved and saved." : j.revision > 1 && !j.finalApproved ? `Saved as revision ${j.revision} (draft).` : "Saved to the project.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save.");
     } finally {
@@ -545,7 +602,20 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
           )}
         </div>
 
-        {mode === "brief" && <BriefPanel tier={tier} city={city} sheet={sheet} onResult={onBriefResult} />}
+        {mode === "brief" && <BriefPanel
+            tier={tier}
+            city={city}
+            sheet={sheet}
+            onResult={onBriefResult}
+            onBeforeRun={() =>
+              rows.length === 0 ||
+              window.confirm(
+                finalApproved
+                  ? "This analysis will replace the working BOQ. The approved revision stays saved; saving the new one creates the next revision. Continue?"
+                  : "This analysis will replace the current BOQ lines. Continue?"
+              )
+            }
+          />}
 
         {mode === "spec" && (
         <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -577,6 +647,20 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
         )}
       </section>
 
+      {briefItems.length > 0 && (
+        <ScopeReview
+          items={briefItems}
+          onChange={setBriefItems}
+          units={units}
+          questions={notes?.questions ?? []}
+          approved={scopeApproved}
+          dirty={scopeDirty}
+          busy={busy !== null}
+          onUpdate={recalc}
+          onApprove={() => setScopeApproved(true)}
+          onReopen={() => setScopeApproved(false)}
+        />
+      )}
       {planRooms.length > 0 && (
         <PlanRoomsEditor rooms={planRooms} onChange={setPlanRooms} onRecalc={recalc} busy={busy !== null} />
       )}
@@ -601,6 +685,7 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
 
       {rows.length > 0 && (
         <>
+          <RevisionPanel status={status} revision={revision} approvedAt={finalApproved?.at} revisions={revisions} current={rows} />
           <section className="rounded-3xl border border-border bg-card">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
               <div>
@@ -621,11 +706,31 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                   onChange={(e) => setTitle(e.target.value)}
                   className="h-9 w-56"
                 />
-                <Button onClick={save} disabled={busy !== null} className="gap-2">
+                <Button onClick={() => save()} disabled={busy !== null} className="gap-2">
                   {busy === "save" ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
                   {boqId ? "Update in project" : "Save to project"}
                 </Button>
-                <Button variant="outline" onClick={download} disabled={busy !== null} className="gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => save(true)}
+                  disabled={busy !== null || !canApprove || status === "approved"}
+                  title={status === "approved" ? "Already approved" : !canApprove ? "Approve the scope and clear errors first" : "Approve this estimate and save it"}
+                  className="gap-2"
+                >
+                  <CheckCircle2 className="size-4" /> {status === "approved" ? "Approved" : "Approve estimate"}
+                </Button>
+                {boqId && (
+                  <Button variant="outline" render={<a href={`/boq-print/${initial.projectId}/${boqId}`} target="_blank" rel="noreferrer" />} className="gap-2">
+                    <FileText className="size-4" /> Print / PDF
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={download}
+                  disabled={busy !== null || (briefItems.length > 0 && !scopeApproved)}
+                  title={briefItems.length > 0 && !scopeApproved ? "Approve the scope before exporting" : undefined}
+                  className="gap-2"
+                >
                   {busy === "export" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
                   Download .xlsx
                 </Button>
@@ -670,6 +775,9 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                           aria-label="Line / BOQ item"
                           onChange={(e) => patch(r.key, { title: e.target.value })}
                         />
+                        {r.scopeStatus && r.scopeStatus !== "NEW" && (
+                          <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[0.75rem] text-muted-foreground">{r.scopeStatus}</span>
+                        )}
                       </td>
                       <td className="w-56 p-1">
                         <select className={selectCls} value={r.rateId} onChange={(e) => pickRate(r.key, e.target.value)}>
@@ -722,6 +830,15 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
                             {r.qtySource === "estimated" ? "Estimate" : r.qtySource === "measured" ? "Measured" : "Entered"}
                           </span>
                         )}
+                        {(() => {
+                          const a = assessments.get(r.key);
+                          if (!a) return null;
+                          return (
+                            <span title={a.reasons.map((x) => x.text).join("\n") || "Nothing open on this line."} className={"mt-0.5 block text-right text-[0.75rem] " + STATE_TONE[a.state]}>
+                              {STATE_LABEL[a.state]}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="w-24 p-1">
                         <input
@@ -781,6 +898,8 @@ export function BoqWorkbench({ initial, catalog }: { initial: WorkbenchInitial; 
               </Button>
             </div>
           </section>
+
+          <BoqSummary rows={rows} project={client || initial.projectTitle || ""} location={location} tier={TIER_INFO[tier].label} budget={budget} onBudget={setBudget} />
 
           <div className="grid gap-4 md:grid-cols-2">
             {(

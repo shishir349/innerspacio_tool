@@ -5,6 +5,7 @@ import { getRepository } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/config";
 import { loadLeadSpec } from "@/lib/boq/lead";
 import { RATE_CARD } from "@/lib/rates/catalog";
+import { UNIT_CLASSES } from "@/lib/boq/classes";
 import { BoqWorkbench, type WorkbenchInitial } from "@/components/boq/workbench";
 
 export const dynamic = "force-dynamic";
@@ -131,7 +132,12 @@ export default async function BoqPage({
           {leadSpec ? ` Prefilled from lead “${leadSpec.client}”.` : ""}
         </p>
       </div>
-      <BoqWorkbench key={saved?.id ?? "new"} initial={initial} catalog={catalog} />
+      <BoqWorkbench
+        key={saved?.id ?? "new"}
+        initial={initial}
+        catalog={catalog}
+        units={Object.entries(UNIT_CLASSES).map(([id, c]) => ({ id, label: c.label }))}
+      />
     </div>
   );
 }

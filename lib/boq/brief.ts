@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { WALL_NET } from "@/lib/boq/standards";
-import { cityNote, makeLine, modularLines, type BoqLine, type QtySource } from "@/lib/boq/build";
+import { cityNote, makeLine, modularLines, SCOPE_STATUSES, type BoqLine, type QtySource, type ScopeStatus } from "@/lib/boq/build";
 import { BOQ_ITEMS, BOQ_ROOMS, type BoqRoom } from "@/lib/boq/lists";
 import { findRate } from "@/lib/rates/catalog";
 import { normalizeUnit, ordinalOf, resolveUnit, UNIT_CLASSES } from "@/lib/boq/classes";
@@ -36,8 +36,8 @@ export const planRoomSchema = z.object({
   l: z.number().min(0).max(300),
   b: z.number().min(0).max(300),
   h: z.number().min(6).max(40),
-  /** labelled = dimensions written on the plan; scaled = measured from a scale; assumed = typical size. */
-  source: z.enum(["labelled", "scaled", "assumed"]),
+  /** labelled = dimensions written on the plan; scaled = measured from a scale; assumed = typical size; entered = typed by the designer. */
+  source: z.enum(["labelled", "scaled", "assumed", "entered"]),
 });
 export type PlanRoom = z.infer<typeof planRoomSchema>;
 
@@ -65,6 +65,12 @@ export const briefItemSchema = z.object({
   height: z.preprocess((v) => (typeof v === "number" && v > 40 ? undefined : v), z.number().min(0).max(40).optional()),
   count: z.number().min(0).max(1000).optional(),
   note: z.string().max(300).optional(),
+  /** NEW / REPLACE / REFURBISH are priced; RETAIN / EXCLUDED are recorded, not priced; UNCONFIRMED waits for the designer. */
+  status: z.preprocess((v) => (SCOPE_STATUSES.includes(v as ScopeStatus) ? v : "NEW"), z.enum(SCOPE_STATUSES)).optional(),
+  /** Set when the designer typed the size in the scope review: it is honoured like a size written in the brief. */
+  sizeBy: z.enum(["designer"]).optional(),
+  /** A provisional assumption the designer should confirm (shown on the line and in review). */
+  assumption: z.string().max(300).optional(),
 });
 export type BriefItem = z.infer<typeof briefItemSchema>;
 
@@ -116,13 +122,18 @@ export interface CoverageRow {
   codes: string[];
   /** Titles of the lines that price it. */
   titles: string[];
+  /** Scope status of the requirement (default NEW). */
+  status?: ScopeStatus;
 }
 
 const WALLPAPER = "wp:WP53";
 const PRIMER = "pt:PT12";
 
+/** Statuses that are recorded in the scope but never priced (RETAIN / EXCLUDED) or wait on the designer (UNCONFIRMED). */
+export const HELD_STATUSES: readonly ScopeStatus[] = ["RETAIN", "EXCLUDED", "UNCONFIRMED"];
+
 export function quantify(
-  items: BriefItem[],
+  allItems: BriefItem[],
   rooms: PlanRoom[],
   opts: QuantifyOptions
 ): { lines: BoqLine[]; warnings: string[]; coverage: CoverageRow[] } {
@@ -131,6 +142,16 @@ export function quantify(
   const cn = cityNote(opts.city);
   if (cn) warnings.push(cn);
   const coverage = new Map<string, CoverageRow>();
+  // Scope status gate: held items are recorded in coverage and never priced; a REFURBISH needs its own
+  // refurbishment rate (naming a unit class would price a brand-new unit, so it is held until a rate is given).
+  const status = (i: BriefItem): ScopeStatus => i.status ?? "NEW";
+  const isHeld = (i: BriefItem) => HELD_STATUSES.includes(status(i)) || (status(i) === "REFURBISH" && !i.rateId);
+  for (const i of allItems.filter(isHeld)) {
+    coverage.set(`${i.room}|${i.requirement}`, { requirement: i.requirement, room: i.room, lines: 0, codes: [], titles: [], status: status(i) });
+    if (status(i) === "UNCONFIRMED") warnings.push(`${i.room}: UNCONFIRMED — “${i.requirement.slice(0, 70)}” is not priced until the designer confirms the scope.`);
+    if (status(i) === "REFURBISH") warnings.push(`${i.room}: REFURBISH — “${i.requirement.slice(0, 70)}” has no refurbishment rate on the card; add a manual line.`);
+  }
+  const items = allItems.filter((i) => !isHeld(i));
   const sheet = opts.sheet ?? "spazay";
   // Several plan rooms can map to one BOQ room (e.g. extra bedrooms): measure them together.
   const sized = (r: BoqRoom) => rooms.filter((x) => x.boqRoom === r && x.l > 0 && x.b > 0);
@@ -183,13 +204,16 @@ export function quantify(
     // Provenance: a size taken off a labelled / scaled plan room is measured; one the designer wrote is entered;
     // a class default, an assumed plan room or a guessed count is an estimate.
     const assumedSize = /Assumed size/.test(it.note ?? "");
-    const planSrc: QtySource = group.length > 0 && group.every((g) => g.source !== "assumed") ? "measured" : "estimated";
+    const planSrc: QtySource =
+      group.length > 0 && group.every((g) => g.source !== "assumed") ? (group.every((g) => g.source === "entered") ? "entered" : "measured") : "estimated";
     let src: QtySource = planSrc;
 
     const track = () => {
       const key = `${it.room}|${it.requirement}`;
-      const row = coverage.get(key) ?? { requirement: it.requirement, room: it.room, lines: 0, codes: [], titles: [] };
+      const row = coverage.get(key) ?? { requirement: it.requirement, room: it.room, lines: 0, codes: [], titles: [], status: status(it) };
       for (const l of lines.slice(before)) {
+        l.scopeStatus = status(it);
+        if (it.assumption) l.remarks = [l.remarks, `Assumption: ${it.assumption}`].filter(Boolean).join(" ");
         if (!l.area) l.area = it.area?.trim() || (group.length === 1 ? group[0].name : it.room);
         row.lines++;
         if (!row.codes.includes(l.code)) row.codes.push(l.code);
@@ -219,6 +243,12 @@ export function quantify(
     const rate = it.rateId ? findRate(it.rateId) : undefined;
     if (!rate || !it.rateId) {
       warnings.push(`${label} — unknown rate item “${it.rateId ?? "none"}”, skipped.`);
+      track();
+      continue;
+    }
+    // A balcony PVC ceiling with no balcony size is flagged, never measured off the room it was filed under.
+    if (it.unit === "pvc_ceiling" && !(it.width && it.width > 0)) {
+      warnings.push(`${label} — no dimensions for this balcony ceiling on the plan; enter a width/height or file it under the balcony.`);
       track();
       continue;
     }
@@ -319,7 +349,7 @@ export function quantify(
           PRIMER, it.room, "Paint", r2(qty), dims, "Prior to wallpaper installation.", opts.city, sheet,
           "Oil-primer base coat for wallpaper"
         );
-        if (pr) lines.push({ ...pr, qtySource: src });
+        if (pr) lines.push({ ...pr, qtySource: src, autoAdded: true });
       }
     }
     track();
@@ -346,8 +376,17 @@ export function quantify(
       }
       for (const [id, note, title] of extras) {
         const l = makeLine(id, home, "Cleaning / Protection", r2(floor), {}, note, opts.city, sheet, title);
-        if (l) lines.push({ ...l, area: "Whole Home", qtySource: rooms.every((r) => r.source !== "assumed") ? "measured" : "estimated" });
+        if (l) lines.push({ ...l, area: "Whole Home", autoAdded: true, qtySource: rooms.every((r) => r.source !== "assumed") ? "measured" : "estimated" });
       }
+    }
+  }
+
+  // An all-in unit already carries carcass + shutter + hardware: flag a room that also bills them separately.
+  const allIn = (l: BoqLine) => /^PR\d/.test(l.code) && l.trade === "Modular Woodwork";
+  const component = (l: BoqLine) => /^(C|S|H|HG|V|A)\d/.test(l.code) && l.trade === "Modular Woodwork";
+  for (const room of new Set(lines.filter(allIn).map((l) => l.room))) {
+    if (lines.some((l) => l.room === room && component(l))) {
+      warnings.push(`${room}: carcass / shutter / hardware lines sit beside an all-in modular unit — check nothing is charged twice.`);
     }
   }
 

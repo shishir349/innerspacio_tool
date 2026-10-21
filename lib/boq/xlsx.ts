@@ -45,7 +45,7 @@ export interface BoqSheetOptions {
   /** Rate sheet the lines were priced from (printed on the Master BOQ). */
   sheet?: RateSheet;
   /** Requirement → lines map for the Scope Coverage sheet. */
-  coverage?: { requirement: string; room: string; lines: number; codes: string[]; titles: string[] }[];
+  coverage?: { requirement: string; room: string; lines: number; codes: string[]; titles: string[]; status?: string }[];
   /** Rooms read from the plan, for the assumed-areas table. */
   planRooms?: { name: string; boqRoom: string; l: number; b: number; h: number; source: string }[];
 }
@@ -414,12 +414,22 @@ export async function buildBoqWorkbook(opts: BoqSheetOptions): Promise<Buffer> {
     for (const c of opts.coverage ?? []) {
       sc.getRow(r).values = [
         c.requirement,
-        c.lines > 0 ? c.titles.join("; ") : "NOT PRICED — add a line or confirm it is out of scope.",
+        c.lines > 0
+          ? c.titles.join("; ")
+          : c.status === "RETAIN"
+            ? "RETAINED — existing stays; not priced."
+            : c.status === "EXCLUDED"
+              ? "EXCLUDED — not in this BOQ."
+              : c.status === "UNCONFIRMED"
+                ? "UNCONFIRMED — not priced until the scope is confirmed."
+                : c.status === "REFURBISH"
+                  ? "REFURBISH — no refurbishment rate on the card; add a manual line."
+                  : "NOT PRICED — add a line or confirm it is out of scope.",
         c.room,
         c.codes.join(", "),
       ];
       for (let k = 1; k <= 4; k++) sc.getRow(r).getCell(k).alignment = { wrapText: true, vertical: "top" };
-      if (c.lines === 0) sc.getRow(r).getCell(2).fill = fill("FFF8CBAD");
+      if (c.lines === 0 && c.status !== "RETAIN" && c.status !== "EXCLUDED") sc.getRow(r).getCell(2).fill = fill("FFF8CBAD");
       r++;
     }
     const prov = opts.lines.filter((l) => l.provisional);

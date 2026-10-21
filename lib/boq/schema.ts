@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { briefItemSchema } from "@/lib/boq/brief";
+import { SCOPE_STATUSES } from "@/lib/boq/build";
 import { BHK_OPTIONS, PACKAGE_TIERS, QUOTE_ROOM_TYPES } from "@/lib/quote/constants";
 import { RATE_SHEETS } from "@/lib/rates/sheets";
 
@@ -43,6 +45,10 @@ export const lineSchema = z.object({
   provisional: z.boolean().optional(),
   rateNote: z.string().max(200).optional(),
   qtySource: z.enum(["measured", "entered", "estimated"]).optional(),
+  scopeStatus: z.enum(SCOPE_STATUSES).optional(),
+  /** Rate-card id the rate came from ("" = a custom rate). */
+  rateId: z.string().max(40).optional(),
+  autoAdded: z.boolean().optional(),
 });
 
 const coverageRow = z.object({
@@ -51,6 +57,7 @@ const coverageRow = z.object({
   lines: z.number().int().min(0).max(1000),
   codes: z.array(z.string().max(20)).max(50),
   titles: z.array(z.string().max(200)).max(50).default([]),
+  status: z.enum(SCOPE_STATUSES).optional(),
 });
 
 const planRoomRow = z.object({
@@ -59,7 +66,7 @@ const planRoomRow = z.object({
   l: z.number().min(0).max(300),
   b: z.number().min(0).max(300),
   h: z.number().min(0).max(40),
-  source: z.enum(["labelled", "scaled", "assumed"]),
+  source: z.enum(["labelled", "scaled", "assumed", "entered"]),
 });
 
 export const exportRequestSchema = z.object({
@@ -71,6 +78,10 @@ export const exportRequestSchema = z.object({
   sheet: z.enum(RATE_SHEETS).optional(),
   coverage: z.array(coverageRow).max(100).optional(),
   planRooms: z.array(planRoomRow).max(40).optional(),
+  /** The client's stated budget (₹), for comparison only. */
+  budget: z.number().finite().min(0).max(10_000_000_000).optional(),
+  /** The reviewed scope the lines were priced from; `approved` is the designer's sign-off. */
+  scope: z.object({ approved: z.boolean(), items: z.array(briefItemSchema).max(200) }).optional(),
   lines: z.array(lineSchema).min(1).max(MAX_BOQ_LINES),
 });
 
@@ -79,6 +90,8 @@ export const saveRequestSchema = exportRequestSchema.extend({
   projectId: z.string().min(1).max(64),
   boqId: z.string().max(64).optional(),
   leadId: z.string().uuid().optional(),
+  /** Ask to approve this estimate (server checks the scope is approved and stamps who / when). */
+  finalApprove: z.boolean().optional(),
   title: z.string().trim().min(1).max(120),
   tier: z.enum(PACKAGE_TIERS),
   city: z.string().trim().max(60),
