@@ -13,10 +13,10 @@ import {
 import { pickMedianRun } from "@/lib/boq/consensus";
 import type { PackageTier } from "@/lib/quote/constants";
 
-/** Independent analyses; the median-total one is used (BOQ_CONSENSUS_RUNS, 1-5, default 3). */
+/** Independent analyses; the median-total one is used (BOQ_CONSENSUS_RUNS, 1-5, default 1: one run, so one reading; raise it only to trade speed and cost for a median). */
 function consensusRuns(): number {
-  const n = Math.round(Number(process.env.BOQ_CONSENSUS_RUNS ?? 3));
-  return Number.isFinite(n) ? Math.min(5, Math.max(1, n)) : 3;
+  const n = Math.round(Number(process.env.BOQ_CONSENSUS_RUNS ?? 1));
+  return Number.isFinite(n) ? Math.min(5, Math.max(1, n)) : 1;
 }
 /** Provider task ids travel as one opaque id joined with this. */
 const SEP = ".";
