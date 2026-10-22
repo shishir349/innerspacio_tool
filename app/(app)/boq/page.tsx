@@ -10,6 +10,7 @@ import { pricingVersion } from "@/lib/boq/provenance";
 import { BoqWorkbench, type WorkbenchInitial } from "@/components/boq/workbench";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { DeleteBoqButton } from "@/components/boq/delete-boq-button";
 import { formatInr } from "@/lib/format";
 import { Plus } from "lucide-react";
 
@@ -87,8 +88,8 @@ export default async function BoqPage({
                   {list.map((b) => {
                     const approved = !!(b.payload as { finalApproved?: unknown }).finalApproved;
                     return (
-                      <li key={b.id} className="border-b border-border/60 last:border-b-0">
-                        <Link href={`/boq?project=${p.id}&boq=${b.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors hover:bg-accent/50">
+                      <li key={b.id} className="flex items-center border-b border-border/60 last:border-b-0">
+                        <Link href={`/boq?project=${p.id}&boq=${b.id}`} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors hover:bg-accent/50">
                           <span className="min-w-0 flex-1">
                             <span className="block truncate font-medium">{b.title}</span>
                             <span className="block text-[0.78rem] text-muted-foreground">
@@ -100,6 +101,7 @@ export default async function BoqPage({
                           </span>
                           <span className="num w-28 text-right font-semibold">{formatInr(b.total)}</span>
                         </Link>
+                        <DeleteBoqButton projectId={p.id} boqId={b.id} title={b.title} />
                       </li>
                     );
                   })}

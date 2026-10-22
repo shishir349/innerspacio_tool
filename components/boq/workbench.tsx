@@ -317,9 +317,24 @@ export function BoqWorkbench({ initial, catalog, units, currentPricingVersion }:
   }
 
   /** Delete the whole BOQ at once; the toast offers an undo. */
-  function deleteAll() {
-    if (rows.length === 0) return;
-    if (!window.confirm(`Delete this entire BOQ (${rows.length} lines)?`)) return;
+  async function deleteAll() {
+    if (rows.length === 0 && !boqId) return;
+    // A saved BOQ is deleted for real (it used to only clear the editor and came back on reload).
+    if (boqId) {
+      if (!window.confirm(`Permanently delete the saved BOQ “${title}”${finalApproved ? " (it is APPROVED)" : ""}? This cannot be undone.`)) return;
+      setBusy("save");
+      try {
+        const r = await fetch("/api/boq/delete", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ projectId: initial.projectId, boqId }) });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? "Could not delete the BOQ.");
+        toast.success("BOQ deleted.");
+        window.location.assign("/boq");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not delete the BOQ.");
+        setBusy(null);
+      }
+      return;
+    }
+    if (!window.confirm(`Clear this unsaved BOQ (${rows.length} lines)?`)) return;
     const snap = { rows, planRooms, briefItems, notes, spec };
     setRows([]);
     setPlanRooms([]);
@@ -851,7 +866,7 @@ export function BoqWorkbench({ initial, catalog, units, currentPricingVersion }:
                 {busy === "export" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />} Download .xlsx
               </Button>
               <Button variant="ghost" onClick={deleteAll} disabled={busy !== null} className="ml-auto gap-2 text-navy">
-                <Trash2 className="size-4" /> Delete BOQ
+                <Trash2 className="size-4" /> {boqId ? "Delete saved BOQ" : "Clear BOQ"}
               </Button>
             </section>
           </>
