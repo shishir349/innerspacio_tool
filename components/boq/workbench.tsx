@@ -7,9 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   BOQ_ITEMS,
-  BOQ_ROOMS,
   BOQ_TRADES,
-  BOQ_UOMS,
 } from "@/lib/boq/lists";
 import {
   BHK_OPTIONS,
@@ -29,11 +27,12 @@ import { carpetArea } from "@/lib/boq/standards";
 import { BriefNotes, BriefPanel, PlanRoomsEditor, type BriefResult } from "@/components/boq/brief-panel";
 import type { BriefItem, PlanRoom } from "@/lib/boq/brief";
 import { BoqSummary } from "@/components/boq/boq-summary";
+import { BoqBoard } from "@/components/boq/boq-board";
 import { RevisionPanel } from "@/components/boq/revision-panel";
 import { boqStatus, type BoqStatus, type Snapshot } from "@/lib/boq/revisions";
 import { ScopeReview, type UnitOption } from "@/components/boq/scope-review";
 import type { ScopeStatus } from "@/lib/boq/build";
-import { lineAssessment, type LineState } from "@/lib/boq/decisions";
+import { lineAssessment } from "@/lib/boq/decisions";
 import { RATE_SHEETS, RATE_SHEET_LABEL, type RateSheet } from "@/lib/rates/sheets";
 
 export interface CatalogRate {
@@ -63,7 +62,7 @@ export interface WorkbenchInitial {
 
 type Coverage = { requirement: string; room: string; lines: number; codes: string[]; titles: string[]; status?: ScopeStatus };
 
-interface Row {
+export interface Row {
   key: number;
   /** Specific line title (what / where / finish); falls back to the standard item. */
   title?: string;
@@ -112,12 +111,9 @@ const TRADE_ITEM: Record<string, string> = {
   "Site Protection, Deep Cleaning & Handover": "Cleaning / Protection",
 };
 
-const STATE_LABEL: Record<LineState, string> = { confirmed: "Confirmed", assumed: "Assumed", awaiting: "Awaiting approval" };
-const STATE_TONE: Record<LineState, string> = { confirmed: "text-emerald-700", assumed: "font-medium text-amber-600", awaiting: "font-medium text-rose-600" };
 
 const selectCls =
   "h-8 w-full rounded-lg border border-transparent bg-transparent px-2 text-[0.8rem] outline-none transition-colors hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-royal/70";
-const numCls = "h-8 w-full num rounded-lg border border-transparent bg-transparent px-2 text-right text-[0.8rem] outline-none transition-colors hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-royal/70";
 
 let keySeq = 1;
 
@@ -174,7 +170,8 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
   const [busy, setBusy] = useState<"build" | "export" | "save" | null>(null);
   const [pick, setPick] = useState("");
   const [mode, setMode] = useState<"brief" | "spec">("brief");
-  const [planRooms, setPlanRooms] = useState<PlanRoom[]>(savedPayload?.planRooms ?? []);
+  // Saves made before ids were stored have none: give each a stable one so quantify's room de-dupe still works.
+  const [planRooms, setPlanRooms] = useState<PlanRoom[]>(() => (savedPayload?.planRooms ?? []).map((p, i) => ({ ...p, id: p.id ?? `r${i}` })));
   const [briefItems, setBriefItemsRaw] = useState<BriefItem[]>(savedPayload?.scope?.items ?? []);
   const [budget, setBudget] = useState<number | undefined>(savedPayload?.budget);
   const [revision, setRevision] = useState(savedPayload?.revision ?? 1);
@@ -343,7 +340,7 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
           budget,
           scope: briefItems.length ? { approved: scopeApproved, items: briefItems } : undefined,
           planRooms: planRooms.length
-            ? planRooms.map((p) => ({ name: p.name, boqRoom: p.boqRoom, l: p.l, b: p.b, h: p.h, source: p.source }))
+            ? planRooms.map((p) => ({ id: p.id, name: p.name, boqRoom: p.boqRoom, l: p.l, b: p.b, h: p.h, source: p.source }))
             : undefined,
           lines: rows.map((r) => ({
             room: r.room,
@@ -476,7 +473,6 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
       },
     ]);
   }
-  const numOrNull = (v: string) => (v === "" ? null : Math.max(0, Number(v) || 0));
 
   function addFromCatalog() {
     const c = catalog.find((x) => x.id === pick);
@@ -686,241 +682,90 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
       {rows.length > 0 && (
         <>
           <RevisionPanel status={status} revision={revision} approvedAt={finalApproved?.at} revisions={revisions} current={rows} />
-          <section className="rounded-3xl border border-border bg-card">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
+          <section className="overflow-hidden rounded-3xl bg-navy text-cream">
+            <div className="flex flex-wrap items-end justify-between gap-4 p-6">
               <div>
-                <h2 className="text-[0.95rem] font-medium">Master BOQ · {rows.length} lines</h2>
-                <p className="text-[0.85rem] text-muted-foreground">
-                  Quantities: {qtyCounts.measured} measured · {qtyCounts.entered} entered · {qtyCounts.estimated} estimated.
-                  {qtyCounts.estimated > 0 ? " Replace estimates with site measurements before issuing." : ""}
+                <p className="text-[0.82rem] text-cream/70">Estimate total · {rows.length} lines · {totals.room.length} rooms</p>
+                <p className="num text-[2.8rem] leading-none font-semibold">{formatInr(totals.all)}</p>
+                <div className="mt-4 flex h-1.5 w-72 max-w-full overflow-hidden rounded-full bg-cream/15" title={`${qtyCounts.measured} measured · ${qtyCounts.entered} entered · ${qtyCounts.estimated} estimated`}>
+                  {(["measured", "entered", "estimated"] as const).map((k, n) => (
+                    <span key={k} className={n === 0 ? "bg-cream" : n === 1 ? "bg-signal" : "bg-royal"} style={{ width: `${(qtyCounts[k] / rows.length) * 100}%` }} />
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[0.78rem] text-cream/70">
+                  {qtyCounts.measured} measured · {qtyCounts.entered} entered · {qtyCounts.estimated} estimated
+                  {qtyCounts.estimated > 0 ? " — confirm on site before issuing" : ""}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <p className="num text-[2.4rem] leading-none font-semibold">{formatInr(totals.all)}</p>
-                <Button variant="outline" onClick={deleteAll} disabled={busy !== null} className="gap-2 text-destructive">
-                  <Trash2 className="size-4" /> Delete BOQ
-                </Button>
-                <Input
-                  aria-label="BOQ name"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="h-9 w-56"
-                />
-                <Button onClick={() => save()} disabled={busy !== null} className="gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Input aria-label="BOQ name" value={title} onChange={(e) => setTitle(e.target.value)} className="h-9 w-48 border-cream/30 bg-transparent text-cream" />
+                <Button variant="secondary" onClick={() => save()} disabled={busy !== null} className="gap-2">
                   {busy === "save" ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
-                  {boqId ? "Update in project" : "Save to project"}
+                  {boqId ? "Update" : "Save to project"}
                 </Button>
                 <Button
-                  variant="outline"
                   onClick={() => save(true)}
                   disabled={busy !== null || !canApprove || status === "approved"}
                   title={status === "approved" ? "Already approved" : !canApprove ? "Approve the scope and clear errors first" : "Approve this estimate and save it"}
-                  className="gap-2"
+                  className="gap-2 bg-cream text-navy hover:bg-accent"
                 >
-                  <CheckCircle2 className="size-4" /> {status === "approved" ? "Approved" : "Approve estimate"}
-                </Button>
-                {boqId && (
-                  <Button variant="outline" render={<a href={`/boq-print/${initial.projectId}/${boqId}`} target="_blank" rel="noreferrer" />} className="gap-2">
-                    <FileText className="size-4" /> Print / PDF
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  onClick={download}
-                  disabled={busy !== null || (briefItems.length > 0 && !scopeApproved)}
-                  title={briefItems.length > 0 && !scopeApproved ? "Approve the scope before exporting" : undefined}
-                  className="gap-2"
-                >
-                  {busy === "export" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-                  Download .xlsx
+                  <CheckCircle2 className="size-4" /> {status === "approved" ? "Approved" : "Approve"}
                 </Button>
               </div>
             </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1420px] text-[0.85rem]">
-                <thead>
-                  <tr className="font-caps bg-secondary/60 text-left text-[0.82rem] tracking-[0.12em] text-muted-foreground uppercase">
-                    {["Room", "Trade", "Line / BOQ item", "Rate card item", "Description", "UOM", "L", "B", "H", "Qty", "Rate ₹", "Amount ₹", ""].map(
-                      (h) => (
-                        <th key={h} className="px-1.5 py-2 font-medium">
-                          {h}
-                        </th>
-                      )
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.key} className="border-t border-border/70 align-top">
-                      <td className="w-36 p-1">
-                        <select className={selectCls} value={r.room} onChange={(e) => patch(r.key, { room: e.target.value })}>
-                          {BOQ_ROOMS.map((x) => (
-                            <option key={x}>{x}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="w-40 p-1">
-                        <select className={selectCls} value={r.trade} onChange={(e) => patch(r.key, { trade: e.target.value, rateId: "" })}>
-                          {BOQ_TRADES.map((x) => (
-                            <option key={x}>{x}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="w-56 p-1">
-                        <textarea
-                          rows={2}
-                          className="w-full resize-y rounded-lg border border-transparent bg-transparent px-2 py-1 text-[0.8rem] outline-none hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring"
-                          value={r.title ?? r.item}
-                          aria-label="Line / BOQ item"
-                          onChange={(e) => patch(r.key, { title: e.target.value })}
-                        />
-                        {r.scopeStatus && r.scopeStatus !== "NEW" && (
-                          <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[0.75rem] text-muted-foreground">{r.scopeStatus}</span>
-                        )}
-                      </td>
-                      <td className="w-56 p-1">
-                        <select className={selectCls} value={r.rateId} onChange={(e) => pickRate(r.key, e.target.value)}>
-                          <option value="">Custom rate</option>
-                          {catalog
-                            .filter((c) => c.trade === r.trade)
-                            .map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.code} · {c.item.slice(0, 46)}
-                              </option>
-                            ))}
-                        </select>
-                      </td>
-                      <td className="min-w-64 p-1">
-                        <textarea
-                          rows={2}
-                          className="w-full resize-y rounded-lg border border-transparent bg-transparent px-2 py-1 text-[0.8rem] outline-none hover:border-input focus-visible:border-primary focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring"
-                          value={r.description}
-                          onChange={(e) => patch(r.key, { description: e.target.value })}
-                        />
-                      </td>
-                      <td className="w-20 p-1">
-                        <select className={selectCls} value={r.uom} onChange={(e) => patchMeasure(r.key, { uom: e.target.value })}>
-                          {BOQ_UOMS.map((x) => (
-                            <option key={x}>{x}</option>
-                          ))}
-                        </select>
-                      </td>
-                      {(["l", "b", "h"] as const).map((k) => (
-                        <td key={k} className="w-14 p-1">
-                          <input
-                            className={numCls}
-                            inputMode="decimal"
-                            value={r[k] ?? ""}
-                            onChange={(e) => patchMeasure(r.key, { [k]: numOrNull(e.target.value), qtySource: "entered" })}
-                          />
-                        </td>
-                      ))}
-                      <td className="w-20 p-1">
-                        <input
-                          className={numCls}
-                          inputMode="decimal"
-                          value={r.qty}
-                          onChange={(e) => patch(r.key, { qty: Math.max(0, Number(e.target.value) || 0), qtySource: "entered" })}
-                        />
-                        {r.qtySource && (
-                          <span
-                            className={"mt-0.5 block text-right text-[0.78rem] " + (r.qtySource === "estimated" ? "font-medium text-amber-600" : "text-muted-foreground")}
-                          >
-                            {r.qtySource === "estimated" ? "Estimate" : r.qtySource === "measured" ? "Measured" : "Entered"}
-                          </span>
-                        )}
-                        {(() => {
-                          const a = assessments.get(r.key);
-                          if (!a) return null;
-                          return (
-                            <span title={a.reasons.map((x) => x.text).join("\n") || "Nothing open on this line."} className={"mt-0.5 block text-right text-[0.75rem] " + STATE_TONE[a.state]}>
-                              {STATE_LABEL[a.state]}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="w-24 p-1">
-                        <input
-                          className={numCls}
-                          inputMode="decimal"
-                          value={r.rate}
-                          onChange={(e) => patch(r.key, { rate: Math.max(0, Number(e.target.value) || 0) })}
-                        />
-                        <span
-                          className={
-                            "mt-0.5 block text-[0.82rem] " +
-                            (r.provisional || r.rateNote ? "font-medium text-amber-600" : "text-muted-foreground")
-                          }
-                          title={r.rateNote}
-                        >
-                          {r.provisional ? "Provisional" : r.rateNote ? "Review rate" : r.rateSource === "livspace" ? "Livspace" : r.rateSource === "spazay" ? "Spazay" : ""}
-                          {r.altRate ? ` · LS ₹${r.altRate.toLocaleString("en-IN")}` : ""}
-                        </span>
-                      </td>
-                      <td className="w-28 px-1.5 py-2 text-right tabular-nums">{formatInr(r.qty * r.rate)}</td>
-                      <td className="w-8 p-1">
-                        <button
-                          type="button"
-                          aria-label="Delete line"
-                          className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive"
-                          onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 border-t border-border p-3">
-              <select className={selectCls + " h-9 max-w-md"} value={pick} onChange={(e) => setPick(e.target.value)}>
-                <option value="">Add a line from the rate card…</option>
-                {BOQ_TRADES.filter((t) => catalog.some((c) => c.trade === t)).map((t) => (
-                  <optgroup key={t} label={t}>
-                    {catalog
-                      .filter((c) => c.trade === t)
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.code} · {c.item.slice(0, 70)} · ₹{c.rate.toLocaleString("en-IN")}/{c.uom}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
-              <Button variant="outline" size="sm" onClick={addFromCatalog} disabled={!pick} className="gap-1.5">
-                <Plus className="size-4" /> Add line
-              </Button>
-              <Button variant="ghost" size="sm" onClick={addBlank} className="gap-1.5">
-                <Plus className="size-4" /> Blank line
-              </Button>
+            <div className="flex flex-wrap items-center gap-1 border-t border-cream/15 px-4 py-2 text-[0.82rem]">
+              {boqId && (
+                <a href={`/boq-print/${initial.projectId}/${boqId}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 hover:bg-cream/10">
+                  <FileText className="size-3.5" /> Print / PDF
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={download}
+                disabled={busy !== null || (briefItems.length > 0 && !scopeApproved)}
+                title={briefItems.length > 0 && !scopeApproved ? "Approve the scope before exporting" : undefined}
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 hover:bg-cream/10 disabled:opacity-50"
+              >
+                {busy === "export" ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />} Download .xlsx
+              </button>
+              <button type="button" onClick={deleteAll} disabled={busy !== null} className="ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 hover:bg-cream/10 disabled:opacity-50">
+                <Trash2 className="size-3.5" /> Delete BOQ
+              </button>
             </div>
           </section>
 
+          <BoqBoard
+            rows={rows}
+            catalog={catalog}
+            assessments={assessments}
+            patch={patch}
+            patchMeasure={patchMeasure}
+            pickRate={pickRate}
+            remove={(key) => setRows((rs) => rs.filter((x) => x.key !== key))}
+            pick={pick}
+            setPick={setPick}
+            addFromCatalog={addFromCatalog}
+            addBlank={addBlank}
+          />
+
           <BoqSummary rows={rows} project={client || initial.projectTitle || ""} location={location} tier={TIER_INFO[tier].label} budget={budget} onBudget={setBudget} />
 
-          <div className="grid gap-4 md:grid-cols-2">
-            {(
-              [
-                ["Trade-wise", totals.trade],
-                ["Room-wise", totals.room],
-              ] as const
-            ).map(([title, list]) => (
-              <section key={title} className="rounded-3xl border border-border bg-card p-6">
-                <h3 className="text-[0.95rem] font-medium">{title} costing</h3>
-                <ul className="mt-3 space-y-1.5 text-[0.95rem]">
-                  {list.map(([k, v]) => (
-                    <li key={k} className="flex justify-between gap-3">
-                      <span>{k}</span>
-                      <span className="tabular-nums text-muted-foreground">{formatInr(v)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
+          <section className="rounded-3xl border border-border bg-card p-6">
+            <h3 className="text-[0.95rem] font-medium">Where the money goes · by trade</h3>
+            <ul className="mt-4 space-y-3">
+              {totals.trade.map(([k, v]) => (
+                <li key={k}>
+                  <div className="flex justify-between gap-3 text-[0.88rem]">
+                    <span>{k}</span>
+                    <span className="num text-muted-foreground">{formatInr(v)}</span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-accent">
+                    <div className="h-full rounded-full bg-royal" style={{ width: `${totals.all > 0 ? Math.max(2, (v / totals.all) * 100) : 0}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         </>
       )}
     </div>

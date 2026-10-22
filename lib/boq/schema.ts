@@ -61,6 +61,7 @@ const coverageRow = z.object({
 });
 
 const planRoomRow = z.object({
+  id: z.string().max(40).optional(),
   name: z.string().max(80),
   boqRoom: z.string().max(60),
   l: z.number().min(0).max(300),

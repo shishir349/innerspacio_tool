@@ -20,10 +20,10 @@ const numCls =
 const STATUS_TONE: Record<ScopeStatus, string> = {
   NEW: "bg-muted text-foreground",
   REPLACE: "bg-muted text-foreground",
-  RETAIN: "bg-emerald-100 text-emerald-900",
-  REFURBISH: "bg-sky-100 text-sky-900",
-  EXCLUDED: "bg-zinc-200 text-zinc-700",
-  UNCONFIRMED: "bg-amber-100 text-amber-900",
+  RETAIN: "bg-accent text-royal-deep",
+  REFURBISH: "bg-accent text-royal-deep",
+  EXCLUDED: "bg-muted text-ink-soft",
+  UNCONFIRMED: "bg-royal text-cream",
 };
 const STATUS_HELP: Record<ScopeStatus, string> = {
   NEW: "priced",
@@ -77,8 +77,7 @@ export function ScopeReview({
   const patch = (idx: number, p: Partial<BriefItem>) => onChange(items.map((it, i) => (i === idx ? { ...it, ...p } : it)));
   const groups = useMemo(() => {
     const g = new Map<string, number[]>();
-    items.forEach((it, i) => g.set(it.room, [...(g.get(it.room) ?? []), i]));
-    return [...g.entries()];
+    items.forEach((it, i) => g.set(it.room, [...(g.get(it.room) ?? []), i]));    return [...g.entries()];
   }, [items]);
   const unconfirmed = items.filter((i) => (i.status ?? "NEW") === "UNCONFIRMED").length;
   const unrated = items.filter((i) => i.status === "REFURBISH" && !i.rateId).length;
@@ -104,7 +103,7 @@ export function ScopeReview({
     <section className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-[0.95rem] font-medium">Scope review {approved && <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[0.78rem] text-emerald-900">Approved</span>}</h3>
+          <h3 className="text-[0.95rem] font-medium">Scope review {approved && <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-[0.78rem] text-royal">Approved</span>}</h3>
           <p className="text-[0.85rem] text-muted-foreground">
             What the AI read from the brief. Set what is new, replaced, retained, refurbished or excluded, fix any size, then update the BOQ and approve. Retained and excluded items are never priced.
           </p>
@@ -128,14 +127,14 @@ export function ScopeReview({
         </div>
       </div>
 
-      {!approved && blocker && <p className="mt-2 text-[0.85rem] text-amber-700">Cannot approve yet: {blocker}.</p>}
+      {!approved && blocker && <p className="mt-2 text-[0.85rem] text-royal-deep">Cannot approve yet: {blocker}.</p>}
       {unrated > 0 && (
         <p className="mt-1 text-[0.85rem] text-muted-foreground">
           {unrated} REFURBISH item(s) have no refurbishment rate on the card and are not priced — add a manual line below the BOQ.
         </p>
       )}
       {questions.length > 0 && (
-        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[0.85rem] text-amber-900">
+        <div className="mt-3 rounded-lg border border-royal/30 bg-accent p-3 text-[0.85rem] text-royal-deep">
           <p className="font-medium">Questions to settle</p>
           <ul className="mt-1 list-disc pl-5">
             {questions.map((q, i) => (
@@ -204,7 +203,7 @@ export function ScopeReview({
                         <td className="min-w-56 py-1.5 pr-2">
                           {it.assumption ? (
                             <div className="flex items-start gap-2 text-[0.8rem]">
-                              <span className={isConfirmed(it.assumption) ? "text-muted-foreground" : "text-amber-700"}>{it.assumption}</span>
+                              <span className={isConfirmed(it.assumption) ? "text-muted-foreground" : "text-royal-deep"}>{it.assumption}</span>
                               {!isConfirmed(it.assumption) && (
                                 <>
                                   <button type="button" className="underline" onClick={() => patch(i, { assumption: it.assumption + CONFIRMED })}>

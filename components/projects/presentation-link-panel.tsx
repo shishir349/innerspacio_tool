@@ -248,7 +248,7 @@ export function PresentationLinkPanel({ project }: { project: Project }) {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={revoke} className="bg-destructive text-white hover:bg-destructive/90">
+                    <AlertDialogAction onClick={revoke} className="bg-destructive text-cream hover:bg-destructive/90">
                       Revoke
                     </AlertDialogAction>
                   </AlertDialogFooter>

@@ -351,7 +351,7 @@ export function ConceptStudio({
                     <Badge
                       className={cn(
                         "absolute right-2 top-2 text-[0.82rem]",
-                        isVisible ? "bg-emerald-600 text-white" : "bg-background/90 text-foreground"
+                        isVisible ? "bg-royal text-cream" : "bg-background/90 text-foreground"
                       )}
                     >
                       {isVisible ? "Visible to client" : "Hidden from client"}

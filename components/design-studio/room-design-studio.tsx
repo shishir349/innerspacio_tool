@@ -86,7 +86,7 @@ export function RoomDesignStudio({
             )}
           >
             {step.done ? (
-              <CheckCircle2 className="size-3.5 text-emerald-600" />
+              <CheckCircle2 className="size-3.5 text-royal" />
             ) : (
               <Circle className="size-3.5" />
             )}

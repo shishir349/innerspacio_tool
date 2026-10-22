@@ -72,7 +72,7 @@ export function RoomCard({ projectId, room }: { projectId: string; room: Room })
                   <AlertDialogAction
                     onClick={onDelete}
                     disabled={isPending}
-                    className="bg-destructive text-white hover:bg-destructive/90"
+                    className="bg-destructive text-cream hover:bg-destructive/90"
                   >
                     Remove
                   </AlertDialogAction>

@@ -6,9 +6,9 @@ import { diffRevisions, type BoqStatus, type LineLite, type Snapshot } from "@/l
 
 const TONE: Record<BoqStatus, string> = {
   draft: "bg-muted text-foreground",
-  review: "bg-sky-100 text-sky-900",
-  approved: "bg-emerald-100 text-emerald-900",
-  revised: "bg-amber-100 text-amber-900",
+  review: "bg-accent text-royal-deep",
+  approved: "bg-accent text-royal-deep",
+  revised: "bg-royal text-cream",
 };
 const LABEL: Record<BoqStatus, string> = {
   draft: "Draft — scope not approved",

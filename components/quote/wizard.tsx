@@ -567,7 +567,7 @@ export function QuoteWizard() {
             ) : (
               <Button
                 size="lg"
-                className="mt-8 bg-cream text-navy hover:bg-white"
+                className="mt-8 bg-cream text-navy hover:bg-cream"
                 onClick={() => void requestConsult()}
                 disabled={consult === "sending"}
               >

@@ -234,9 +234,10 @@ export function PlanRoomsEditor({
   onRecalc: () => void;
   busy: boolean;
 }) {
-  const patch = (id: string, p: Partial<PlanRoom>) => onChange(rooms.map((r) => (r.id === id ? { ...r, ...p } : r)));
+  // By position, not id: the model can hand out duplicate ids and a patch-by-id would edit every twin.
+  const patch = (idx: number, p: Partial<PlanRoom>) => onChange(rooms.map((r, i) => (i === idx ? { ...r, ...p } : r)));
   // A size the designer types is theirs, not the plan's: record it so quantities show "entered".
-  const patchSize = (id: string, p: Partial<PlanRoom>) => patch(id, { ...p, source: "entered" });
+  const patchSize = (idx: number, p: Partial<PlanRoom>) => patch(idx, { ...p, source: "entered" });
   const issues = roomIssues(rooms);
   const addRoom = () =>
     onChange([...rooms, { id: `m${Date.now()}`, name: "New room", boqRoom: BOQ_ROOMS[0], l: 0, b: 0, h: 10, source: "entered" }]);
@@ -258,7 +259,7 @@ export function PlanRoomsEditor({
         </div>
       </div>
       {issues.length > 0 && (
-        <ul className="mt-2 list-disc space-y-0.5 pl-5 text-[0.85rem] text-amber-700">
+        <ul className="mt-2 list-disc space-y-0.5 pl-5 text-[0.85rem] text-royal-deep">
           {issues.map((i, n) => (
             <li key={n}>{i.message}</li>
           ))}
@@ -277,16 +278,17 @@ export function PlanRoomsEditor({
             </tr>
           </thead>
           <tbody>
-            {rooms.map((r) => (
-              <tr key={r.id} className="border-t border-border/60">
+            {rooms.map((r, idx) => (
+              <tr key={idx} className="border-t border-border/60">
                 <td className="py-1 pr-2">
-                  <input className={selectCls} aria-label="Room name" value={r.name} onChange={(e) => patch(r.id, { name: e.target.value })} />
+                  <input className={selectCls} aria-label="Room name" value={r.name} onChange={(e) => patch(idx, { name: e.target.value })} />
                 </td>
                 <td className="w-48 py-1 pr-2">
                   <select
                     className={selectCls}
                     value={r.boqRoom}
-                    onChange={(e) => patch(r.id, { boqRoom: e.target.value as PlanRoom["boqRoom"] })}
+                    aria-label="BOQ room"
+                    onChange={(e) => patch(idx, { boqRoom: e.target.value as PlanRoom["boqRoom"] })}
                   >
                     {BOQ_ROOMS.map((x) => (
                       <option key={x}>{x}</option>
@@ -299,7 +301,8 @@ export function PlanRoomsEditor({
                       className={numCls}
                       inputMode="decimal"
                       value={r[k]}
-                      onChange={(e) => patchSize(r.id, { [k]: num(e.target.value) })}
+                      aria-label={k.toUpperCase()}
+                      onChange={(e) => patchSize(idx, { [k]: num(e.target.value) })}
                     />
                   </td>
                 ))}
@@ -307,12 +310,12 @@ export function PlanRoomsEditor({
                   <span
                     className={
                       "rounded px-1.5 py-0.5 " +
-                      (r.source === "assumed" ? "bg-amber-100 text-amber-900" : "bg-muted text-muted-foreground")
+                      (r.source === "assumed" ? "bg-royal text-cream" : "bg-muted text-muted-foreground")
                     }
                   >
                     {r.source}
                   </span>
-                  <button type="button" className="ml-2 text-[0.8rem] underline" onClick={() => onChange(rooms.filter((x) => x.id !== r.id))}>
+                  <button type="button" className="ml-2 text-[0.8rem] underline" onClick={() => onChange(rooms.filter((_, n) => n !== idx))}>
                     Remove
                   </button>
                 </td>

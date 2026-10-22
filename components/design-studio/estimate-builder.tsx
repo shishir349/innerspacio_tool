@@ -114,7 +114,7 @@ export function EstimateBuilder({
   function addAdditionalCost() {
     setAdditionalCosts((prev) => [
       ...prev,
-      { id: `extra-${Date.now()}`, label: "", amount: 0 },
+      { id: `extra-${crypto.randomUUID()}`, label: "", amount: 0 },
     ]);
   }
 

@@ -123,7 +123,7 @@ export function ProjectHeader({ project }: { project: Project }) {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={onDelete} className="bg-destructive text-white hover:bg-destructive/90">
+                <AlertDialogAction onClick={onDelete} className="bg-destructive text-cream hover:bg-destructive/90">
                   Delete project
                 </AlertDialogAction>
               </AlertDialogFooter>

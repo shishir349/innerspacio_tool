@@ -54,7 +54,7 @@ export function BoqSummary({
             onChange={(e) => onBudget(Number(e.target.value.replace(/[^0-9]/g, "")) || undefined)}
           />
           {b.budget !== null && b.difference !== null && (
-            <span className={b.over ? "font-medium text-destructive" : "font-medium text-emerald-700"}>
+            <span className={b.over ? "font-medium text-destructive" : "font-medium text-royal"}>
               {b.over ? `Over budget by ${formatInr(b.difference)} (${b.pct}%)` : `Within budget — ${formatInr(-b.difference)} to spare`}
             </span>
           )}

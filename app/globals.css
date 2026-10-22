@@ -92,7 +92,7 @@
 :root {
   /* Blueprint: cream drafting paper, royal-blue ink. Everything else is a tint of these two. */
   --cream: #f8f3f0;
-  --paper: #fffcfa;
+  --paper: #f8f3f0;
   --royal: #014baa;
   --royal-deep: #01367a;
   --navy: #051836;
@@ -100,14 +100,14 @@
   --ink-soft: #46587a;
   --mist: #ece5e0;
   --signal: #8db8f4;
-  --danger: #b3261e;
-  --success: #1c7a54;
+  --danger: #051836;
+  --success: #014baa;
 
   --background: #f8f3f0;
   --foreground: #0a1d42;
-  --card: #fffcfa;
+  --card: #f8f3f0;
   --card-foreground: #0a1d42;
-  --popover: #fffcfa;
+  --popover: #f8f3f0;
   --popover-foreground: #0a1d42;
   --primary: #014baa;
   --primary-foreground: #f8f3f0;
@@ -117,7 +117,7 @@
   --muted-foreground: #46587a;
   --accent: #e4ecf8;
   --accent-foreground: #01367a;
-  --destructive: #b3261e;
+  --destructive: #051836;
   --border: #014baa26;
   --input: #014baa40;
   --ring: #014baa;
@@ -153,7 +153,7 @@
   --muted-foreground: #a9bad8;
   --accent: #0d2c66;
   --accent-foreground: #f8f3f0;
-  --destructive: #ff8b80;
+  --destructive: #8db8f4;
   --border: #f8f3f024;
   --input: #f8f3f03d;
   --ring: #8db8f4;
@@ -430,9 +430,9 @@
 
 @media print {
   .dark {
-    --background: #fff;
+    --background: #f8f3f0;
     --foreground: #0a1d42;
-    --card: #fff;
+    --card: #f8f3f0;
     --muted: #f8f3f0;
     --muted-foreground: #46587a;
     --border: #014baa26;
