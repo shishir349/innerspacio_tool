@@ -124,6 +124,8 @@ export interface Repository {
   listBoqs(projectId: string): Promise<BoqRecord[]>;
   getBoq(projectId: string, boqId: string): Promise<BoqRecord | null>;
   saveBoq(projectId: string, input: SaveBoqInput): Promise<BoqRecord>;
+  /** The newest BOQ whose stored AI reading has this hash (see lib/boq/provenance.ts), across projects. */
+  findBoqByReading(hash: string): Promise<BoqRecord | null>;
   deleteBoq(projectId: string, boqId: string): Promise<void>;
 
   getSettings(): Promise<AppSettings>;

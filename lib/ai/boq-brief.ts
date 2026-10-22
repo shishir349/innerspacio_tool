@@ -214,6 +214,7 @@ export async function extractBoqScope(args: {
     response = await client.messages.create({
       model: getAnthropicModel(),
       max_tokens: 6000,
+      temperature: 0, // the reading must not vary run to run more than the model forces
       tools: [TOOL_SCHEMA],
       tool_choice: { type: "tool", name: TOOL },
       messages: [

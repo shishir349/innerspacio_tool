@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { briefItemSchema } from "@/lib/boq/brief";
+import { briefItemSchema, planRoomSchema } from "@/lib/boq/brief";
 import { SCOPE_STATUSES } from "@/lib/boq/build";
 import { BHK_OPTIONS, PACKAGE_TIERS, QUOTE_ROOM_TYPES } from "@/lib/quote/constants";
 import { RATE_SHEETS } from "@/lib/rates/sheets";
@@ -70,6 +70,22 @@ const planRoomRow = z.object({
   source: z.enum(["labelled", "scaled", "assumed", "entered"]),
 });
 
+/** The AI's reading of the plan exactly as it came back (before any designer edit), kept so it can be reused and audited. */
+export const readingSchema = z.object({
+  hash: z.string().length(64),
+  source: z.enum(["ai", "reused"]),
+  fromBoqId: z.string().max(64).optional(),
+  at: z.string().max(40),
+  scope: z.object({
+    rooms: z.array(planRoomSchema).max(40),
+    items: z.array(briefItemSchema).max(200),
+    assumptions: z.array(z.string().max(300)).max(40),
+    unpriced: z.array(z.object({ requirement: z.string().max(300), reason: z.string().max(300) })).max(40),
+    questions: z.array(z.string().max(300)).max(40),
+    dropped: z.array(z.string().max(300)).max(100),
+  }),
+});
+
 export const exportRequestSchema = z.object({
   client: z.string().trim().max(120).optional(),
   location: z.string().trim().max(160).optional(),
@@ -81,6 +97,10 @@ export const exportRequestSchema = z.object({
   planRooms: z.array(planRoomRow).max(40).optional(),
   /** The client's stated budget (₹), for comparison only. */
   budget: z.number().finite().min(0).max(10_000_000_000).optional(),
+  /** Original AI reading of the plan this BOQ came from (absent for spec-mode BOQs). */
+  reading: readingSchema.optional(),
+  /** Rate-card + rules version the lines were priced with (lib/boq/provenance.ts). */
+  pricingVersion: z.string().max(40).optional(),
   /** The reviewed scope the lines were priced from; `approved` is the designer's sign-off. */
   scope: z.object({ approved: z.boolean(), items: z.array(briefItemSchema).max(200) }).optional(),
   lines: z.array(lineSchema).min(1).max(MAX_BOQ_LINES),

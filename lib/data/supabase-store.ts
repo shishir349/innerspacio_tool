@@ -416,6 +416,19 @@ export class SupabaseRepository implements Repository {
     return data ? mapBoqRow(data) : null;
   }
 
+  async findBoqByReading(hash: string): Promise<BoqRecord | null> {
+    const { data, error } = await this.client
+      .from("boqs")
+      .select("*")
+      .eq("payload->reading->>hash", hash)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error && /does not exist|schema cache/i.test(error.message)) return null;
+    throwIfError(error, "Finding a stored plan reading");
+    return data ? mapBoqRow(data) : null;
+  }
+
   async saveBoq(projectId: string, input: SaveBoqInput): Promise<BoqRecord> {
     await this.assertProject(projectId);
     const row = {

@@ -20,6 +20,11 @@ export interface BriefResult {
   unpriced: { requirement: string; reason: string }[];
   questions: string[];
   coverage?: { requirement: string; room: string; lines: number; codes: string[]; titles: string[] }[];
+  pricingVersion?: string;
+  /** The AI reading as it came back, to store untouched with the BOQ. */
+  reading?: { hash: string; scope: Record<string, unknown> };
+  /** Set when an identical earlier reading was reused instead of calling the AI. */
+  reused?: { boqId: string; projectId: string; title: string; at: string };
 }
 
 const MAX_PHOTOS = 6;
@@ -69,6 +74,7 @@ export function BriefPanel({
   const [photos, setPhotos] = useState<File[]>([]);
   const [requirements, setRequirements] = useState("");
   const [busy, setBusy] = useState(false);
+  const [fresh, setFresh] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const planUrl = useMemo(() => (plan ? URL.createObjectURL(plan) : null), [plan]);
   const photoInput = useRef<HTMLInputElement>(null);
@@ -87,6 +93,7 @@ export function BriefPanel({
       fd.append("tier", tier);
       fd.append("city", city);
       fd.append("sheet", sheet);
+      if (fresh) fd.append("fresh", "1");
       const r = await fetch("/api/boq/from-brief", { method: "POST", body: fd });
       let j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not analyse the plan.");
@@ -104,7 +111,7 @@ export function BriefPanel({
           let p: { status?: string; error?: string } & Record<string, unknown>;
           try {
             const pr = await fetch(
-              `/api/boq/from-brief/${encodeURIComponent(j.taskId)}?tier=${tier}&city=${encodeURIComponent(city)}&sheet=${sheet}`
+              `/api/boq/from-brief/${encodeURIComponent(j.taskId)}?tier=${tier}&city=${encodeURIComponent(city)}&sheet=${sheet}${j.readingHash ? `&h=${j.readingHash}` : ""}`
             );
             p = await pr.json();
           } catch {
@@ -122,7 +129,11 @@ export function BriefPanel({
         }
       }
       onResult(j as BriefResult);
-      toast.success(`${j.lines.length} BOQ lines from ${j.rooms.length} rooms on the plan.`);
+      toast.success(
+        j.reused
+          ? `${j.lines.length} BOQ lines. Reused the reading from “${j.reused.title}” (same plan, photos and requirements). Tick “Read the plan again” to run the AI afresh.`
+          : `${j.lines.length} BOQ lines from ${j.rooms.length} rooms on the plan.`
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not analyse the plan.");
     } finally {
@@ -206,6 +217,14 @@ export function BriefPanel({
           placeholder={"1. Entrance\n- Main door to be painted.\n\n2. Master Bedroom — complete renovation\n- Dresser area with full-length mirror\n- Remove the existing study unit\n\n3. Painting work…\n4. Electrical modifications…"}
           className="w-full resize-y rounded-md border border-input bg-background p-2 text-[0.95rem] outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
+      </label>
+
+      <label className="flex items-start gap-2 text-[0.85rem] text-muted-foreground">
+        <input type="checkbox" checked={fresh} onChange={(e) => setFresh(e.target.checked)} className="mt-1" />
+        <span>
+          Read the plan again with the AI. Off by default: an identical plan, photos and requirements reuse the stored reading, so the same inputs always
+          give the same BOQ.
+        </span>
       </label>
 
       <Button onClick={run} disabled={busy} className="gap-2">

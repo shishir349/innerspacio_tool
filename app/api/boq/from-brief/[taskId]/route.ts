@@ -14,6 +14,7 @@ const querySchema = z.object({
   tier: z.enum(PACKAGE_TIERS),
   city: z.string().trim().max(60).default("Delhi"),
   sheet: z.enum(RATE_SHEETS).default("spazay"),
+  h: z.string().length(64).optional(),
 });
 // One provider id, or up to five joined with "." (consensus runs).
 const TASK_ID = /^[A-Za-z0-9_-]{6,80}(\.[A-Za-z0-9_-]{6,80}){0,4}$/;
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     tier: request.nextUrl.searchParams.get("tier"),
     city: request.nextUrl.searchParams.get("city") ?? undefined,
     sheet: request.nextUrl.searchParams.get("sheet") ?? undefined,
+    h: request.nextUrl.searchParams.get("h") ?? undefined,
   });
   if (!TASK_ID.test(taskId) || !q.success) {
     return NextResponse.json({ error: "Invalid request.", code: "invalid" }, { status: 400 });
@@ -47,7 +49,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const p = await finishManusBoq(taskId);
     if (p.state === "running") return NextResponse.json({ status: "running" });
     if (p.state === "failed") return NextResponse.json({ status: "failed", error: p.error }, { status: 502 });
-    return NextResponse.json({ status: "done", ...briefResponse(p.scope, q.data.tier, q.data.city, q.data.sheet) });
+    return NextResponse.json({ status: "done", ...briefResponse(p.scope, q.data.tier, q.data.city, q.data.sheet, q.data.h) });
   } catch (error) {
     if (error instanceof AIConfigurationError) {
       return NextResponse.json({ status: "failed", error: error.message, code: "not_configured" }, { status: 503 });

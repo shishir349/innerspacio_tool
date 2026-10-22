@@ -9,6 +9,9 @@ import { startManusBoq } from "@/lib/ai/boq-manus";
 import { getBoqProvider } from "@/lib/ai/boq-provider";
 import { PhotoUploadError, validatePhotoFile } from "@/lib/storage";
 import { PACKAGE_TIERS } from "@/lib/quote/constants";
+import { getRepository } from "@/lib/data";
+import { readingHash } from "@/lib/boq/provenance";
+import type { ScopeLike } from "@/lib/boq/brief-response";
 import { RATE_SHEETS } from "@/lib/rates/sheets";
 
 export const runtime = "nodejs";
@@ -111,6 +114,21 @@ export async function POST(request: Request) {
     throw error;
   }
 
+  // The same plan + photos + words + tier get the SAME reading back: the AI is the only non-deterministic step, so its
+  // first answer is stored with the BOQ and reused. "fresh" (the designer asked to read the plan again) skips this.
+  const hash = readingHash({ plan: plan.data, photos: photos.map((p) => p.data), requirements: fields.data.requirements, tier: fields.data.tier });
+  if (form.get("fresh") !== "1") {
+    const hit = await (await getRepository()).findBoqByReading(hash);
+    const stored = (hit?.payload as { reading?: { scope?: ScopeLike } } | undefined)?.reading?.scope;
+    if (hit && stored) {
+      return NextResponse.json({
+        async: false,
+        reused: { boqId: hit.id, projectId: hit.projectId, title: hit.title, at: hit.updatedAt },
+        ...briefResponse(stored, fields.data.tier, fields.data.city, fields.data.sheet, hash),
+      });
+    }
+  }
+
   const provider = getBoqProvider();
   if (!provider) {
     return NextResponse.json(
@@ -124,12 +142,12 @@ export async function POST(request: Request) {
       // Manus agent tasks run for minutes: start it and let the client poll the [taskId] route.
       const taskId = await startManusBoq({ plan, photos, requirements: fields.data.requirements, tier: fields.data.tier });
       return NextResponse.json(
-        { async: true, taskId, tier: fields.data.tier, city: fields.data.city, sheet: fields.data.sheet },
+        { async: true, taskId, readingHash: hash, tier: fields.data.tier, city: fields.data.city, sheet: fields.data.sheet },
         { status: 202 }
       );
     }
     const scope = await extractBoqScope({ plan, photos, requirements: fields.data.requirements, tier: fields.data.tier });
-    return NextResponse.json({ async: false, ...briefResponse(scope, fields.data.tier, fields.data.city, fields.data.sheet) });
+    return NextResponse.json({ async: false, ...briefResponse(scope, fields.data.tier, fields.data.city, fields.data.sheet, hash) });
   } catch (error) {
     if (error instanceof AIConfigurationError) {
       return NextResponse.json({ error: error.message, code: "not_configured" }, { status: 503 });

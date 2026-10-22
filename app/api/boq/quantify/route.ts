@@ -1,3 +1,4 @@
+import { pricingVersion } from "@/lib/boq/provenance";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { enforceRateLimit, RateLimitedError } from "@/lib/rate-limit";
@@ -36,5 +37,5 @@ export async function POST(request: Request) {
     city: parsed.data.city,
     sheet: parsed.data.sheet,
   });
-  return NextResponse.json({ lines, summary: summarizeBoq(lines), warnings, coverage });
+  return NextResponse.json({ lines, summary: summarizeBoq(lines), warnings, coverage, pricingVersion: pricingVersion() });
 }

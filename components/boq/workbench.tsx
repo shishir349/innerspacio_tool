@@ -60,6 +60,7 @@ export interface WorkbenchInitial {
   saved?: { id: string; title: string; sheet: string; payload: Record<string, unknown> };
 }
 
+type StoredReading = { hash: string; source: "ai" | "reused"; fromBoqId?: string; at: string; scope: Record<string, unknown> };
 type Coverage = { requirement: string; room: string; lines: number; codes: string[]; titles: string[]; status?: ScopeStatus };
 
 export interface Row {
@@ -146,13 +147,13 @@ function toRows(lines: LineLike[]): Row[] {
   }));
 }
 
-export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchInitial; catalog: CatalogRate[]; units: UnitOption[] }) {
+export function BoqWorkbench({ initial, catalog, units, currentPricingVersion }: { initial: WorkbenchInitial; catalog: CatalogRate[]; units: UnitOption[]; currentPricingVersion: string }) {
   const [bhk, setBhk] = useState<Bhk>(initial.bhk);
   const [homeSize, setHomeSize] = useState<HomeSize>(initial.homeSize ?? "small");
   const [city, setCity] = useState(initial.city);
   const [tier, setTier] = useState<PackageTier>(initial.tier);
   const savedPayload = initial.saved?.payload as
-    | { lines?: LineLike[]; coverage?: Coverage[]; planRooms?: PlanRoom[]; specification?: string; location?: string; client?: string; scope?: { approved: boolean; items: BriefItem[] }; revision?: number; finalApproved?: { at: string; by: string }; revisions?: Snapshot[]; budget?: number }
+    | { lines?: LineLike[]; coverage?: Coverage[]; planRooms?: PlanRoom[]; specification?: string; location?: string; client?: string; scope?: { approved: boolean; items: BriefItem[] }; revision?: number; finalApproved?: { at: string; by: string }; revisions?: Snapshot[]; budget?: number; reading?: StoredReading; pricingVersion?: string }
     | undefined;
   const [sheet, setSheet] = useState<RateSheet>(
     (RATE_SHEETS as readonly string[]).includes(initial.saved?.sheet ?? "") ? (initial.saved!.sheet as RateSheet) : "spazay"
@@ -174,6 +175,9 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
   const [planRooms, setPlanRooms] = useState<PlanRoom[]>(() => (savedPayload?.planRooms ?? []).map((p, i) => ({ ...p, id: p.id ?? `r${i}` })));
   const [briefItems, setBriefItemsRaw] = useState<BriefItem[]>(savedPayload?.scope?.items ?? []);
   const [budget, setBudget] = useState<number | undefined>(savedPayload?.budget);
+  // Provenance: the AI reading this BOQ came from, and the rate-card/rules version its lines were priced with.
+  const [reading, setReading] = useState<StoredReading | undefined>(savedPayload?.reading);
+  const [pricedWith, setPricedWith] = useState<string | undefined>(savedPayload?.pricingVersion);
   const [revision, setRevision] = useState(savedPayload?.revision ?? 1);
   const [finalApproved, setFinalApproved] = useState<{ at: string; by: string } | null>(savedPayload?.finalApproved ?? null);
   const [revisions, setRevisions] = useState<Snapshot[]>(savedPayload?.revisions ?? []);
@@ -249,6 +253,8 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not build the BOQ.");
       setSpec(j.specification);
+      setPricedWith(j.pricingVersion);
+      setReading(undefined);
       setRows(toRows(j.lines));
       setPlanRooms([]);
       setBriefItemsRaw([]);
@@ -270,6 +276,12 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
       return;
     }
     setRows(toRows(r.lines as unknown as LineLike[]));
+    setPricedWith(r.pricingVersion);
+    setReading(
+      r.reading
+        ? { hash: r.reading.hash, source: r.reused ? "reused" : "ai", fromBoqId: r.reused?.boqId, at: new Date().toISOString(), scope: r.reading.scope }
+        : undefined
+    );
     setPlanRooms(r.rooms);
     setBriefItemsRaw(r.items);
     setScopeApproved(false);
@@ -292,6 +304,7 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not recalculate.");
       setRows(toRows(j.lines));
+      setPricedWith(j.pricingVersion);
       setCoverage(j.coverage ?? []);
       setScopeDirty(false);
       setNotes((n) => (n ? { ...n, warnings: j.warnings } : n));
@@ -388,6 +401,8 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
           tier,
           city,
           finalApprove: approve || undefined,
+          reading,
+          pricingVersion: pricedWith,
         }),
       });
       const j = await r.json();
@@ -548,6 +563,14 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
           </button>
         ))}
       </nav>
+
+      {rows.length > 0 && pricedWith !== currentPricingVersion && (pricedWith || initial.saved) && (
+        <p role="status" className="rounded-2xl border border-royal/40 bg-accent px-4 py-3 text-[0.88rem] text-royal-deep">
+          {pricedWith
+            ? "Rates or pricing rules have changed since this BOQ was priced. The saved prices are unchanged; recalculating from the Scope tab re-prices every line and the total can move."
+            : "This BOQ was saved before price versions were recorded, so it cannot be checked against today's rates. The saved prices are unchanged; recalculating re-prices every line."}
+        </p>
+      )}
 
       {/* All three views stay mounted (just hidden) so typed text, filters and open rooms survive a tab switch. */}
       <div role="tabpanel" hidden={view !== "scope"} className="flex flex-col gap-6">
@@ -779,6 +802,14 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
                 {qtyCounts.measured} measured · {qtyCounts.entered} entered · {qtyCounts.estimated} estimated
                 {qtyCounts.estimated > 0 ? ". Replace estimates with site measurements before issuing." : ""}
               </p>
+              {(reading || pricedWith) && (
+                <p className="mt-2 text-[0.8rem] text-muted-foreground">
+                  {reading
+                    ? `Plan reading ${reading.hash.slice(0, 8)} · ${reading.source === "reused" ? "reused from an earlier identical read" : "read by the AI"} · ${new Date(reading.at).toLocaleString("en-IN")}. `
+                    : ""}
+                  Priced with rates {pricedWith ?? "unversioned"}.
+                </p>
+              )}
             </section>
 
             <BoqSummary rows={rows} project={client || initial.projectTitle || ""} location={location} tier={TIER_INFO[tier].label} budget={budget} onBudget={setBudget} />

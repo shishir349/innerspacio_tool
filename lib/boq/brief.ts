@@ -396,5 +396,22 @@ export function quantify(
 
   const order = new Map<string, number>(BOQ_ROOMS.map((r, i) => [r, i]));
   lines.sort((a, b) => (order.get(a.room) ?? 99) - (order.get(b.room) ?? 99));
+  // A BOQ room that merges several plan rooms measures every item on the COMBINED area. When the same measured
+  // quantity is then billed more than once, the scope was probably written per room: flag it (numbers are untouched).
+  const merged = new Map<string, number>();
+  for (const l of lines) {
+    if (l.qtySource === "estimated" || !(l.qty > 0)) continue;
+    const key = `${l.room}|${l.rateId}|${l.qty}`;
+    merged.set(key, (merged.get(key) ?? 0) + 1);
+  }
+  for (const [key, n] of merged) {
+    const [room, rateId, qty] = key.split("|");
+    const plans = sized(room as BoqRoom).length;
+    if (n > 1 && plans > 1) {
+      warnings.push(
+        `${room}: ${plans} plan rooms are merged here and the same measured quantity (${qty}, ${rateId}) is billed ${n} times. If these items are for different rooms, give each its own BOQ room.`
+      );
+    }
+  }
   return { lines, warnings, coverage: [...coverage.values()] };
 }

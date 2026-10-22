@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from "@/lib/config";
 import { loadLeadSpec } from "@/lib/boq/lead";
 import { RATE_CARD } from "@/lib/rates/catalog";
 import { UNIT_CLASSES } from "@/lib/boq/classes";
+import { pricingVersion } from "@/lib/boq/provenance";
 import { BoqWorkbench, type WorkbenchInitial } from "@/components/boq/workbench";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -175,6 +176,7 @@ export default async function BoqPage({
         key={saved?.id ?? "new"}
         initial={initial}
         catalog={catalog}
+        currentPricingVersion={pricingVersion()}
         units={Object.entries(UNIT_CLASSES).map(([id, c]) => ({ id, label: c.label }))}
       />
     </div>

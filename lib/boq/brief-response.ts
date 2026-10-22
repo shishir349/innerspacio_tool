@@ -2,6 +2,7 @@ import { HELD_STATUSES, quantify, type BriefItem, type PlanRoom } from "@/lib/bo
 import { summarizeBoq } from "@/lib/boq/build";
 import type { PackageTier } from "@/lib/quote/constants";
 import type { RateSheet } from "@/lib/rates/sheets";
+import { pricingVersion } from "@/lib/boq/provenance";
 
 export interface ScopeLike {
   rooms: PlanRoom[];
@@ -37,7 +38,7 @@ export function reconcileUnpriced(
 }
 
 /** What the BOQ page receives once a plan analysis is finished (any AI provider). */
-export function briefResponse(scope: ScopeLike, tier: PackageTier, city: string, sheet: RateSheet = "spazay") {
+export function briefResponse(scope: ScopeLike, tier: PackageTier, city: string, sheet: RateSheet = "spazay", readingHash?: string) {
   const q = quantify(scope.items, scope.rooms, { tier, city, sheet });
   // A read that found no scope items must not become a BOQ of whole-home extras (deep clean) alone.
   const empty = scope.items.length === 0;
@@ -63,5 +64,8 @@ export function briefResponse(scope: ScopeLike, tier: PackageTier, city: string,
     unpriced,
     questions: scope.questions,
     coverage,
+    pricingVersion: pricingVersion(),
+    // The reading as the AI produced it, so the client can store it untouched and a later identical run can reuse it.
+    reading: readingHash ? { hash: readingHash, scope } : undefined,
   };
 }

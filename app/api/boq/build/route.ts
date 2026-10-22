@@ -1,3 +1,4 @@
+import { pricingVersion } from "@/lib/boq/provenance";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { buildBoq, cityNote, specAssumptions, summarizeBoq, type BoqInput } from "@/lib/boq/build";
@@ -46,5 +47,6 @@ export async function POST(request: Request) {
     specification: `${TIER_INFO[input.tier].label} specification`,
     lines,
     summary: summarizeBoq(lines),
+    pricingVersion: pricingVersion(),
   });
 }

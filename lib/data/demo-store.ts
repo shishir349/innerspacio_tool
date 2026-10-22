@@ -283,6 +283,12 @@ export class DemoRepository implements Repository {
     return (db.boqs ?? []).find((b) => b.id === boqId && b.projectId === projectId) ?? null;
   }
 
+  async findBoqByReading(hash: string): Promise<BoqRecord | null> {
+    const db = await getDb();
+    const hit = (db.boqs ?? []).filter((b) => (b.payload as { reading?: { hash?: string } }).reading?.hash === hash);
+    return hit.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
+  }
+
   async saveBoq(projectId: string, input: SaveBoqInput): Promise<BoqRecord> {
     return mutate((db) => {
       findProjectOrThrow(db, projectId);
