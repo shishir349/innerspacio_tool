@@ -29,7 +29,7 @@ describe("Cleo County 3BHK replay (offline, no AI)", () => {
 
   it("premium stays inside a sane window for this heavy scope (regression pin, not a cap)", () => {
     const t = price("premium").total / 1e5;
-    expect(t).toBeGreaterThan(27);
+    expect(t).toBeGreaterThan(24); // was 27 before the kitchen moved from acrylic (₹3,348) to HG laminate (₹1,750)
     expect(t).toBeLessThan(32);
   });
 

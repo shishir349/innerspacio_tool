@@ -529,7 +529,7 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
 
   return (
     <div className="space-y-6 pb-28">
-      <nav aria-label="BOQ views" className="sticky top-0 z-20 -mx-1 flex gap-1 overflow-x-auto bg-background/90 px-1 backdrop-blur" role="tablist">
+      <nav aria-label="BOQ views" className="sticky top-0 z-20 -mx-1 flex justify-center gap-2 overflow-x-auto bg-background/90 px-1 backdrop-blur" role="tablist">
         {tabs.map(([v, label, meta]) => (
           <button
             key={v}
@@ -538,20 +538,21 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
             aria-selected={view === v}
             onClick={() => setView(v)}
             className={
-              "relative shrink-0 px-4 py-3 text-[0.9rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-royal " +
+              "relative shrink-0 px-6 py-4 text-[1.2rem] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-royal " +
               (view === v ? "text-royal" : "text-muted-foreground hover:text-foreground")
             }
           >
             {label}
-            {meta && <span className="ml-2 text-[0.75rem] font-normal text-muted-foreground">{meta}</span>}
-            <span className={"absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-royal transition-opacity " + (view === v ? "opacity-100" : "opacity-0")} />
+            {meta && <span className="ml-2 text-[0.8rem] font-normal text-muted-foreground">{meta}</span>}
+            <span className={"absolute inset-x-4 bottom-0 h-[3px] rounded-full bg-royal transition-opacity " + (view === v ? "opacity-100" : "opacity-0")} />
           </button>
         ))}
       </nav>
 
       {/* All three views stay mounted (just hidden) so typed text, filters and open rooms survive a tab switch. */}
-      <div role="tabpanel" hidden={view !== "scope"} className="space-y-6">
-      <section className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
+      <div role="tabpanel" hidden={view !== "scope"} className="flex flex-col gap-6">
+      {/* Once a BOQ exists the empty builder form is just noise: it drops below the scope review. */}
+      <section style={{ order: rows.length > 0 ? 2 : 0 }} className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
         <div className="mb-6 inline-flex rounded-full border border-border p-1 text-[0.8rem]">
           {(
             [
@@ -714,7 +715,7 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
       {notes && <BriefNotes result={notes} />}
 
         {rows.length > 0 && (
-          <p className="text-[0.88rem] text-muted-foreground">
+          <p style={{ order: 1 }} className="text-[0.88rem] text-muted-foreground">
             {rows.length} lines priced.{" "}
             <button type="button" className="text-royal underline-offset-4 hover:underline" onClick={() => setView("editor")}>
               Open the BOQ Editor

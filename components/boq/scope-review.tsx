@@ -147,7 +147,7 @@ export function ScopeReview({
       <div className="mt-4 space-y-4">
         {groups.map(([room, idxs]) => (
           <div key={room}>
-            <h4 className="text-[0.85rem] font-medium text-muted-foreground">{room}</h4>
+            <h4 className="font-heading border-b border-border/60 pb-1 text-[2.2rem] leading-none uppercase text-royal">{room}</h4>
             <div className="mt-1 overflow-x-auto">
               <table className="w-full min-w-[860px] text-[0.85rem]">
                 <tbody>

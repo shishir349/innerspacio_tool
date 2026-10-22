@@ -84,7 +84,16 @@ export const UNIT_CLASSES: Record<string, UnitClass> = {
     size: () => ({ width: 5, height: 10, why: "5 x 10 ft nook" }),
   },
   kitchen_cabinetry: {
-    label: "whole modular kitchen (base + wall + tall + island) — ONE line", rateId: "pr:KITCHEN", item: "Kitchen Base Unit", basis: "elevation", modular: true, once: "room",
+    label: "whole modular kitchen (base + wall + tall + island) — ONE line", rateId: "pr:KITCHENHG", item: "Kitchen Base Unit", basis: "elevation", modular: true, once: "room",
+    size: (c) =>
+      !(c.area > 0)
+        ? NO_ROOM
+        : c.area < FLAT_KITCHEN
+        ? { width: r1(flatRun(c)), height: 8, why: "apartment L-run (L + B, 12-30 ft) x 8 ft of base, wall and tall units, no island" }
+        : { width: r1(run(c)), height: 9.5, why: "U-run (L + 2B, within 18-42 ft) x 9.5 ft of base, wall and tall units" },
+  },
+  kitchen_acrylic: {
+    label: "whole modular kitchen in ACRYLIC (only when the requirement names acrylic) — ONE line", rateId: "pr:KITCHEN", item: "Kitchen Base Unit", basis: "elevation", modular: true, once: "room",
     size: (c) =>
       !(c.area > 0)
         ? NO_ROOM

@@ -25,7 +25,7 @@ describe("unit classes", () => {
 
   it("the professional's quantities price to the professional's amounts (Greenwoods)", () => {
     const sized = [
-      unit({ room: "Kitchen", unit: "kitchen_cabinetry", width: 35, height: 10 }), // 350 sq ft
+      unit({ room: "Kitchen", unit: "kitchen_acrylic", width: 35, height: 10 }), // 350 sq ft (the professional priced acrylic)
       unit({ room: "Kitchen", unit: "quartz_counter", basis: "area", width: 200, height: 1 }),
       unit({ room: "Master Bedroom", unit: "wardrobe", width: 20, height: 10 }),
       unit({ room: "Others / Whole Home Civil", unit: "fresh_paint", basis: "area", width: 14000, height: 1 }),
@@ -50,7 +50,7 @@ describe("unit classes", () => {
     const k = quantify([unit({ room: "Kitchen", unit: "kitchen_cabinetry" })], rooms, opts).lines[0];
     expect(k.qty).toBeGreaterThan(330);
     expect(k.qty).toBeLessThan(360);
-    expect(k.rate).toBe(3348);
+    expect(k.rate).toBe(1750); // owner: standard kitchen is high-gloss laminate
   });
 
   it("master bathroom picks the master vanity; modular classes scale with the tier", () => {

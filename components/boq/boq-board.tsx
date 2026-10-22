@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BOQ_ROOMS, BOQ_TRADES, BOQ_UOMS } from "@/lib/boq/lists";
@@ -44,6 +44,22 @@ export interface BoardProps {
   addBlank: () => void;
 }
 
+/** Rooms that belong together sit together: all bedrooms, then all bathrooms, and so on. */
+const FAMILIES: [string, RegExp][] = [
+  ["Entry & passages", /Entrance|Foyer|Passage|Lobby/],
+  ["Living & dining", /Living|Dining|TV Lounge/],
+  ["Kitchen & utility", /Kitchen|Utility/],
+  ["Bedrooms", /Bedroom|Kids Room/],
+  ["Bathrooms", /Bathroom/],
+  ["Study & office", /Study|Office/],
+  ["Balconies", /Balcony/],
+];
+const familyOf = (room: string) => {
+  const i = FAMILIES.findIndex(([, re]) => re.test(room));
+  return i < 0 ? FAMILIES.length : i;
+};
+const familyName = (i: number) => FAMILIES[i]?.[0] ?? "Other";
+
 const numOrNull = (v: string) => (v === "" ? null : Math.max(0, Number(v) || 0));
 
 /**
@@ -78,7 +94,7 @@ export function BoqBoard(p: BoardProps) {
       const i = (BOQ_ROOMS as readonly string[]).indexOf(n);
       return i < 0 ? 999 : i;
     };
-    return [...m.entries()].sort((a, b) => order(a[0]) - order(b[0]));
+    return [...m.entries()].sort((a, b) => familyOf(a[0]) - familyOf(b[0]) || order(a[0]) - order(b[0]));
   }, [rows]);
 
   const toggleRoom = (room: string) =>
@@ -140,14 +156,27 @@ export function BoqBoard(p: BoardProps) {
         </p>
       )}
 
-      {rooms.map(([room, list]) => {
+      {rooms.map(([room, list], ri) => {
+        const fam = familyOf(room);
+        const firstOfFamily = ri === 0 || familyOf(rooms[ri - 1][0]) !== fam;
+        const famRooms = rooms.filter(([r]) => familyOf(r) === fam);
+        const famTotal = famRooms.reduce((n, [, l]) => n + l.reduce((m, r) => m + r.qty * r.rate, 0), 0);
         const sub = list.reduce((n, r) => n + r.qty * r.rate, 0);
         const shown = list.filter(matches);
         if (filtering && shown.length === 0) return null;
         const open = openRooms.has(room) || (filtering && shown.length > 0);
         const flagged = list.filter((r) => (assessments.get(r.key)?.state ?? "confirmed") !== "confirmed").length;
         return (
-          <div key={room} className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_0_rgba(1,75,170,0.04)]">
+          <Fragment key={room}>
+          {firstOfFamily && (
+            <div className="flex items-baseline justify-between gap-3 pt-6 first:pt-0">
+              <h3 className="font-heading text-[2.4rem] leading-none uppercase text-royal">{familyName(fam)}</h3>
+              <span className="num text-[0.85rem] text-muted-foreground">
+                {famRooms.length} room{famRooms.length === 1 ? "" : "s"} · {formatInr(famTotal)}
+              </span>
+            </div>
+          )}
+          <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_0_rgba(1,75,170,0.04)]">
             <button
               type="button"
               aria-expanded={open}
@@ -300,6 +329,7 @@ export function BoqBoard(p: BoardProps) {
               </ul>
             )}
           </div>
+          </Fragment>
         );
       })}
 
