@@ -8,6 +8,9 @@ import { RATE_CARD } from "@/lib/rates/catalog";
 import { UNIT_CLASSES } from "@/lib/boq/classes";
 import { BoqWorkbench, type WorkbenchInitial } from "@/components/boq/workbench";
 import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
+import { formatInr } from "@/lib/format";
+import { Plus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -35,16 +38,20 @@ export default async function BoqPage({
   if (lead && UUID.test(lead) && isSupabaseConfigured()) leadSpec = await loadLeadSpec(lead);
   const projectId = projectParam || leadSpec?.projectId || null;
 
-  // A BOQ always belongs to a project: pick (or create) one first.
+  // A BOQ always belongs to a project: list every project with the BOQs saved inside it, newest first.
   if (!projectId) {
     const projects = await repo.listProjectSummaries();
+    const boqs = await Promise.all(projects.map((p) => repo.listBoqs(p.id)));
+    const withBoqs = projects.map((p, i) => ({ project: p, boqs: boqs[i] }));
+    const total = boqs.reduce((n, l) => n + l.length, 0);
     return (
-      <div className="space-y-6">
+      <div className="space-y-8">
         <PageHeader
-          title="BOQ Builder"
+          title="BOQs"
           description={
             <>
-              Every BOQ is saved under a project. Choose the project this BOQ is for.
+              Every BOQ belongs to a project. {total} BOQ{total === 1 ? "" : "s"} across {projects.length} project
+              {projects.length === 1 ? "" : "s"}.
               {lead && leadSpec && !leadSpec.projectId && " This lead has no project yet — open it from Leads first."}
             </>
           }
@@ -58,21 +65,47 @@ export default async function BoqPage({
             to start a BOQ.
           </p>
         ) : (
-          <ul className="divide-y divide-border rounded-xl border border-border bg-card">
-            {projects.map((p) => (
-              <li key={p.id}>
-                <Link
-                  href={`/boq?project=${p.id}${lead ? `&lead=${lead}` : ""}`}
-                  className="flex flex-wrap items-center justify-between gap-2 p-4 hover:bg-muted/50"
-                >
-                  <span className="font-medium">{p.title}</span>
-                  <span className="text-[0.85rem] text-muted-foreground">
-                    {p.clientName} · {p.location}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          withBoqs.map(({ project: p, boqs: list }) => (
+            <section key={p.id} className="space-y-3">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="font-heading text-[2.4rem] leading-none uppercase">{p.title}</h2>
+                  <p className="mt-1 text-[0.85rem] text-muted-foreground">
+                    {p.clientName}
+                    {p.location ? ` · ${p.location}` : ""}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" render={<Link href={`/boq?project=${p.id}${lead ? `&lead=${lead}` : ""}`} />} className="gap-1.5">
+                  <Plus className="size-4" /> New BOQ
+                </Button>
+              </div>
+              {list.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-border px-4 py-5 text-[0.9rem] text-muted-foreground">No BOQ in this project yet.</p>
+              ) : (
+                <ul className="overflow-hidden rounded-2xl border border-border/60 bg-card">
+                  {list.map((b) => {
+                    const approved = !!(b.payload as { finalApproved?: unknown }).finalApproved;
+                    return (
+                      <li key={b.id} className="border-b border-border/60 last:border-b-0">
+                        <Link href={`/boq?project=${p.id}&boq=${b.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors hover:bg-accent/50">
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium">{b.title}</span>
+                            <span className="block text-[0.78rem] text-muted-foreground">
+                              {b.tier} · {b.city} · updated {new Date(b.updatedAt).toLocaleDateString("en-IN")}
+                            </span>
+                          </span>
+                          <span className={"rounded-full px-2 py-0.5 text-[0.72rem] " + (approved ? "bg-accent text-royal-deep" : "border border-royal text-royal")}>
+                            {approved ? "Approved" : "Draft"}
+                          </span>
+                          <span className="num w-28 text-right font-semibold">{formatInr(b.total)}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          ))
         )}
       </div>
     );
