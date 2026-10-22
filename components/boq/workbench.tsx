@@ -368,8 +368,13 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
         };
   }
 
+  function sigOf() {
+    return JSON.stringify({ ...exportBody(), specification: undefined, title, tier, city });
+  }
+
   async function save(approve = false) {
     setBusy("save");
+    const mySig = sigOf();
     try {
       const r = await fetch("/api/boq/save", {
         method: "POST",
@@ -388,6 +393,7 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not save.");
       setBoqId(j.id);
+      setSavedSig(mySig);
       setRevision(j.revision ?? 1);
       setFinalApproved(j.finalApproved ?? null);
       setRevisions(j.revisions ?? []);
@@ -498,9 +504,54 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
     setPick("");
   }
 
+  const [view, setView] = useState<"scope" | "editor" | "review">(() => (savedPayload?.lines?.length ? "editor" : "scope"));
+  // Signature of what was last saved (or loaded), so the total bar can say whether there are unsaved edits.
+  const [savedSig, setSavedSig] = useState<string | null>(() => (initial.saved ? sigOf() : null));
+
+  const sig = sigOf();
+  const saveLabel = busy === "save" ? "Saving…" : !boqId ? "Not saved yet" : sig === savedSig ? "All changes saved" : "Unsaved changes";
+  const errors = issues.filter((i) => i.severity === "error").length;
+  const warns = issues.length - errors;
+  const empty = (
+    <div className="rounded-3xl border border-dashed border-border p-12 text-center">
+      <p className="font-heading text-[2rem] leading-none uppercase">No BOQ yet</p>
+      <p className="mx-auto mt-3 max-w-sm text-[0.92rem] text-muted-foreground">Read a plan or enter a home spec in Scope, then the lines appear here.</p>
+      <Button className="mt-5" onClick={() => setView("scope")}>
+        Go to Scope
+      </Button>
+    </div>
+  );
+  const tabs = [
+    ["scope", "Scope", briefItems.length ? `${briefItems.length} items` : null],
+    ["editor", "BOQ Editor", rows.length ? `${rows.length} lines` : null],
+    ["review", "Review & Export", errors + warns > 0 ? `${errors + warns} checks` : null],
+  ] as const;
+
   return (
-    <div className="space-y-6">
-      <section className="rounded-3xl border border-border bg-card p-6">
+    <div className="space-y-6 pb-28">
+      <nav aria-label="BOQ views" className="sticky top-0 z-20 -mx-1 flex gap-1 overflow-x-auto bg-background/90 px-1 backdrop-blur" role="tablist">
+        {tabs.map(([v, label, meta]) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={view === v}
+            onClick={() => setView(v)}
+            className={
+              "relative shrink-0 px-4 py-3 text-[0.9rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-royal " +
+              (view === v ? "text-royal" : "text-muted-foreground hover:text-foreground")
+            }
+          >
+            {label}
+            {meta && <span className="ml-2 text-[0.75rem] font-normal text-muted-foreground">{meta}</span>}
+            <span className={"absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-royal transition-opacity " + (view === v ? "opacity-100" : "opacity-0")} />
+          </button>
+        ))}
+      </nav>
+
+      {/* All three views stay mounted (just hidden) so typed text, filters and open rooms survive a tab switch. */}
+      <div role="tabpanel" hidden={view !== "scope"} className="space-y-6">
+      <section className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8">
         <div className="mb-6 inline-flex rounded-full border border-border p-1 text-[0.8rem]">
           {(
             [
@@ -662,8 +713,44 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
       )}
       {notes && <BriefNotes result={notes} />}
 
-      {rows.length > 0 && issues.length > 0 && (
-        <details className="rounded-3xl border border-border bg-card p-5 text-[0.9rem]" open={issues.some((i) => i.severity === "error")}>
+        {rows.length > 0 && (
+          <p className="text-[0.88rem] text-muted-foreground">
+            {rows.length} lines priced.{" "}
+            <button type="button" className="text-royal underline-offset-4 hover:underline" onClick={() => setView("editor")}>
+              Open the BOQ Editor
+            </button>
+          </p>
+        )}
+      </div>
+
+      <div role="tabpanel" hidden={view !== "editor"}>
+        {rows.length === 0 ? (
+          empty
+        ) : (
+          <BoqBoard
+            rows={rows}
+            catalog={catalog}
+            assessments={assessments}
+            patch={patch}
+            patchMeasure={patchMeasure}
+            pickRate={pickRate}
+            remove={(key) => setRows((rs) => rs.filter((x) => x.key !== key))}
+            pick={pick}
+            setPick={setPick}
+            addFromCatalog={addFromCatalog}
+            addBlank={addBlank}
+          />
+        )}
+      </div>
+
+      <div role="tabpanel" hidden={view !== "review"} className="space-y-6">
+        {rows.length === 0 ? (
+          empty
+        ) : (
+          <>
+            <RevisionPanel status={status} revision={revision} approvedAt={finalApproved?.at} revisions={revisions} current={rows} />
+      {issues.length > 0 && (
+        <details className="rounded-3xl border border-border/60 bg-card p-5 text-[0.9rem]" open={issues.some((i) => i.severity === "error")}>
           <summary className="cursor-pointer font-medium">
             Checks · {issues.filter((i) => i.severity === "error").length} errors · {issues.filter((i) => i.severity === "warn").length} warnings
           </summary>
@@ -679,94 +766,99 @@ export function BoqWorkbench({ initial, catalog, units }: { initial: WorkbenchIn
         </details>
       )}
 
-      {rows.length > 0 && (
-        <>
-          <RevisionPanel status={status} revision={revision} approvedAt={finalApproved?.at} revisions={revisions} current={rows} />
-          <section className="overflow-hidden rounded-3xl bg-navy text-cream">
-            <div className="flex flex-wrap items-end justify-between gap-4 p-6">
-              <div>
-                <p className="text-[0.82rem] text-cream/70">Estimate total · {rows.length} lines · {totals.room.length} rooms</p>
-                <p className="num text-[2.8rem] leading-none font-semibold">{formatInr(totals.all)}</p>
-                <div className="mt-4 flex h-1.5 w-72 max-w-full overflow-hidden rounded-full bg-cream/15" title={`${qtyCounts.measured} measured · ${qtyCounts.entered} entered · ${qtyCounts.estimated} estimated`}>
-                  {(["measured", "entered", "estimated"] as const).map((k, n) => (
-                    <span key={k} className={n === 0 ? "bg-cream" : n === 1 ? "bg-signal" : "bg-royal"} style={{ width: `${(qtyCounts[k] / rows.length) * 100}%` }} />
-                  ))}
-                </div>
-                <p className="mt-1.5 text-[0.78rem] text-cream/70">
-                  {qtyCounts.measured} measured · {qtyCounts.entered} entered · {qtyCounts.estimated} estimated
-                  {qtyCounts.estimated > 0 ? " — confirm on site before issuing" : ""}
-                </p>
+
+            <section className="rounded-3xl border border-border/60 bg-card p-6">
+              <h3 className="font-heading text-[1.8rem] leading-none uppercase">Quantities</h3>
+              <div className="mt-4 flex h-1.5 max-w-md overflow-hidden rounded-full bg-accent">
+                {(["measured", "entered", "estimated"] as const).map((k, n) => (
+                  <span key={k} className={n === 0 ? "bg-navy" : n === 1 ? "bg-royal" : "bg-signal"} style={{ width: `${(qtyCounts[k] / rows.length) * 100}%` }} />
+                ))}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input aria-label="BOQ name" value={title} onChange={(e) => setTitle(e.target.value)} className="h-9 w-48 border-cream/30 bg-transparent text-cream" />
-                <Button variant="secondary" onClick={() => save()} disabled={busy !== null} className="gap-2">
-                  {busy === "save" ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
-                  {boqId ? "Update" : "Save to project"}
-                </Button>
-                <Button
-                  onClick={() => save(true)}
-                  disabled={busy !== null || !canApprove || status === "approved"}
-                  title={status === "approved" ? "Already approved" : !canApprove ? "Approve the scope and clear errors first" : "Approve this estimate and save it"}
-                  className="gap-2 bg-cream text-navy hover:bg-accent"
-                >
-                  <CheckCircle2 className="size-4" /> {status === "approved" ? "Approved" : "Approve"}
-                </Button>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-1 border-t border-cream/15 px-4 py-2 text-[0.82rem]">
+              <p className="mt-2 text-[0.85rem] text-muted-foreground">
+                {qtyCounts.measured} measured · {qtyCounts.entered} entered · {qtyCounts.estimated} estimated
+                {qtyCounts.estimated > 0 ? ". Replace estimates with site measurements before issuing." : ""}
+              </p>
+            </section>
+
+            <BoqSummary rows={rows} project={client || initial.projectTitle || ""} location={location} tier={TIER_INFO[tier].label} budget={budget} onBudget={setBudget} />
+
+            <section className="rounded-3xl border border-border/60 bg-card p-6">
+              <h3 className="font-heading text-[1.8rem] leading-none uppercase">By trade</h3>
+              <ul className="mt-5 space-y-3">
+                {totals.trade.map(([k, v]) => (
+                  <li key={k}>
+                    <div className="flex justify-between gap-3 text-[0.88rem]">
+                      <span>{k}</span>
+                      <span className="num text-muted-foreground">{formatInr(v)}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-accent">
+                      <div className="h-full rounded-full bg-royal" style={{ width: `${totals.all > 0 ? Math.max(2, (v / totals.all) * 100) : 0}%` }} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <section className="flex flex-wrap items-end gap-3 rounded-3xl border border-border/60 bg-card p-6">
+              <label className="space-y-1 text-[0.85rem]">
+                <span className="text-muted-foreground">BOQ name</span>
+                <Input aria-label="BOQ name" value={title} onChange={(e) => setTitle(e.target.value)} className="h-9 w-64" />
+              </label>
               {boqId && (
-                <a href={`/boq-print/${initial.projectId}/${boqId}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 hover:bg-cream/10">
-                  <FileText className="size-3.5" /> Print / PDF
-                </a>
+                <Button variant="outline" render={<a href={`/boq-print/${initial.projectId}/${boqId}`} target="_blank" rel="noreferrer" />} className="gap-2">
+                  <FileText className="size-4" /> Print / PDF
+                </Button>
               )}
-              <button
-                type="button"
+              <Button
+                variant="outline"
                 onClick={download}
                 disabled={busy !== null || (briefItems.length > 0 && !scopeApproved)}
                 title={briefItems.length > 0 && !scopeApproved ? "Approve the scope before exporting" : undefined}
-                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 hover:bg-cream/10 disabled:opacity-50"
+                className="gap-2"
               >
-                {busy === "export" ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />} Download .xlsx
-              </button>
-              <button type="button" onClick={deleteAll} disabled={busy !== null} className="ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 hover:bg-cream/10 disabled:opacity-50">
-                <Trash2 className="size-3.5" /> Delete BOQ
-              </button>
+                {busy === "export" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />} Download .xlsx
+              </Button>
+              <Button variant="ghost" onClick={deleteAll} disabled={busy !== null} className="ml-auto gap-2 text-navy">
+                <Trash2 className="size-4" /> Delete BOQ
+              </Button>
+            </section>
+          </>
+        )}
+      </div>
+
+      {rows.length > 0 && (
+        <div className="fixed inset-x-3 bottom-3 z-30 mx-auto max-w-5xl rounded-2xl bg-navy px-5 py-3 text-cream shadow-[0_18px_40px_-18px_rgba(5,24,54,0.7)]">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <div>
+              <p className="text-[0.72rem] text-cream/70">Subtotal (ex-GST) · {rows.length} lines</p>
+              <p className="num text-[1.5rem] leading-none font-semibold">{formatInr(totals.all)}</p>
             </div>
-          </section>
-
-          <BoqBoard
-            rows={rows}
-            catalog={catalog}
-            assessments={assessments}
-            patch={patch}
-            patchMeasure={patchMeasure}
-            pickRate={pickRate}
-            remove={(key) => setRows((rs) => rs.filter((x) => x.key !== key))}
-            pick={pick}
-            setPick={setPick}
-            addFromCatalog={addFromCatalog}
-            addBlank={addBlank}
-          />
-
-          <BoqSummary rows={rows} project={client || initial.projectTitle || ""} location={location} tier={TIER_INFO[tier].label} budget={budget} onBudget={setBudget} />
-
-          <section className="rounded-3xl border border-border bg-card p-6">
-            <h3 className="text-[0.95rem] font-medium">Where the money goes · by trade</h3>
-            <ul className="mt-4 space-y-3">
-              {totals.trade.map(([k, v]) => (
-                <li key={k}>
-                  <div className="flex justify-between gap-3 text-[0.88rem]">
-                    <span>{k}</span>
-                    <span className="num text-muted-foreground">{formatInr(v)}</span>
-                  </div>
-                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-accent">
-                    <div className="h-full rounded-full bg-royal" style={{ width: `${totals.all > 0 ? Math.max(2, (v / totals.all) * 100) : 0}%` }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </>
+            <button type="button" onClick={() => setView("review")} className="text-left text-[0.82rem] text-cream/80 hover:text-cream">
+              {errors + warns === 0 ? "No warnings" : `${errors} errors · ${warns} warnings`}
+            </button>
+            <span role="status" className="text-[0.82rem] text-cream/80">
+              {saveLabel}
+            </span>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={() => save()} disabled={busy !== null} className="gap-2">
+                {busy === "save" ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
+                {boqId ? "Save" : "Save to project"}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => save(true)}
+                disabled={busy !== null || !canApprove || status === "approved"}
+                title={status === "approved" ? "Already approved" : !canApprove ? "Approve the scope and clear errors first" : "Approve this estimate and save it"}
+                className="gap-2 bg-cream text-navy hover:bg-accent"
+              >
+                <CheckCircle2 className="size-4" /> {status === "approved" ? "Approved" : "Approve"}
+              </Button>
+              <Button size="sm" onClick={() => (view === "review" ? download() : setView("review"))} disabled={busy !== null} className="gap-2">
+                {busy === "export" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />} Export
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

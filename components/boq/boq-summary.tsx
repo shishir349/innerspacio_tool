@@ -21,8 +21,8 @@ export function BoqSummary({
   const b = budgetView(rows, budget);
   const st = Object.entries(s.byStatus).filter(([k]) => k !== "NEW");
   return (
-    <section className="rounded-3xl border border-border bg-card p-6">
-      <h3 className="text-[0.95rem] font-medium">Project summary</h3>
+    <section className="rounded-3xl border border-border/60 bg-card p-6">
+      <h3 className="font-heading text-[1.8rem] leading-none uppercase">Project summary</h3>
       <dl className="mt-3 grid gap-x-6 gap-y-1 text-[0.9rem] sm:grid-cols-2 lg:grid-cols-4">
         {[
           ["Project", project || "—"],

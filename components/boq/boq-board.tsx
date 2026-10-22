@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BOQ_ROOMS, BOQ_TRADES, BOQ_UOMS } from "@/lib/boq/lists";
 import { formatInr } from "@/lib/format";
@@ -55,7 +55,19 @@ export function BoqBoard(p: BoardProps) {
   const [openRooms, setOpenRooms] = useState<Set<string>>(new Set());
   const [openLine, setOpenLine] = useState<number | null>(null);
   const [onlyReview, setOnlyReview] = useState(false);
+  const [query, setQuery] = useState("");
+  const [roomFilter, setRoomFilter] = useState("");
+  const [tradeFilter, setTradeFilter] = useState("");
+  const filtering = onlyReview || query.trim() !== "" || roomFilter !== "" || tradeFilter !== "";
+  const q = query.trim().toLowerCase();
+  const matches = (r: Row) =>
+    (!roomFilter || r.room === roomFilter) &&
+    (!tradeFilter || r.trade === tradeFilter) &&
+    (!q || `${r.title ?? ""} ${r.item} ${r.description} ${r.trade} ${r.room}`.toLowerCase().includes(q)) &&
+    (!onlyReview || (assessments.get(r.key)?.state ?? "confirmed") !== "confirmed");
 
+  const roomNames = useMemo(() => [...new Set(rows.map((r) => r.room))], [rows]);
+  const tradeNames = useMemo(() => [...new Set(rows.map((r) => r.trade))], [rows]);
   const total = useMemo(() => rows.reduce((n, r) => n + r.qty * r.rate, 0), [rows]);
   const reviewCount = rows.filter((r) => (assessments.get(r.key)?.state ?? "confirmed") !== "confirmed").length;
 
@@ -79,41 +91,63 @@ export function BoqBoard(p: BoardProps) {
 
   return (
     <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="inline-flex rounded-full border border-border p-1 text-[0.8rem]">
-          {(
-            [
-              [false, `All lines · ${rows.length}`],
-              [true, `Needs review · ${reviewCount}`],
-            ] as const
-          ).map(([v, label]) => (
-            <button
-              key={label}
-              type="button"
-              onClick={() => setOnlyReview(v)}
-              className={"rounded-full px-3.5 py-1.5 transition-colors " + (onlyReview === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}
-            >
-              {label}
-            </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="relative min-w-52 flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            aria-label="Search lines"
+            placeholder="Search lines, trades, rooms…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className={fieldCls + " pl-9"}
+          />
+        </label>
+        <select aria-label="Filter by room" className={fieldCls + " w-auto max-w-44"} value={roomFilter} onChange={(e) => setRoomFilter(e.target.value)}>
+          <option value="">All rooms</option>
+          {roomNames.map((x) => (
+            <option key={x}>{x}</option>
           ))}
-        </div>
+        </select>
+        <select aria-label="Filter by trade" className={fieldCls + " w-auto max-w-44"} value={tradeFilter} onChange={(e) => setTradeFilter(e.target.value)}>
+          <option value="">All trades</option>
+          {tradeNames.map((x) => (
+            <option key={x}>{x}</option>
+          ))}
+        </select>
         <button
           type="button"
-          className="text-[0.82rem] text-royal underline-offset-4 hover:underline"
+          aria-pressed={onlyReview}
+          onClick={() => setOnlyReview((v) => !v)}
+          className={"h-9 rounded-lg border px-3 text-[0.82rem] transition-colors " + (onlyReview ? "border-royal bg-royal text-cream" : "border-input text-royal hover:bg-accent")}
+        >
+          Needs review · {reviewCount}
+        </button>
+        <button
+          type="button"
+          className="h-9 px-2 text-[0.82rem] text-royal underline-offset-4 hover:underline"
           onClick={() => setOpenRooms((s) => (s.size === rooms.length ? new Set() : new Set(rooms.map(([r]) => r))))}
         >
-          {openRooms.size === rooms.length ? "Collapse all rooms" : "Expand all rooms"}
+          {openRooms.size === rooms.length ? "Collapse all" : "Expand all"}
         </button>
       </div>
+      {filtering && rooms.every(([, l]) => !l.some(matches)) && (
+        <p className="rounded-2xl border border-dashed border-border p-6 text-center text-[0.9rem] text-muted-foreground">
+          No lines match these filters.{" "}
+          <button type="button" className="text-royal underline" onClick={() => { setQuery(""); setRoomFilter(""); setTradeFilter(""); setOnlyReview(false); }}>
+            Clear filters
+          </button>
+        </p>
+      )}
 
       {rooms.map(([room, list]) => {
         const sub = list.reduce((n, r) => n + r.qty * r.rate, 0);
-        const shown = onlyReview ? list.filter((r) => (assessments.get(r.key)?.state ?? "confirmed") !== "confirmed") : list;
-        if (onlyReview && shown.length === 0) return null;
-        const open = openRooms.has(room) || (onlyReview && shown.length > 0);
+        const shown = list.filter(matches);
+        if (filtering && shown.length === 0) return null;
+        const open = openRooms.has(room) || (filtering && shown.length > 0);
         const flagged = list.filter((r) => (assessments.get(r.key)?.state ?? "confirmed") !== "confirmed").length;
         return (
-          <div key={room} className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div key={room} className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_0_rgba(1,75,170,0.04)]">
             <button
               type="button"
               aria-expanded={open}
@@ -122,12 +156,12 @@ export function BoqBoard(p: BoardProps) {
             >
               <ChevronDown className={"size-4 shrink-0 text-royal transition-transform duration-300 " + (open ? "" : "-rotate-90")} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.95rem] font-semibold">{room}</span>
+                <span className="font-heading block truncate text-[1.8rem] leading-[1.05] uppercase">{room}</span>
                 <span className="block text-[0.78rem] text-muted-foreground">
-                  {list.length} line{list.length === 1 ? "" : "s"}
-                  {flagged > 0 ? ` · ${flagged} to review` : ""}
+                  {list.length} item{list.length === 1 ? "" : "s"}
                 </span>
               </span>
+              {flagged > 0 && <span className="rounded-full border border-royal px-2 py-0.5 text-[0.72rem] text-royal">{flagged} to review</span>}
               <span className="hidden h-1.5 w-28 overflow-hidden rounded-full bg-accent sm:block" aria-hidden>
                 <span className="block h-full rounded-full bg-royal" style={{ width: `${total > 0 ? Math.max(3, (sub / total) * 100) : 0}%` }} />
               </span>
@@ -135,7 +169,7 @@ export function BoqBoard(p: BoardProps) {
             </button>
 
             {open && (
-              <ul className="border-t border-border">
+              <ul className="border-t border-border/60">
                 {shown.map((r) => {
                   const a = assessments.get(r.key);
                   const state = a?.state ?? "confirmed";

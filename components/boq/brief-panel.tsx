@@ -243,10 +243,10 @@ export function PlanRoomsEditor({
     onChange([...rooms, { id: `m${Date.now()}`, name: "New room", boqRoom: BOQ_ROOMS[0], l: 0, b: 0, h: 10, source: "entered" }]);
   const num = (v: string) => Math.max(0, Number(v) || 0);
   return (
-    <section className="rounded-xl border border-border bg-card p-4">
+    <section className="rounded-xl border border-border/60 bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-[0.95rem] font-medium">Rooms read from the plan</h3>
+          <h3 className="font-heading text-[1.8rem] leading-none uppercase">Rooms read from the plan</h3>
           <p className="text-[0.85rem] text-muted-foreground">Feet. Correct a size, then recalculate — quantities follow.</p>
         </div>
         <div className="flex gap-2">
@@ -340,7 +340,7 @@ export function BriefNotes({ result }: { result: Pick<BriefResult, "warnings" | 
   return (
     <section className="grid gap-4 md:grid-cols-2">
       {shown.map(([title, list]) => (
-        <div key={title} className="rounded-xl border border-border bg-card p-4">
+        <div key={title} className="rounded-xl border border-border/60 bg-card p-4">
           <h3 className="text-[0.95rem] font-medium">{title}</h3>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-[0.85rem] text-muted-foreground">
             {list.map((t, i) => (

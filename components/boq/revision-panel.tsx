@@ -37,7 +37,7 @@ export function RevisionPanel({
   const snap = revisions.find((r) => r.n === sel) ?? null;
   const diff = useMemo(() => (snap ? diffRevisions(snap, { lines: current }) : null), [snap, current]);
   return (
-    <section className="rounded-3xl border border-border bg-card p-5">
+    <section className="rounded-3xl border border-border/60 bg-card p-5">
       <div className="flex flex-wrap items-center gap-3">
         <span className={"rounded px-2 py-0.5 text-[0.85rem] " + TONE[status]}>{LABEL[status]}</span>
         <span className="text-[0.9rem]">Revision {revision}</span>

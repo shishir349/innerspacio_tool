@@ -100,10 +100,10 @@ export function ScopeReview({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card p-4">
+    <section className="rounded-xl border border-border/60 bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-[0.95rem] font-medium">Scope review {approved && <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-[0.78rem] text-royal">Approved</span>}</h3>
+          <h3 className="font-heading text-[1.8rem] leading-none uppercase">Scope review {approved && <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-[0.78rem] text-royal">Approved</span>}</h3>
           <p className="text-[0.85rem] text-muted-foreground">
             What the AI read from the brief. Set what is new, replaced, retained, refurbished or excluded, fix any size, then update the BOQ and approve. Retained and excluded items are never priced.
           </p>

@@ -92,7 +92,7 @@
 :root {
   /* Blueprint: cream drafting paper, royal-blue ink. Everything else is a tint of these two. */
   --cream: #f8f3f0;
-  --paper: #f8f3f0;
+  --paper: #fffcfa;
   --royal: #014baa;
   --royal-deep: #01367a;
   --navy: #051836;
@@ -105,9 +105,9 @@
 
   --background: #f8f3f0;
   --foreground: #0a1d42;
-  --card: #f8f3f0;
+  --card: #fffcfa;
   --card-foreground: #0a1d42;
-  --popover: #f8f3f0;
+  --popover: #fffcfa;
   --popover-foreground: #0a1d42;
   --primary: #014baa;
   --primary-foreground: #f8f3f0;
