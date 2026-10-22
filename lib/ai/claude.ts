@@ -87,6 +87,25 @@ const ANALYSIS_TOOL: Anthropic.Tool = {
         items: { type: "string" },
         description: "A draft list of potential renovation work items — not a priced estimate.",
       },
+      elevateIdeas: {
+        type: "array",
+        description:
+          "6-10 specific ways an interior designer could lift THIS room, each grounded in what is visible. Spread them across effort tiers. Never give prices.",
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string", description: "Short and specific, e.g. \"Cove lighting behind the TV wall\"." },
+            why: { type: "string", description: "One sentence: what it fixes or adds in this room." },
+            effort: {
+              type: "string",
+              enum: ["quick_win", "medium", "big"],
+              description: "quick_win = styling, lighting, paint, soft furnishings (days). medium = new joinery or a feature wall. big = layout, ceiling, flooring or services change.",
+            },
+            area: { type: "string", description: "The work category, e.g. Paint & Polish, False Ceiling, Modular Woodwork, Furnishings & Décor, Electrical & AC Works." },
+          },
+          required: ["title", "why", "effort", "area"],
+        },
+      },
     },
     required: [
       "observedRoomType",
@@ -106,6 +125,7 @@ const ANALYSIS_TOOL: Anthropic.Tool = {
       "questionsForClient",
       "designBrief",
       "draftRenovationWorkItems",
+      "elevateIdeas",
     ],
   },
 };
@@ -152,6 +172,8 @@ Keep three categories of information strictly separate, and never blur them toge
 3. UNCERTAINTY — never invent exact measurements, hidden plumbing or electrical routing, structural condition (e.g. which walls are load-bearing), or anything else a photograph genuinely cannot show. Put these explicitly in uncertaintiesRequiringSiteVisit and questionsForClient rather than guessing a number or a condition.
 
 potentialConstraints is for limitations you can actually SEE in the photo (a narrow doorway, a low beam, a fixed window) — do not put things there that you're actually just guessing at; those belong in uncertaintiesRequiringSiteVisit instead.
+
+elevateIdeas is the "how do we take this room up a level" list: concrete, visible-grounded ideas an interior designer could propose (lighting layers, ceiling and wall treatments, joinery, textiles, art, colour, styling), ranked across quick_win / medium / big. No prices.
 
 Call the ${ANALYSIS_TOOL_NAME} tool exactly once with your full structured analysis.`;
 }

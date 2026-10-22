@@ -10,6 +10,24 @@ const validBase = {
   designBrief: "Warm minimal bedroom refresh with better storage.",
 };
 
+describe("elevateIdeas", () => {
+  it("defaults to [] so analyses saved before the field existed still parse", () => {
+    expect(roomAnalysisContentSchema.parse(validBase).elevateIdeas).toEqual([]);
+  });
+
+  it("keeps a valid idea and falls back to medium effort for an unknown tier", () => {
+    const parsed = roomAnalysisContentSchema.parse({
+      ...validBase,
+      elevateIdeas: [
+        { title: "Layered cove lighting", why: "Warm indirect light makes the ceiling read taller.", effort: "quick_win", area: "False Ceiling" },
+        { title: "Panelled feature wall", why: "Gives the bed wall depth.", effort: "huge" },
+      ],
+    });
+    expect(parsed.elevateIdeas.map((i) => i.effort)).toEqual(["quick_win", "medium"]);
+    expect(parsed.elevateIdeas[1].area).toBe("");
+  });
+});
+
 describe("roomAnalysisContentSchema", () => {
   it("accepts a fully populated, valid payload", () => {
     const parsed = roomAnalysisContentSchema.parse({

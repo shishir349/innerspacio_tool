@@ -16,6 +16,18 @@ import { z } from "zod";
  * - Uncertainty: potentialConstraints, uncertaintiesRequiringSiteVisit,
  *   questionsForClient.
  */
+export const ELEVATE_EFFORTS = ["quick_win", "medium", "big"] as const;
+
+/** One way to lift the room. Effort is a size of change, never a price: no cost is guessed here. */
+export const elevateIdeaSchema = z.object({
+  title: z.string().min(1).max(120),
+  why: z.string().max(400).default(""),
+  effort: z.enum(ELEVATE_EFFORTS).catch("medium"),
+  /** The BOQ trade this work would fall under, so it can later become a BOQ line. */
+  area: z.string().max(80).default(""),
+});
+export type ElevateIdea = z.infer<typeof elevateIdeaSchema>;
+
 export const roomAnalysisContentSchema = z.object({
   observedRoomType: z.string().min(1),
   visibleArchitecturalFeatures: z.array(z.string()).default([]),
@@ -34,6 +46,7 @@ export const roomAnalysisContentSchema = z.object({
   questionsForClient: z.array(z.string()).default([]),
   designBrief: z.string().min(1),
   draftRenovationWorkItems: z.array(z.string()).default([]),
+  elevateIdeas: z.array(elevateIdeaSchema).max(12).default([]),
 });
 
 export type RoomAnalysisContent = z.infer<typeof roomAnalysisContentSchema>;

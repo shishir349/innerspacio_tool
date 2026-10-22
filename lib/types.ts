@@ -135,6 +135,8 @@ export interface RoomAnalysis {
   questionsForClient: string[];
   designBrief: string;
   draftRenovationWorkItems: string[];
+  /** "Elevate this room": ranked by size of change. Absent on analyses saved before this existed. */
+  elevateIdeas?: { title: string; why: string; effort: "quick_win" | "medium" | "big"; area: string }[];
   /** Model/provider metadata, for the "AI suggestions — verify on site" audit trail. */
   generatedAt: string;
   model: string;

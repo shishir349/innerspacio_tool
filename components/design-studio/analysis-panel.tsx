@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import type { Room } from "@/lib/types";
+import type { Room, RoomAnalysis } from "@/lib/types";
 import { AlertTriangle, ArrowRight, Loader2, Sparkles } from "lucide-react";
 
 function Bullets({ items }: { items: string[] }) {
@@ -18,6 +18,46 @@ function Bullets({ items }: { items: string[] }) {
         <li key={i}>{item}</li>
       ))}
     </ul>
+  );
+}
+
+const EFFORT_COLUMNS = [
+  { key: "quick_win", label: "Quick wins", hint: "Days. Styling, lighting, paint, soft furnishings." },
+  { key: "medium", label: "Medium", hint: "New joinery or a feature wall." },
+  { key: "big", label: "Big moves", hint: "Layout, ceiling, flooring or services." },
+] as const;
+
+/** "Elevate this room": the AI's ideas, grouped by size of change. Verify on site; nothing here is priced. */
+function ElevateSection({ ideas }: { ideas: RoomAnalysis["elevateIdeas"] }) {
+  if (!ideas || ideas.length === 0) return null;
+  return (
+    <div>
+      <p className="font-heading mb-3 text-[2rem] leading-none uppercase text-royal">Elevate this room</p>
+      <div className="grid gap-4 md:grid-cols-3">
+        {EFFORT_COLUMNS.map((col) => {
+          const list = ideas.filter((i) => i.effort === col.key);
+          return (
+            <div key={col.key} className="rounded-2xl border border-border/60 bg-card p-4">
+              <p className="font-semibold">{col.label}</p>
+              <p className="mb-3 text-[0.78rem] text-muted-foreground">{col.hint}</p>
+              {list.length === 0 ? (
+                <p className="text-[0.85rem] text-muted-foreground">Nothing suggested.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {list.map((i, n) => (
+                    <li key={n}>
+                      <p className="text-[0.92rem] font-medium">{i.title}</p>
+                      {i.why && <p className="text-[0.85rem] text-muted-foreground">{i.why}</p>}
+                      {i.area && <span className="mt-1 inline-block rounded-full border border-royal px-2 py-0.5 text-[0.72rem] text-royal">{i.area}</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -176,6 +216,8 @@ export function AnalysisPanel({
                 </Field>
               </div>
             </div>
+
+            <ElevateSection ideas={analysis.elevateIdeas ?? []} />
 
             <Separator />
 
